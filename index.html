@@ -310,43 +310,131 @@
 
   .btn-start:hover::after { transform: translateX(100%); }
 
-  /* ===== PROGRESS BAR ===== */
-  .progress-bar {
+  /* ===== SIDE PROGRESS PANEL ===== */
+  .side-progress {
     position: fixed;
-    top: 0; left: 0; right: 0;
+    left: 0; top: 0; bottom: 0;
+    width: 100px;
     z-index: 100;
-    padding: 10px 16px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    background: rgba(10,10,26,0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
+    justify-content: center;
+    gap: 0;
+    background: rgba(10,10,26,0.85);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255,255,255,0.1);
+    padding: 20px 0;
   }
 
-  .progress-bar.hidden { display:none; }
+  .side-progress.hidden { display: none; }
 
-  .stage-dots {
+  .side-step {
     display: flex;
-    gap: 6px;
-    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
   }
 
-  .stage-dot {
-    width: 44px; height: 44px;
+  .side-dot {
+    width: 64px; height: 64px;
     border-radius: 50%;
-    border: 2px solid var(--border);
+    border: 3px solid #ff1744;
+    background: rgba(255,23,68,0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.4);
-    transition: all 0.4s;
-    flex-shrink: 0;
-    text-align: center;
-    line-height: 1.2;
+    transition: all 0.5s;
+    position: relative;
   }
+
+  .side-dot-icon {
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  /* Red = not done */
+  .side-dot.pending {
+    border-color: #ff1744;
+    background: rgba(255,23,68,0.15);
+    box-shadow: 0 0 12px rgba(255,23,68,0.4);
+  }
+
+  /* Cyan = current */
+  .side-dot.active {
+    border-color: var(--cyan);
+    background: rgba(0,245,255,0.15);
+    box-shadow: 0 0 20px rgba(0,245,255,0.6);
+    animation: side-pulse 1.5s infinite;
+  }
+
+  @keyframes side-pulse {
+    0%,100% { box-shadow: 0 0 16px rgba(0,245,255,0.5); }
+    50% { box-shadow: 0 0 32px rgba(0,245,255,0.9); }
+  }
+
+  /* Green = done */
+  .side-dot.done {
+    border-color: var(--green);
+    background: rgba(0,230,118,0.2);
+    box-shadow: 0 0 16px rgba(0,230,118,0.5);
+  }
+
+  .side-dot.done::after {
+    content: '✓';
+    position: absolute;
+    bottom: -2px; right: -2px;
+    width: 22px; height: 22px;
+    background: var(--green);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 900;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .side-line {
+    width: 3px;
+    height: 28px;
+    background: rgba(255,23,68,0.4);
+    transition: background 0.5s;
+    margin: 4px 0;
+  }
+
+  .side-line.done { background: rgba(0,230,118,0.6); }
+
+  .side-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  /* Push stage content to right when side panel is shown */
+  #screen-stage.active {
+    padding-left: 116px;
+  }
+
+  /* Top bar for stage title */
+  .stage-topbar {
+    position: fixed;
+    top: 0; left: 100px; right: 0;
+    z-index: 99;
+    padding: 12px 20px;
+    background: rgba(10,10,26,0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .stage-topbar.hidden { display: none; }
 
   .stage-dot.done {
     background: linear-gradient(135deg, var(--green), #00c853);
@@ -833,15 +921,35 @@
 </head>
 <body>
 
-<!-- ===== PROGRESS BAR ===== -->
-<div class="progress-bar hidden" id="progress-bar">
-  <div class="stage-dots" id="stage-dots">
-    <div class="stage-dot" id="dot-1">振<br><span class="stage-dot-label">搖</span></div>
-    <div class="stage-dot" id="dot-2">吐<br><span class="stage-dot-label">氣</span></div>
-    <div class="stage-dot" id="dot-3">壓吸<br><span class="stage-dot-label">憋</span></div>
-    <div class="stage-dot" id="dot-4">漱<br><span class="stage-dot-label">口</span></div>
+<!-- ===== LEFT SIDE PROGRESS PANEL ===== -->
+<div class="side-progress hidden" id="side-progress">
+  <div class="side-step" id="side-step-1">
+    <div class="side-dot" id="side-dot-1">
+      <span class="side-dot-icon">🫙</span>
+    </div>
+    <div class="side-line" id="side-line-1"></div>
+    <div class="side-label">振搖</div>
   </div>
-  <div class="progress-title" id="progress-title">吸藥闖關挑戰</div>
+  <div class="side-step" id="side-step-2">
+    <div class="side-dot" id="side-dot-2">
+      <span class="side-dot-icon">💨</span>
+    </div>
+    <div class="side-line" id="side-line-2"></div>
+    <div class="side-label">吐氣</div>
+  </div>
+  <div class="side-step" id="side-step-3">
+    <div class="side-dot" id="side-dot-3">
+      <span class="side-dot-icon">🫁</span>
+    </div>
+    <div class="side-line" id="side-line-3"></div>
+    <div class="side-label">壓吸憋</div>
+  </div>
+  <div class="side-step" id="side-step-4">
+    <div class="side-dot" id="side-dot-4">
+      <span class="side-dot-icon">💧</span>
+    </div>
+    <div class="side-label">漱口</div>
+  </div>
 </div>
 
 <!-- ===== INTRO SCREEN ===== -->
@@ -891,6 +999,7 @@
 </div>
 
 <!-- ===== STAGE SCREEN ===== -->
+<div class="stage-topbar hidden" id="stage-topbar"></div>
 <div class="screen" id="screen-stage">
   <div class="stage-container" id="stage-container">
 
@@ -1090,7 +1199,14 @@ function showScreen(id) {
 
 function startGame() {
   currentStage = 0;
-  document.getElementById('progress-bar').classList.remove('hidden');
+  document.getElementById('side-progress').classList.remove('hidden');
+  document.getElementById('stage-topbar').classList.remove('hidden');
+  // init all dots as pending
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('side-dot-'+i);
+    dot.classList.remove('done','active');
+    dot.classList.add('pending');
+  }
   showScreen('screen-stage');
   loadStage(0);
 }
@@ -1099,23 +1215,35 @@ function restartGame() {
   document.querySelectorAll('.confetti-piece').forEach(c => c.remove());
   currentStage = 0;
   showScreen('screen-intro');
-  document.getElementById('progress-bar').classList.add('hidden');
+  document.getElementById('side-progress').classList.add('hidden');
+  document.getElementById('stage-topbar').classList.add('hidden');
   resetDots();
 }
 
 function resetDots() {
   for(let i=1;i<=4;i++){
-    const d = document.getElementById('dot-'+i);
-    d.classList.remove('done','active');
+    const dot = document.getElementById('side-dot-'+i);
+    if(dot) dot.classList.remove('done','active','pending');
+    const line = document.getElementById('side-line-'+i);
+    if(line) line.classList.remove('done');
   }
 }
 
 function updateDots(stageIdx) {
   for(let i=0;i<4;i++){
-    const d = document.getElementById('dot-'+(i+1));
-    d.classList.remove('done','active');
-    if(i < stageIdx) d.classList.add('done');
-    else if(i === stageIdx) d.classList.add('active');
+    const dot = document.getElementById('side-dot-'+(i+1));
+    const line = document.getElementById('side-line-'+(i+1));
+    dot.classList.remove('done','active','pending');
+    if(i < stageIdx) {
+      dot.classList.add('done');
+      if(line) line.classList.add('done');
+    } else if(i === stageIdx) {
+      dot.classList.add('active');
+      if(line) line.classList.remove('done');
+    } else {
+      dot.classList.add('pending');
+      if(line) line.classList.remove('done');
+    }
   }
 }
 
@@ -1134,7 +1262,7 @@ async function loadStage(idx) {
   document.getElementById('stage-title').textContent = stage.name;
   document.getElementById('stage-title').className = 'stage-title-text ' + stage.titleClass;
   document.getElementById('stage-hint').textContent = stage.hint;
-  document.getElementById('progress-title').textContent = stage.badge + '｜' + stage.name;
+  document.getElementById('stage-topbar').textContent = stage.badge + '｜' + stage.name;
 
   // Video area - YouTube iframe embed
   const videoId = stage.videoURL.split('youtu.be/')[1] || stage.videoURL.split('v=')[1];
@@ -1390,9 +1518,12 @@ function passStage() {
   nextBtn.textContent = isLast ? '🏆 完成挑戰！' : '很棒！進入下一關 →';
   nextBtn.className = 'btn-action btn-next visible';
 
-  // Mark dot as done
-  document.getElementById('dot-'+(currentStage+1)).classList.remove('active');
-  document.getElementById('dot-'+(currentStage+1)).classList.add('done');
+  // Mark side dot as done
+  const doneDot = document.getElementById('side-dot-'+(currentStage+1));
+  doneDot.classList.remove('active','pending');
+  doneDot.classList.add('done');
+  const doneLine = document.getElementById('side-line-'+(currentStage+1));
+  if(doneLine) doneLine.classList.add('done');
 
   // Remove any manual buttons
   document.querySelectorAll('.btn-primary[onclick="passStage()"]').forEach(b => b.remove());
@@ -1409,7 +1540,8 @@ function nextStage() {
 
 function showSuccessScreen() {
   stopWebcam();
-  document.getElementById('progress-bar').classList.add('hidden');
+  document.getElementById('side-progress').classList.add('hidden');
+  document.getElementById('stage-topbar').classList.add('hidden');
   showScreen('screen-success');
   launchConfetti();
 }
