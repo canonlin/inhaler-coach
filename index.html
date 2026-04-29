@@ -1335,12 +1335,14 @@ async function startAIPhase() {
     document.getElementById('status-box').textContent = '⏳ 等待藥師確認振搖動作...';
     document.getElementById('ai-results').innerHTML = '<div style="text-align:center;padding:20px;font-size:15px;color:rgba(255,255,255,0.6);">藥師確認後請點擊「手動通過」</div>';
 
-    // Show manual pass button
+    // Show manual pass button - INSERT BEFORE next button
     const manualBtn = document.createElement('button');
     manualBtn.className = 'btn-action btn-primary';
-    manualBtn.textContent = '✅ 藥師確認通過';
+    manualBtn.style.background = 'linear-gradient(135deg, #ff3cac, #784ba0)';
+    manualBtn.innerHTML = '✅ 藥師確認通過';
     manualBtn.onclick = () => passStage();
-    document.getElementById('button-row').appendChild(manualBtn);
+    const buttonRow = document.getElementById('button-row');
+    buttonRow.insertBefore(manualBtn, buttonRow.firstChild);
     return;
   }
 
@@ -1512,11 +1514,13 @@ function passStage() {
     ? '🎉 完美！您已學會所有步驟！'
     : '🎉 太棒了！進入下一關！';
 
-  // Show next button
+  // Show next button (appended after manual btn if exists)
   const nextBtn = document.getElementById('btn-next');
   nextBtn.style.display = 'inline-block';
   nextBtn.textContent = isLast ? '🏆 完成挑戰！' : '很棒！進入下一關 →';
   nextBtn.className = 'btn-action btn-next visible';
+  // Move next button to END of button-row (right side)
+  document.getElementById('button-row').appendChild(nextBtn);
 
   // Mark side dot as done
   const doneDot = document.getElementById('side-dot-'+(currentStage+1));
