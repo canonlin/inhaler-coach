@@ -314,17 +314,17 @@
   .side-progress {
     position: fixed;
     left: 0; top: 0; bottom: 0;
-    width: 100px;
+    width: 140px;
     z-index: 100;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0;
-    background: rgba(10,10,26,0.85);
+    background: rgba(10,10,26,0.90);
     backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(255,255,255,0.1);
-    padding: 20px 0;
+    border-right: 1px solid rgba(255,255,255,0.12);
+    padding: 24px 0;
   }
 
   .side-progress.hidden { display: none; }
@@ -337,9 +337,9 @@
   }
 
   .side-dot {
-    width: 64px; height: 64px;
+    width: 84px; height: 84px;
     border-radius: 50%;
-    border: 3px solid #ff1744;
+    border: 4px solid #ff1744;
     background: rgba(255,23,68,0.15);
     display: flex;
     align-items: center;
@@ -349,45 +349,42 @@
   }
 
   .side-dot-icon {
-    font-size: 26px;
+    font-size: 36px;
     line-height: 1;
   }
 
-  /* Red = not done */
   .side-dot.pending {
     border-color: #ff1744;
     background: rgba(255,23,68,0.15);
-    box-shadow: 0 0 12px rgba(255,23,68,0.4);
+    box-shadow: 0 0 14px rgba(255,23,68,0.4);
   }
 
-  /* Cyan = current */
   .side-dot.active {
     border-color: var(--cyan);
     background: rgba(0,245,255,0.15);
-    box-shadow: 0 0 20px rgba(0,245,255,0.6);
+    box-shadow: 0 0 24px rgba(0,245,255,0.7);
     animation: side-pulse 1.5s infinite;
   }
 
   @keyframes side-pulse {
-    0%,100% { box-shadow: 0 0 16px rgba(0,245,255,0.5); }
-    50% { box-shadow: 0 0 32px rgba(0,245,255,0.9); }
+    0%,100% { box-shadow: 0 0 18px rgba(0,245,255,0.5); }
+    50% { box-shadow: 0 0 36px rgba(0,245,255,1); }
   }
 
-  /* Green = done */
   .side-dot.done {
     border-color: var(--green);
     background: rgba(0,230,118,0.2);
-    box-shadow: 0 0 16px rgba(0,230,118,0.5);
+    box-shadow: 0 0 18px rgba(0,230,118,0.6);
   }
 
   .side-dot.done::after {
     content: '✓';
     position: absolute;
     bottom: -2px; right: -2px;
-    width: 22px; height: 22px;
+    width: 28px; height: 28px;
     background: var(--green);
     border-radius: 50%;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 900;
     color: #000;
     display: flex;
@@ -396,33 +393,32 @@
   }
 
   .side-line {
-    width: 3px;
-    height: 28px;
+    width: 4px;
+    height: 24px;
     background: rgba(255,23,68,0.4);
     transition: background 0.5s;
-    margin: 4px 0;
+    margin: 6px 0;
   }
 
-  .side-line.done { background: rgba(0,230,118,0.6); }
+  .side-line.done { background: rgba(0,230,118,0.7); }
 
   .side-label {
-    font-size: 14px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.8);
-    margin-bottom: 4px;
-    letter-spacing: 1px;
+    font-size: 17px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 6px;
+    letter-spacing: 2px;
     text-align: center;
   }
 
   /* Push stage content to right when side panel is shown */
   #screen-stage.active {
-    padding-left: 116px;
+    padding-left: 156px;
   }
 
-  /* Top bar for stage title */
   .stage-topbar {
     position: fixed;
-    top: 0; left: 100px; right: 0;
+    top: 0; left: 140px; right: 0;
     z-index: 99;
     padding: 12px 20px;
     background: rgba(10,10,26,0.92);
