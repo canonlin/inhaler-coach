@@ -1384,37 +1384,26 @@ async function startAIPhase() {
   document.getElementById('status-box').textContent = '🤖 AI 偵測中，請開始操作...';
 
   if(stage.isIntro) {
-    // Intro: stop video and go to stage 1
     document.getElementById('video-iframe').src = '';
     currentStage = 1;
     loadStage(1);
     return;
   }
 
-  if(stage.manualPass) {
-    document.getElementById('ai-section').style.display = 'none';
-    document.getElementById('manual-note').style.display = 'block';
-    document.getElementById('status-box').className = 'status-box detecting';
-    document.getElementById('status-box').textContent = '⏳ 等待藥師確認振搖動作...';
-    document.getElementById('ai-results').innerHTML = '<div style="text-align:center;padding:20px;font-size:15px;color:rgba(255,255,255,0.6);">藥師確認後請點擊按鈕通過</div>';
-    // Show permanent pharmacist button
-    document.getElementById('btn-pharmacist').style.display = 'inline-block';
-    return;
-  }
-
   // Show pharmacist confirm button for all stages
-  if(stage.showPharmacist) {
-    document.getElementById('btn-pharmacist').style.display = 'inline-block';
-  }
+  document.getElementById('btn-pharmacist').style.display = 'inline-block';
+  document.getElementById('ai-section').style.display = 'block';
+  document.getElementById('video-section').style.display = 'none';
 
   if(!model) {
     document.getElementById('status-box').textContent = '⏳ 模型載入中，請稍候...';
     await loadModel(stage.modelURL, stage.modelType || 'image');
   }
 
-  // Start webcam
+  // Start webcam - use tmPose for pose models, tmImage for image models
   try {
-    webcam = new tmImage.Webcam(280, 210, true);
+    const WebcamClass = (stage.modelType === 'pose') ? tmPose.Webcam : tmImage.Webcam;
+    webcam = new WebcamClass(280, 210, true);
     await webcam.setup({ facingMode: 'user' });
     await webcam.play();
     const canvas = document.getElementById('webcam-canvas');
@@ -1422,13 +1411,13 @@ async function startAIPhase() {
     isRunning = true;
     passTimer = 0;
     passTimestamp = 0;
+    holdCountdown = 0;
     predictionLoop();
   } catch(e) {
     document.getElementById('status-box').className = 'status-box fail';
     document.getElementById('status-box').textContent = '❌ 無法啟動攝影機，請確認瀏覽器權限';
   }
 }
-
 function stopWebcam() {
   isRunning = false;
   if(webcam) {
