@@ -1101,6 +1101,7 @@
 <!-- ===== SCRIPTS ===== -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@latest/dist/teachablemachine-pose.min.js"></script>
 <script>
 
 // ===== STAGE CONFIG =====
@@ -1132,13 +1133,14 @@ const STAGES = [
     stepInstruction: '拿起吸入器，上下搖勻約 5 秒',
     stepSub: '讓藥物充分混合，每次使用前都要搖',
     videoURL: 'https://www.youtube.com/embed/itUWRBAkbR4?rel=0&modestbranding=1',
-    modelURL: null,
+    modelURL: 'https://teachablemachine.withgoogle.com/models/UGnA1m9ww/',
+    modelType: 'pose',
     passThreshold: 0.85,
     passSeconds: 3,
-    manualPass: true,
+    manualPass: false,
     badgeClass: 'stage-number-badge-1',
     titleClass: 'stage-title-1',
-    failHint: '請重新搖勻',
+    failHint: '請重新搖勻，動作要明顯',
     specialMode: 'shake',
   },
   {
@@ -1202,6 +1204,7 @@ const STAGES = [
 // ===== STATE =====
 let currentStage = 0;
 let model = null;
+let modelType = 'image';
 let webcam = null;
 let isRunning = false;
 let passTimer = 0;
@@ -1334,17 +1337,25 @@ async function loadStage(idx) {
 
   // Preload model in background
   if(stage.modelURL) {
-    loadModel(stage.modelURL);
+    loadModel(stage.modelURL, stage.modelType || 'image');
   } else {
     document.getElementById('ai-model-label').textContent = stage.isIntro ? '開場影片' : '藥師人工確認';
   }
 }
 
-async function loadModel(url) {
+async function loadModel(url, type) {
   try {
-    const modelURL = url + 'model.json';
-    const metadataURL = url + 'metadata.json';
-    model = await tmImage.load(modelURL, metadataURL);
+    if(type === 'pose') {
+      const modelURL = url + 'model.json';
+      const metadataURL = url + 'metadata.json';
+      model = await tmPose.load(modelURL, metadataURL);
+      modelType = 'pose';
+    } else {
+      const modelURL = url + 'model.json';
+      const metadataURL = url + 'metadata.json';
+      model = await tmImage.load(modelURL, metadataURL);
+      modelType = 'image';
+    }
     document.getElementById('ai-model-label').textContent = '✅ 模型就緒';
   } catch(e) {
     document.getElementById('ai-model-label').textContent = '❌ 模型載入失敗';
@@ -1389,7 +1400,7 @@ async function startAIPhase() {
 
   if(!model) {
     document.getElementById('status-box').textContent = '⏳ 模型載入中，請稍候...';
-    await loadModel(stage.modelURL);
+    await loadModel(stage.modelURL, stage.modelType || 'image');
   }
 
   // Start webcam
@@ -1425,7 +1436,14 @@ async function predictionLoop() {
   const ctx = document.getElementById('webcam-canvas').getContext('2d');
   ctx.drawImage(webcam.canvas, 0, 0);
 
-  const predictions = await model.predict(webcam.canvas);
+  let predictions;
+  if(modelType === 'pose') {
+    const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+    predictions = await model.predict(posenetOutput);
+  } else {
+    predictions = await model.predict(webcam.canvas);
+  }
+
   updateResultBars(predictions);
   evaluatePredictions(predictions);
 
