@@ -1349,21 +1349,20 @@ async function loadStage(idx) {
 
 async function loadModel(url, type) {
   try {
-    if(type === 'pose') {
-      const modelURL = url + 'model.json';
-      const metadataURL = url + 'metadata.json';
+    const modelURL = url + 'model.json';
+    const metadataURL = url + 'metadata.json';
+    if(type === 'pose' && typeof tmPose !== 'undefined') {
       model = await tmPose.load(modelURL, metadataURL);
       modelType = 'pose';
+      document.getElementById('ai-model-label').textContent = '✅ Pose 模型就緒';
     } else {
-      const modelURL = url + 'model.json';
-      const metadataURL = url + 'metadata.json';
       model = await tmImage.load(modelURL, metadataURL);
       modelType = 'image';
+      document.getElementById('ai-model-label').textContent = '✅ 模型就緒';
     }
-    document.getElementById('ai-model-label').textContent = '✅ 模型就緒';
   } catch(e) {
-    document.getElementById('ai-model-label').textContent = '❌ 模型載入失敗';
-    console.error(e);
+    console.error('Model load error:', e);
+    document.getElementById('ai-model-label').textContent = '❌ 載入失敗，請重整頁面';
   }
 }
 
@@ -1400,10 +1399,9 @@ async function startAIPhase() {
     await loadModel(stage.modelURL, stage.modelType || 'image');
   }
 
-  // Start webcam - use tmPose for pose models, tmImage for image models
+  // Start webcam - tmImage.Webcam works for both image and pose models
   try {
-    const WebcamClass = (stage.modelType === 'pose') ? tmPose.Webcam : tmImage.Webcam;
-    webcam = new WebcamClass(280, 210, true);
+    webcam = new tmImage.Webcam(280, 210, true);
     await webcam.setup({ facingMode: 'user' });
     await webcam.play();
     const canvas = document.getElementById('webcam-canvas');
