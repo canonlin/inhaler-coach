@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Inhaler Coach｜吸必擴智慧教學平台</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Orbitron:wght@700;900&display=swap');
+
+  :root {
+    --pink: #ff3cac;
+    --purple: #784ba0;
+    --blue: #2b86c5;
+    --cyan: #00f5ff;
+    --gold: #ffd700;
+    --green: #00e676;
+    --bg: #0a0a1a;
+    --card: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(120,75,160,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(43,134,197,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(255,60,172,0.1) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== SCREENS ===== */
+  .screen { display:none; position:relative; z-index:1; min-height:100vh; }
+  .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+
+  /* ===== INTRO SCREEN ===== */
+  #screen-intro {
+    text-align: center;
+    padding: 20px 16px;
+    width: 100%;
+  }
+
+  .title-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+    padding: 4px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.8; transform:scale(1.02); }
+  }
+
+  .main-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 0%, var(--cyan) 50%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+
+  .sub-title {
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 700;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 16px;
+  }
+
+  .inhaler-hero {
+    margin: 10px 0 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .inhaler-img {
+    width: clamp(180px, 28vw, 260px);
+    height: auto;
+    filter: drop-shadow(0 0 30px rgba(0, 245, 255, 0.5)) drop-shadow(0 0 60px rgba(255, 60, 172, 0.3));
+    animation: float 3s ease-in-out infinite;
+    border-radius: 12px;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(-2deg); }
+    50% { transform: translateY(-12px) rotate(2deg); }
+  }
+
+  /* ===== INTRO HERO ROW ===== */
+  .intro-hero-row {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin: 16px 0 24px 0;
+    width: 100%;
+    max-width: 680px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 24px 28px;
+  }
+
+  .inhaler-img {
+    width: clamp(140px, 20vw, 200px);
+    height: auto;
+    filter: drop-shadow(0 0 20px rgba(0,245,255,0.5)) drop-shadow(0 0 40px rgba(255,60,172,0.3));
+    animation: float 3s ease-in-out infinite;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0px) rotate(-2deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+  }
+
+  .intro-title-block {
+    text-align: left;
+    flex: 1;
+  }
+
+  .main-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 5.5vw, 54px);
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 0%, var(--cyan) 50%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+
+  .sub-title {
+    font-size: clamp(14px, 2vw, 18px);
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 6px;
+  }
+
+  .sub-title2 {
+    font-size: clamp(16px, 2.5vw, 22px);
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 2px;
+  }
+
+  /* ===== 4-IN-A-ROW STEPS ===== */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 680px;
+    margin-bottom: 28px;
+  }
+
+  .step-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 10px;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    cursor: default;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1 / 1.1;
+  }
+
+  .step-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.13;
+    transition: opacity 0.3s;
+  }
+
+  .step-card:hover::before { opacity: 0.25; }
+  .step-card:hover { transform: translateY(-4px); }
+
+  .step-card-1 { background: rgba(255,100,60,0.18); border-color: rgba(255,120,60,0.55); }
+  .step-card-1::before { background: linear-gradient(135deg, #ff9a56, #ff6b6b); }
+  .step-card-2 { background: rgba(161,140,209,0.18); border-color: rgba(161,140,209,0.55); }
+  .step-card-2::before { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+  .step-card-3 { background: rgba(79,172,254,0.18); border-color: rgba(79,172,254,0.55); }
+  .step-card-3::before { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+  .step-card-4 { background: rgba(67,233,123,0.18); border-color: rgba(67,233,123,0.55); }
+  .step-card-4::before { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+  .step-card-num {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900;
+    color: #fff;
+    position: relative; z-index: 1;
+  }
+
+  .step-card-1 .step-card-num { background: linear-gradient(135deg, #ff9a56, #ff6b6b); }
+  .step-card-2 .step-card-num { background: linear-gradient(135deg, #a18cd1, #fbc2eb); color: #333; }
+  .step-card-3 .step-card-num { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #000; }
+  .step-card-4 .step-card-num { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #000; }
+
+  .step-card-emoji {
+    font-size: 32px;
+    position: relative; z-index: 1;
+  }
+
+  .step-card-label {
+    font-size: clamp(16px, 2.5vw, 22px);
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+    position: relative; z-index: 1;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .intro-tagline {
+    margin-top: 16px;
+    font-size: clamp(15px, 2.5vw, 18px);
+    color: var(--cyan);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* keep old classes for compatibility */
+  .steps-preview { display: none; }
+  .step-pill { display: none; }
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 18px 28px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+    width: 100%;
+  }
+
+  .step-pill:hover { transform:translateX(4px); border-color: var(--cyan); }
+
+  .step-num {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .step-pill:nth-child(1) .step-num { background: linear-gradient(135deg, #ff9a56, #ff6b6b); }
+  .step-pill:nth-child(2) .step-num { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+  .step-pill:nth-child(3) .step-num { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+  .step-pill:nth-child(4) .step-num { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+  .step-label { font-size: clamp(22px, 4vw, 28px); font-weight: 700; }
+  .step-emoji-icon { font-size: 28px; margin-left: auto; }
+
+  .btn-start {
+    background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+    border: none;
+    color: #fff;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    padding: 18px 60px;
+    border-radius: 50px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 0 30px rgba(255,60,172,0.5);
+    letter-spacing: 2px;
+  }
+
+  .btn-start:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 0 50px rgba(255,60,172,0.8);
+  }
+
+  .btn-start::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%);
+    transition: 0.5s;
+  }
+
+  .btn-start:hover::after { transform: translateX(100%); }
+
+  /* ===== SIDE PROGRESS PANEL ===== */
+  .side-progress {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 140px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: rgba(10,10,26,0.90);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255,255,255,0.12);
+    padding: 24px 0;
+  }
+
+  .side-progress.hidden { display: none; }
+
+  .side-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .side-dot {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: 4px solid #ff1744;
+    background: rgba(255,23,68,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.5s;
+    position: relative;
+  }
+
+  .side-dot-icon {
+    font-size: 36px;
+    line-height: 1;
+  }
+
+  .side-dot.pending {
+    border-color: #ff1744;
+    background: rgba(255,23,68,0.15);
+    box-shadow: 0 0 14px rgba(255,23,68,0.4);
+  }
+
+  .side-dot.active {
+    border-color: var(--cyan);
+    background: rgba(0,245,255,0.15);
+    box-shadow: 0 0 24px rgba(0,245,255,0.7);
+    animation: side-pulse 1.5s infinite;
+  }
+
+  @keyframes side-pulse {
+    0%,100% { box-shadow: 0 0 18px rgba(0,245,255,0.5); }
+    50% { box-shadow: 0 0 36px rgba(0,245,255,1); }
+  }
+
+  .side-dot.done {
+    border-color: var(--green);
+    background: rgba(0,230,118,0.2);
+    box-shadow: 0 0 18px rgba(0,230,118,0.6);
+  }
+
+  .side-dot.done::after {
+    content: '✓';
+    position: absolute;
+    bottom: -2px; right: -2px;
+    width: 28px; height: 28px;
+    background: var(--green);
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 900;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .side-line {
+    width: 4px;
+    height: 24px;
+    background: rgba(255,23,68,0.4);
+    transition: background 0.5s;
+    margin: 6px 0;
+  }
+
+  .side-line.done { background: rgba(0,230,118,0.7); }
+
+  .side-label {
+    font-size: 17px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  /* Push stage content to right when side panel is shown */
+  #screen-stage.active {
+    padding-left: 156px;
+  }
+
+  .stage-topbar {
+    position: fixed;
+    top: 0; left: 140px; right: 0;
+    z-index: 99;
+    padding: 12px 20px;
+    background: rgba(10,10,26,0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .stage-topbar.hidden { display: none; }
+
+  .stage-dot.done {
+    background: linear-gradient(135deg, var(--green), #00c853);
+    border-color: var(--green);
+    color: #000;
+    box-shadow: 0 0 15px rgba(0,230,118,0.5);
+  }
+
+  .stage-dot.active {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 15px rgba(0,245,255,0.5);
+    animation: dot-pulse 1.5s infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%,100% { box-shadow: 0 0 15px rgba(0,245,255,0.5); }
+    50% { box-shadow: 0 0 30px rgba(0,245,255,0.9); }
+  }
+
+  .stage-dot-label { font-size: 9px; }
+
+  .progress-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+    color: rgba(255,255,255,0.9);
+  }
+
+  /* ===== STAGE SCREENS ===== */
+  #screen-stage {
+    padding-top: 80px;
+  }
+
+  .stage-container {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .stage-header {
+    text-align: center;
+  }
+
+  .stage-number-badge {
+    display: inline-block;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .stage-title-text {
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  /* Video section */
+  .video-section {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+
+  .video-label {
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .video-body {
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .video-iframe-wrap {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    background: #000;
+  }
+
+  .video-iframe-wrap iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+  }
+
+  /* AI Section */
+  .ai-section {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+
+  .ai-label {
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,245,255,0.05);
+  }
+
+  .ai-body {
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .webcam-container {
+    position: relative;
+    width: 280px;
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+
+  #webcam-canvas {
+    width: 100%;
+    border-radius: 12px;
+    background: #000;
+    display: block;
+    border: 2px solid var(--border);
+  }
+
+  .webcam-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    pointer-events: none;
+    border: 2px solid transparent;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .webcam-overlay.correct {
+    border-color: var(--green);
+    box-shadow: 0 0 20px rgba(0,230,118,0.5);
+  }
+
+  .webcam-overlay.wrong {
+    border-color: #ff1744;
+    box-shadow: 0 0 20px rgba(255,23,68,0.5);
+  }
+
+  .ai-results {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .result-label {
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 80px;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .result-bar-bg {
+    flex: 1;
+    height: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .result-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.2s;
+    min-width: 0;
+  }
+
+  .result-pct {
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* Status display */
+  .status-box {
+    width: 100%;
+    padding: 16px 24px;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    border: 2px solid;
+    transition: all 0.3s;
+  }
+
+  .status-box.waiting {
+    background: rgba(43,134,197,0.1);
+    border-color: rgba(43,134,197,0.4);
+    color: rgba(255,255,255,0.6);
+  }
+
+  .status-box.detecting {
+    background: rgba(0,245,255,0.1);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    animation: detecting-pulse 1s infinite;
+  }
+
+  @keyframes detecting-pulse {
+    0%,100% { box-shadow: none; }
+    50% { box-shadow: 0 0 20px rgba(0,245,255,0.3); }
+  }
+
+  .status-box.success {
+    background: rgba(0,230,118,0.1);
+    border-color: var(--green);
+    color: var(--green);
+    animation: success-flash 0.5s ease;
+  }
+
+  @keyframes success-flash {
+    0% { transform:scale(0.95); }
+    50% { transform:scale(1.02); }
+    100% { transform:scale(1); }
+  }
+
+  .status-box.fail {
+    background: rgba(255,23,68,0.1);
+    border-color: #ff1744;
+    color: #ff5252;
+  }
+
+  /* Countdown */
+  .countdown-display {
+    font-size: 72px;
+    font-weight: 900;
+    font-family: 'Orbitron', sans-serif;
+    text-align: center;
+    line-height: 1;
+    display: none;
+  }
+
+  .countdown-display.active {
+    display: block;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(255,215,0,0.8);
+    animation: countdown-anim 1s infinite;
+  }
+
+  @keyframes countdown-anim {
+    0% { transform:scale(1.1); }
+    100% { transform:scale(0.9); }
+  }
+
+  /* Buttons */
+  .btn-action {
+    padding: 14px 40px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(255,60,172,0.4);
+  }
+
+  .btn-primary:hover { transform:translateY(-2px); box-shadow: 0 8px 30px rgba(255,60,172,0.6); }
+
+  .btn-secondary {
+    background: var(--card);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .btn-next {
+    background: linear-gradient(135deg, var(--green), #00c853);
+    color: #000;
+    font-weight: 900;
+    box-shadow: 0 4px 20px rgba(0,230,118,0.4);
+    display: none;
+  }
+
+  .btn-next.visible {
+    display: inline-block;
+    animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes pop-in {
+    0% { transform:scale(0); opacity:0; }
+    100% { transform:scale(1); opacity:1; }
+  }
+
+  .btn-next:hover { transform:translateY(-2px) scale(1.03); }
+
+  .button-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ===== SUCCESS SCREEN ===== */
+  #screen-success {
+    text-align: center;
+  }
+
+  .stars-container {
+    font-size: 60px;
+    margin-bottom: 20px;
+    animation: star-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes star-pop {
+    0% { transform:scale(0) rotate(-20deg); opacity:0; }
+    100% { transform:scale(1) rotate(0deg); opacity:1; }
+  }
+
+  .success-title {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--gold), #ffab40, var(--gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    animation: success-title-in 0.6s 0.2s both;
+  }
+
+  @keyframes success-title-in {
+    0% { transform:translateY(20px); opacity:0; }
+    100% { transform:translateY(0); opacity:1; }
+  }
+
+  .success-sub { font-size: 20px; color: rgba(255,255,255,0.7); margin-bottom: 40px; }
+
+  .mantra-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 30px 40px;
+    margin-bottom: 40px;
+    backdrop-filter: blur(10px);
+    animation: success-title-in 0.6s 0.4s both;
+  }
+
+  .mantra-label { font-size: 14px; color: var(--cyan); letter-spacing: 3px; margin-bottom: 16px; }
+
+  .mantra-text {
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, #fff, var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stage-summary {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+    animation: success-title-in 0.6s 0.6s both;
+  }
+
+  .summary-chip {
+    background: rgba(0,230,118,0.1);
+    border: 1px solid var(--green);
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed;
+    width: 10px; height: 10px;
+    top: -10px;
+    animation: confetti-fall linear forwards;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0); opacity:1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity:0; }
+  }
+
+  /* Instruction hint */
+  .instruction-hint {
+    background: rgba(255,215,0,0.1);
+    border: 1px solid rgba(255,215,0,0.4);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 15px;
+    color: rgba(255,215,0,0.9);
+    text-align: center;
+    width: 100%;
+  }
+
+  /* Stage colors */
+  .stage-1 { --accent: #ff9a56; --accent2: #ff6b6b; }
+  .stage-2 { --accent: #a18cd1; --accent2: #fbc2eb; }
+  .stage-3 { --accent: #4facfe; --accent2: #00f2fe; }
+  .stage-4 { --accent: #43e97b; --accent2: #38f9d7; }
+
+  .stage-number-badge-1 { background: linear-gradient(135deg, #ff9a56, #ff6b6b); color: #000; }
+  .stage-number-badge-2 { background: linear-gradient(135deg, #a18cd1, #fbc2eb); color: #000; }
+  .stage-number-badge-3 { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #000; }
+  .stage-number-badge-4 { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #000; }
+
+  .stage-title-1 { color: #ff9a56; }
+  .stage-title-2 { color: #d4aaff; }
+  .stage-title-3 { color: #4facfe; }
+  .stage-title-4 { color: #43e97b; }
+
+  /* Manual pass for stage 1 */
+  .manual-note {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+    padding-top: 4px;
+  }
+
+  /* Shake visual indicator */
+  .shake-animation {
+    animation: shake-it 0.5s infinite;
+  }
+
+  @keyframes shake-it {
+    0%,100% { transform:rotate(-5deg) translateX(-3px); }
+    50% { transform:rotate(5deg) translateX(3px); }
+  }
+
+  @media (max-width: 600px) {
+    .steps-preview { flex-direction: column; align-items: center; }
+    .ai-body { flex-direction: column; }
+    .webcam-container { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== LEFT SIDE PROGRESS PANEL ===== -->
+<div class="side-progress hidden" id="side-progress">
+  <div class="side-step" id="side-step-1">
+    <div class="side-dot" id="side-dot-1">
+      <span class="side-dot-icon">🫙</span>
+    </div>
+    <div class="side-line" id="side-line-1"></div>
+    <div class="side-label">振搖</div>
+  </div>
+  <div class="side-step" id="side-step-2">
+    <div class="side-dot" id="side-dot-2">
+      <span class="side-dot-icon">💨</span>
+    </div>
+    <div class="side-line" id="side-line-2"></div>
+    <div class="side-label">吐氣</div>
+  </div>
+  <div class="side-step" id="side-step-3">
+    <div class="side-dot" id="side-dot-3">
+      <span class="side-dot-icon">🫁</span>
+    </div>
+    <div class="side-line" id="side-line-3"></div>
+    <div class="side-label">壓吸憋</div>
+  </div>
+  <div class="side-step" id="side-step-4">
+    <div class="side-dot" id="side-dot-4">
+      <span class="side-dot-icon">💧</span>
+    </div>
+    <div class="side-label">漱口</div>
+  </div>
+</div>
+
+<!-- ===== INTRO SCREEN ===== -->
+<div class="screen active" id="screen-intro">
+
+  <!-- Top badge -->
+  <div class="title-badge">⭐ AI INHALER COACH ⭐</div>
+
+  <!-- Hero row: image + title -->
+  <div class="intro-hero-row">
+    <img src="data:image/jpeg;base64,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" alt="Symbicort Rapihaler" class="inhaler-img">
+    <div class="intro-title-block">
+      <div class="main-title">吸必擴<br>智慧教學平台</div>
+      <div class="sub-title">Symbicort Rapihaler</div>
+      <div class="sub-title2">吸藥闖關挑戰</div>
+    </div>
+  </div>
+
+  <!-- 2x2 steps grid -->
+  <div class="steps-grid">
+    <div class="step-card step-card-1">
+      <div class="step-card-num">1</div>
+      <div class="step-card-emoji">🫙</div>
+      <div class="step-card-label">振搖</div>
+    </div>
+    <div class="step-card step-card-2">
+      <div class="step-card-num">2</div>
+      <div class="step-card-emoji">💨</div>
+      <div class="step-card-label">吐氣</div>
+    </div>
+    <div class="step-card step-card-3">
+      <div class="step-card-num">3</div>
+      <div class="step-card-emoji">🫁</div>
+      <div class="step-card-label">壓吸憋氣</div>
+    </div>
+    <div class="step-card step-card-4">
+      <div class="step-card-num">4</div>
+      <div class="step-card-emoji">💧</div>
+      <div class="step-card-label">漱口</div>
+    </div>
+  </div>
+
+  <!-- Start button -->
+  <button class="btn-start" onclick="startGame()">🎮 開始挑戰！</button>
+  <p class="intro-tagline">像玩遊戲一樣・一關一關學・藥師全程陪您</p>
+
+</div>
+
+<!-- ===== STAGE SCREEN ===== -->
+<div class="stage-topbar hidden" id="stage-topbar"></div>
+<div class="screen" id="screen-stage">
+  <div class="stage-container" id="stage-container">
+
+    <div class="stage-header" id="stage-header">
+      <div class="stage-number-badge" id="stage-badge">第一關</div>
+      <div class="stage-title-text" id="stage-title">振搖</div>
+    </div>
+
+    <!-- Instruction -->
+    <div class="instruction-hint" id="stage-hint">
+      請搖勻吸入器（約 5 秒），讓藥物充分混合
+    </div>
+
+    <!-- Video section -->
+    <div class="video-section" id="video-section">
+      <div class="video-label" id="video-label">
+        🎬 <span id="video-label-text">藥師示範影片</span>
+      </div>
+      <div class="video-iframe-wrap">
+        <iframe id="video-iframe"
+          src=""
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+      <div style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; border-top:1px solid rgba(255,255,255,0.08);">
+        <span style="font-size:13px;color:rgba(255,255,255,0.45);" id="video-watch-hint">📺 觀看完畢後，點擊「換我操作」開始</span>
+        <button class="btn-action btn-primary" id="btn-try" onclick="startAIPhase()" style="display:none; padding:10px 28px; font-size:15px;">📷 換我操作</button>
+      </div>
+    </div>
+
+    <!-- AI section -->
+    <div class="ai-section" id="ai-section" style="display:none;">
+      <div class="ai-label">
+        🤖 <span>AI 即時辨識</span>
+        <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.4);" id="ai-model-label">模型載入中...</span>
+      </div>
+      <div class="ai-body">
+        <div class="webcam-container">
+          <canvas id="webcam-canvas" width="280" height="210"></canvas>
+          <div class="webcam-overlay" id="webcam-overlay"></div>
+        </div>
+        <div class="ai-results" id="ai-results">
+          <div style="font-size:14px;color:rgba(255,255,255,0.5);text-align:center;padding:20px;">
+            AI 模型載入中，請稍候...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-box waiting" id="status-box">
+      等待操作中...
+    </div>
+
+    <!-- Countdown (for stage 3) -->
+    <div class="countdown-display" id="countdown-display">5</div>
+
+    <!-- Buttons -->
+    <div class="button-row" id="button-row">
+      <button class="btn-action btn-next visible" id="btn-next" onclick="nextStage()" style="display:none;">
+        很棒！進入下一關 →
+      </button>
+    </div>
+
+    <!-- Stage 1 manual note -->
+    <div class="manual-note" id="manual-note" style="display:none;">
+      ⚠ 第一關振搖由藥師確認後手動通過
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== SUCCESS SCREEN ===== -->
+<div class="screen" id="screen-success">
+  <div class="stars-container">⭐⭐⭐⭐</div>
+  <div class="success-title">🎉 恭喜通關成功！</div>
+  <div class="success-sub">您已學會正確的吸藥方式！<br>回家照這樣做，藥效會更好</div>
+
+  <div class="mantra-box">
+    <div class="mantra-label">記住口訣</div>
+    <div class="mantra-text">搖・吐・壓吸閉・漱</div>
+  </div>
+
+  <div class="stage-summary">
+    <div class="summary-chip">✅ 第一關 振搖</div>
+    <div class="summary-chip">✅ 第二關 吐氣</div>
+    <div class="summary-chip">✅ 第三關 壓吸憋</div>
+    <div class="summary-chip">✅ 第四關 漱口</div>
+  </div>
+
+  <p style="font-size:14px;color:rgba(255,255,255,0.4);margin-bottom:24px;">每天照這樣做！藥師隨時為您服務</p>
+  <button class="btn-action btn-primary" onclick="restartGame()">🔄 再練習一次</button>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script>
+
+// ===== STAGE CONFIG =====
+const STAGES = [
+  {
+    id: 1,
+    name: '振搖',
+    badge: '第一關',
+    hint: '請搖勻吸入器（約 5 秒），讓藥物充分混合',
+    icon: '🫙',
+    stepEmoji: '🫙',
+    stepInstruction: '拿起吸入器，上下搖勻約 5 秒',
+    stepSub: '讓藥物充分混合，每次使用前都要搖',
+    videoURL: 'https://youtu.be/itUWRBAkbR4',
+    modelURL: null,
+    passThreshold: 0.85,
+    passSeconds: 3,
+    manualPass: true,
+    badgeClass: 'stage-number-badge-1',
+    titleClass: 'stage-title-1',
+    failHint: '請重新搖勻',
+    specialMode: 'shake',
+  },
+  {
+    id: 2,
+    name: '吐氣',
+    badge: '第二關',
+    hint: '請慢慢吐氣至肺部排空，不要對著吸嘴吐氣',
+    icon: '💨',
+    stepEmoji: '💨',
+    stepInstruction: '緩慢吐氣，直到肺部排空',
+    stepSub: '⚠ 不要對著吸嘴吐氣，吐完才含入吸嘴',
+    videoURL: 'https://youtu.be/lS0ppt5Aic0',
+    modelURL: 'https://teachablemachine.withgoogle.com/models/EHx_CIXxz/',
+    passClass: '吐氣',
+    passThreshold: 0.85,
+    passSeconds: 3,
+    manualPass: false,
+    badgeClass: 'stage-number-badge-2',
+    titleClass: 'stage-title-2',
+    failHint: '請重新吐氣，確認動作清楚',
+  },
+  {
+    id: 3,
+    name: '壓吸＋憋氣',
+    badge: '第三關',
+    hint: '將吸嘴放入口中，按壓同時深長吸氣，吸入後憋氣 5 秒',
+    icon: '🫁',
+    stepEmoji: '🫁',
+    stepInstruction: '含住吸嘴 → 按壓 + 深吸氣 → 憋氣 5 秒',
+    stepSub: '按壓與吸氣動作要同步，吸入後憋住不要馬上吐',
+    videoURL: 'https://youtu.be/uH9Rw71MNvc',
+    modelURL: 'https://teachablemachine.withgoogle.com/models/METxmiwcm/',
+    passThreshold: 0.85,
+    passSeconds: 3,
+    manualPass: false,
+    badgeClass: 'stage-number-badge-3',
+    titleClass: 'stage-title-3',
+    failHint: '請再操作一次～加油！',
+    specialMode: 'holdBreath',
+  },
+  {
+    id: 4,
+    name: '漱口',
+    badge: '第四關',
+    hint: '吸藥後請以清水漱口並吐掉，保護口腔健康',
+    icon: '💧',
+    stepEmoji: '💧',
+    stepInstruction: '含水漱口，再把水吐掉',
+    stepSub: '去除口腔殘留藥物，預防念珠菌感染',
+    videoURL: 'https://youtu.be/bhQ2fYn7GVo',
+    modelURL: 'https://teachablemachine.withgoogle.com/models/oZ5pQam2k/',
+    passThreshold: 0.85,
+    passSeconds: 3,
+    manualPass: false,
+    badgeClass: 'stage-number-badge-4',
+    titleClass: 'stage-title-4',
+    failHint: '請再漱口一次～加油！',
+  },
+];
+
+// ===== STATE =====
+let currentStage = 0;
+let model = null;
+let webcam = null;
+let isRunning = false;
+let passTimer = 0;
+let passTimestamp = 0;
+let holdCountdown = 0;
+let holdInterval = null;
+let phase = 'video'; // 'video' | 'ai'
+let stagePassed = false;
+
+// ===== NAVIGATION =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+  currentStage = 0;
+  document.getElementById('side-progress').classList.remove('hidden');
+  document.getElementById('stage-topbar').classList.remove('hidden');
+  // init all dots as pending
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('side-dot-'+i);
+    dot.classList.remove('done','active');
+    dot.classList.add('pending');
+  }
+  showScreen('screen-stage');
+  loadStage(0);
+}
+
+function restartGame() {
+  document.querySelectorAll('.confetti-piece').forEach(c => c.remove());
+  currentStage = 0;
+  showScreen('screen-intro');
+  document.getElementById('side-progress').classList.add('hidden');
+  document.getElementById('stage-topbar').classList.add('hidden');
+  resetDots();
+}
+
+function resetDots() {
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('side-dot-'+i);
+    if(dot) dot.classList.remove('done','active','pending');
+    const line = document.getElementById('side-line-'+i);
+    if(line) line.classList.remove('done');
+  }
+}
+
+function updateDots(stageIdx) {
+  for(let i=0;i<4;i++){
+    const dot = document.getElementById('side-dot-'+(i+1));
+    const line = document.getElementById('side-line-'+(i+1));
+    dot.classList.remove('done','active','pending');
+    if(i < stageIdx) {
+      dot.classList.add('done');
+      if(line) line.classList.add('done');
+    } else if(i === stageIdx) {
+      dot.classList.add('active');
+      if(line) line.classList.remove('done');
+    } else {
+      dot.classList.add('pending');
+      if(line) line.classList.remove('done');
+    }
+  }
+}
+
+async function loadStage(idx) {
+  stopWebcam();
+  stagePassed = false;
+  phase = 'video';
+  model = null;
+
+  const stage = STAGES[idx];
+  updateDots(idx);
+
+  // Header
+  document.getElementById('stage-badge').textContent = stage.badge;
+  document.getElementById('stage-badge').className = 'stage-number-badge ' + stage.badgeClass;
+  document.getElementById('stage-title').textContent = stage.name;
+  document.getElementById('stage-title').className = 'stage-title-text ' + stage.titleClass;
+  document.getElementById('stage-hint').textContent = stage.hint;
+  document.getElementById('stage-topbar').textContent = stage.badge + '｜' + stage.name;
+
+  // Video area - YouTube iframe embed
+  const videoId = stage.videoURL.split('youtu.be/')[1] || stage.videoURL.split('v=')[1];
+  document.getElementById('video-iframe').src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+  document.getElementById('video-label-text').textContent = '藥師示範影片｜' + stage.name;
+  document.getElementById('btn-try').style.display = 'none';
+
+  // Show 換我操作 after 6 seconds
+  setTimeout(() => {
+    if(!stagePassed) {
+      document.getElementById('btn-try').style.display = 'inline-block';
+    }
+  }, 6000);
+
+  // Reset UI
+  document.getElementById('ai-section').style.display = 'none';
+  document.getElementById('video-section').style.display = 'block';
+  document.getElementById('status-box').className = 'status-box waiting';
+  document.getElementById('status-box').textContent = '請先點擊觀看藥師示範影片 👆';
+  document.getElementById('countdown-display').className = 'countdown-display';
+  document.getElementById('webcam-overlay').className = 'webcam-overlay';
+  document.getElementById('ai-model-label').textContent = '模型載入中...';
+
+  // Buttons
+  document.getElementById('btn-try').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('manual-note').style.display = 'none';
+
+  // Preload model in background
+  if(stage.modelURL) {
+    loadModel(stage.modelURL);
+  } else {
+    document.getElementById('ai-model-label').textContent = '藥師人工確認';
+  }
+}
+
+async function loadModel(url) {
+  try {
+    const modelURL = url + 'model.json';
+    const metadataURL = url + 'metadata.json';
+    model = await tmImage.load(modelURL, metadataURL);
+    document.getElementById('ai-model-label').textContent = '✅ 模型就緒';
+  } catch(e) {
+    document.getElementById('ai-model-label').textContent = '❌ 模型載入失敗';
+    console.error(e);
+  }
+}
+
+// ===== VIDEO PHASE =====
+function openVideo() {}
+function showVideoPhase() {}
+
+// ===== AI PHASE =====
+async function startAIPhase() {
+  const stage = STAGES[currentStage];
+  phase = 'ai';
+
+  // Stop YouTube video
+  document.getElementById('video-iframe').src = '';
+  document.getElementById('video-section').style.display = 'none';
+  document.getElementById('ai-section').style.display = 'block';
+  document.getElementById('status-box').className = 'status-box detecting';
+  document.getElementById('status-box').textContent = '🤖 AI 偵測中，請開始操作...';
+
+  if(stage.manualPass) {
+    // Stage 1: manual
+    document.getElementById('ai-section').style.display = 'none';
+    document.getElementById('manual-note').style.display = 'block';
+    document.getElementById('status-box').className = 'status-box detecting';
+    document.getElementById('status-box').textContent = '⏳ 等待藥師確認振搖動作...';
+    document.getElementById('ai-results').innerHTML = '<div style="text-align:center;padding:20px;font-size:15px;color:rgba(255,255,255,0.6);">藥師確認後請點擊「手動通過」</div>';
+
+    // Show manual pass button - INSERT BEFORE next button
+    const manualBtn = document.createElement('button');
+    manualBtn.className = 'btn-action btn-primary';
+    manualBtn.style.background = 'linear-gradient(135deg, #ff3cac, #784ba0)';
+    manualBtn.innerHTML = '✅ 藥師確認通過';
+    manualBtn.onclick = () => passStage();
+    const buttonRow = document.getElementById('button-row');
+    buttonRow.insertBefore(manualBtn, buttonRow.firstChild);
+    return;
+  }
+
+  if(!model) {
+    document.getElementById('status-box').textContent = '⏳ 模型載入中，請稍候...';
+    await loadModel(stage.modelURL);
+  }
+
+  // Start webcam
+  try {
+    webcam = new tmImage.Webcam(280, 210, true);
+    await webcam.setup({ facingMode: 'user' });
+    await webcam.play();
+    const canvas = document.getElementById('webcam-canvas');
+    webcam.canvas = canvas;
+    isRunning = true;
+    passTimer = 0;
+    passTimestamp = 0;
+    predictionLoop();
+  } catch(e) {
+    document.getElementById('status-box').className = 'status-box fail';
+    document.getElementById('status-box').textContent = '❌ 無法啟動攝影機，請確認瀏覽器權限';
+  }
+}
+
+function stopWebcam() {
+  isRunning = false;
+  if(webcam) {
+    try { webcam.stop(); } catch(e){}
+    webcam = null;
+  }
+  if(holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+}
+
+async function predictionLoop() {
+  if(!isRunning || stagePassed) return;
+
+  webcam.update();
+  const ctx = document.getElementById('webcam-canvas').getContext('2d');
+  ctx.drawImage(webcam.canvas, 0, 0);
+
+  const predictions = await model.predict(webcam.canvas);
+  updateResultBars(predictions);
+  evaluatePredictions(predictions);
+
+  requestAnimationFrame(predictionLoop);
+}
+
+function updateResultBars(predictions) {
+  const stage = STAGES[currentStage];
+  const colors = ['#ff9a56','#a18cd1','#4facfe','#43e97b','#ffd700','#ff3cac'];
+  let html = '';
+  predictions.forEach((p, i) => {
+    const pct = Math.round(p.probability * 100);
+    const color = colors[i % colors.length];
+    html += `<div class="result-item">
+      <div class="result-label">${p.className}</div>
+      <div class="result-bar-bg">
+        <div class="result-bar" style="width:${pct}%;background:${color};"></div>
+      </div>
+      <div class="result-pct" style="color:${color};">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('ai-results').innerHTML = html;
+}
+
+function evaluatePredictions(predictions) {
+  const stage = STAGES[currentStage];
+  const now = Date.now();
+
+  // Find top prediction
+  const top = predictions.reduce((a,b) => a.probability > b.probability ? a : b);
+  const topPct = top.probability;
+
+  // Determine if this is a passing prediction
+  let isPassing = false;
+
+  if(stage.specialMode === 'holdBreath') {
+    // Stage 3: 按壓+吸 must exceed threshold FIRST, then start hold countdown
+    const pressInhale = predictions.find(p =>
+      p.className.includes('按壓') && p.className.includes('吸') ||
+      p.className.toLowerCase().includes('press') ||
+      p.className === '按壓+吸'
+    );
+    const pressInhaleProb = pressInhale ? pressInhale.probability : 0;
+    isPassing = pressInhaleProb >= stage.passThreshold;
+
+    if(isPassing) {
+      if(passTimestamp === 0) passTimestamp = now;
+      document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
+      document.getElementById('status-box').className = 'status-box detecting';
+      document.getElementById('status-box').textContent = `✅ 按壓+吸氣正確！維持動作，準備倒數憋氣...`;
+
+      // Only start hold countdown after 1 second of confirmed press+inhale
+      const elapsed = (now - passTimestamp) / 1000;
+      if(elapsed >= 1 && holdCountdown === 0 && !stagePassed) {
+        startHoldCountdown();
+      }
+    } else {
+      passTimestamp = 0;
+      document.getElementById('webcam-overlay').className = 'webcam-overlay wrong';
+      document.getElementById('status-box').className = 'status-box fail';
+      document.getElementById('status-box').textContent = `❌ 請同時按壓並深吸氣（目前 ${Math.round((pressInhale?.probability||0)*100)}%，需達 85%）`;
+    }
+    return;
+  }
+
+  if(stage.passClass) {
+    const target = predictions.find(p => p.className === stage.passClass);
+    isPassing = target && target.probability > stage.passThreshold;
+  } else {
+    isPassing = topPct > stage.passThreshold;
+  }
+
+  if(isPassing) {
+    if(passTimestamp === 0) passTimestamp = now;
+    const elapsed = (now - passTimestamp) / 1000;
+    const needed = stage.passSeconds || 3;
+    const remaining = Math.max(0, needed - elapsed).toFixed(1);
+
+    document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
+    document.getElementById('status-box').className = 'status-box detecting';
+    document.getElementById('status-box').textContent = `✅ 動作正確！維持 ${remaining} 秒...`;
+
+    if(elapsed >= needed) {
+      passStage();
+    }
+  } else {
+    passTimestamp = 0;
+    document.getElementById('webcam-overlay').className = 'webcam-overlay wrong';
+    document.getElementById('status-box').className = 'status-box fail';
+    document.getElementById('status-box').textContent = `❌ ${STAGES[currentStage].failHint || '請重試'}`;
+  }
+}
+
+function startHoldCountdown() {
+  if(holdCountdown > 0) return; // already counting
+  isRunning = false;
+  holdCountdown = 3;
+
+  document.getElementById('countdown-display').className = 'countdown-display active';
+  document.getElementById('countdown-display').textContent = holdCountdown;
+  document.getElementById('status-box').className = 'status-box detecting';
+  document.getElementById('status-box').textContent = '憋氣中...';
+
+  holdInterval = setInterval(() => {
+    holdCountdown--;
+    if(holdCountdown <= 0) {
+      clearInterval(holdInterval);
+      holdInterval = null;
+      document.getElementById('countdown-display').className = 'countdown-display';
+      passStage();
+    } else {
+      document.getElementById('countdown-display').textContent = holdCountdown;
+    }
+  }, 1000);
+}
+
+function passStage() {
+  stagePassed = true;
+  stopWebcam();
+
+  document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
+  document.getElementById('status-box').className = 'status-box success';
+  document.getElementById('countdown-display').className = 'countdown-display';
+
+  const isLast = currentStage >= STAGES.length - 1;
+  document.getElementById('status-box').textContent = isLast
+    ? '🎉 完美！您已學會所有步驟！'
+    : '🎉 太棒了！進入下一關！';
+
+  // Show next button (appended after manual btn if exists)
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.style.display = 'inline-block';
+  nextBtn.textContent = isLast ? '🏆 完成挑戰！' : '很棒！進入下一關 →';
+  nextBtn.className = 'btn-action btn-next visible';
+  // Move next button to END of button-row (right side)
+  document.getElementById('button-row').appendChild(nextBtn);
+
+  // Mark side dot as done
+  const doneDot = document.getElementById('side-dot-'+(currentStage+1));
+  doneDot.classList.remove('active','pending');
+  doneDot.classList.add('done');
+  const doneLine = document.getElementById('side-line-'+(currentStage+1));
+  if(doneLine) doneLine.classList.add('done');
+
+  // Remove any manual buttons
+  document.querySelectorAll('.btn-primary[onclick="passStage()"]').forEach(b => b.remove());
+}
+
+function nextStage() {
+  currentStage++;
+  if(currentStage >= STAGES.length) {
+    showSuccessScreen();
+  } else {
+    loadStage(currentStage);
+  }
+}
+
+function showSuccessScreen() {
+  stopWebcam();
+  document.getElementById('side-progress').classList.add('hidden');
+  document.getElementById('stage-topbar').classList.add('hidden');
+  showScreen('screen-success');
+  launchConfetti();
+}
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const colors = ['#ff3cac','#784ba0','#2b86c5','#00f5ff','#ffd700','#00e676','#ff9a56'];
+  for(let i=0;i<80;i++){
+    setTimeout(()=>{
+      const c = document.createElement('div');
+      c.className = 'confetti-piece';
+      c.style.left = Math.random()*100 + 'vw';
+      c.style.width = (Math.random()*8+4) + 'px';
+      c.style.height = (Math.random()*8+4) + 'px';
+      c.style.background = colors[Math.floor(Math.random()*colors.length)];
+      c.style.borderRadius = Math.random()>0.5 ? '50%' : '2px';
+      c.style.animationDuration = (Math.random()*2+2) + 's';
+      c.style.animationDelay = Math.random()*0.5 + 's';
+      document.body.appendChild(c);
+      setTimeout(()=>c.remove(), 4000);
+    }, i*30);
+  }
+}
+
+</script>
+</body>
+</html>
