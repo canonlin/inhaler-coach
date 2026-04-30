@@ -1278,17 +1278,30 @@ async function loadStage(idx) {
   const stage = STAGES[idx];
   updateDots(idx);
 
-  // Header
-  document.getElementById('stage-badge').textContent = stage.badge;
-  document.getElementById('stage-badge').className = 'stage-number-badge ' + stage.badgeClass;
-  document.getElementById('stage-title').textContent = stage.name;
-  document.getElementById('stage-title').className = 'stage-title-text ' + stage.titleClass;
+  // Header - hide big title for intro stage
+  if(stage.isIntro) {
+    document.getElementById('stage-header').style.display = 'none';
+  } else {
+    document.getElementById('stage-header').style.display = 'block';
+    document.getElementById('stage-badge').textContent = stage.badge;
+    document.getElementById('stage-badge').className = 'stage-number-badge ' + stage.badgeClass;
+    document.getElementById('stage-title').textContent = stage.name;
+    document.getElementById('stage-title').className = 'stage-title-text ' + stage.titleClass;
+  }
   document.getElementById('stage-hint').textContent = stage.hint;
   document.getElementById('stage-hint').style.borderColor = '';
   document.getElementById('stage-topbar').textContent = stage.badge + '｜' + stage.name;
 
-  // Reset all UI first
-  document.getElementById('ai-section').style.display = 'none';
+  // Show/hide side progress panel + fix layout
+  if(stage.isIntro) {
+    document.getElementById('side-progress').classList.add('hidden');
+    document.getElementById('stage-topbar').style.left = '0';
+    document.getElementById('screen-stage').style.paddingLeft = '0';
+  } else {
+    document.getElementById('side-progress').classList.remove('hidden');
+    document.getElementById('stage-topbar').style.left = '140px';
+    document.getElementById('screen-stage').style.paddingLeft = '156px';
+  }
   document.getElementById('video-section').style.display = 'block';
   document.getElementById('status-box').className = 'status-box waiting';
   document.getElementById('status-box').textContent = '📺 請觀看影片後再操作';
