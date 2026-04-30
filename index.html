@@ -1138,6 +1138,7 @@ const STAGES = [
     passThreshold: 0.85,
     passSeconds: 3,
     manualPass: false,
+    showPharmacist: true,
     badgeClass: 'stage-number-badge-1',
     titleClass: 'stage-title-1',
     failHint: '請重新搖勻，動作要明顯',
@@ -1158,6 +1159,7 @@ const STAGES = [
     passThreshold: 0.85,
     passSeconds: 3,
     manualPass: false,
+    showPharmacist: true,
     badgeClass: 'stage-number-badge-2',
     titleClass: 'stage-title-2',
     failHint: '請重新吐氣，確認動作清楚',
@@ -1176,6 +1178,7 @@ const STAGES = [
     passThreshold: 0.85,
     passSeconds: 3,
     manualPass: false,
+    showPharmacist: true,
     badgeClass: 'stage-number-badge-3',
     titleClass: 'stage-title-3',
     failHint: '請再操作一次～加油！',
@@ -1195,6 +1198,7 @@ const STAGES = [
     passThreshold: 0.85,
     passSeconds: 3,
     manualPass: false,
+    showPharmacist: true,
     badgeClass: 'stage-number-badge-4',
     titleClass: 'stage-title-4',
     failHint: '請再漱口一次～加油！',
@@ -1396,6 +1400,11 @@ async function startAIPhase() {
     // Show permanent pharmacist button
     document.getElementById('btn-pharmacist').style.display = 'inline-block';
     return;
+  }
+
+  // Show pharmacist confirm button for all stages
+  if(stage.showPharmacist) {
+    document.getElementById('btn-pharmacist').style.display = 'inline-block';
   }
 
   if(!model) {
