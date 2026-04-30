@@ -1435,15 +1435,20 @@ async function predictionLoop() {
   ctx.drawImage(webcam.canvas, 0, 0);
 
   let predictions;
-  if(modelType === 'pose') {
-    const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
-    predictions = await model.predict(posenetOutput);
-  } else {
-    predictions = await model.predict(webcam.canvas);
+  try {
+    if(modelType === 'pose') {
+      const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+      predictions = await model.predict(posenetOutput);
+    } else {
+      predictions = await model.predict(webcam.canvas);
+    }
+    if(predictions && predictions.length > 0) {
+      updateResultBars(predictions);
+      evaluatePredictions(predictions);
+    }
+  } catch(e) {
+    console.error('Prediction error:', e);
   }
-
-  updateResultBars(predictions);
-  evaluatePredictions(predictions);
 
   requestAnimationFrame(predictionLoop);
 }
@@ -1476,6 +1481,33 @@ function evaluatePredictions(predictions) {
 
   // Determine if this is a passing prediction
   let isPassing = false;
+
+  if(stage.specialMode === 'shake') {
+    // Pose model: find correct shake class
+    const correct = predictions.find(p =>
+      p.className.includes('正確') ||
+      p.className.toLowerCase().includes('correct')
+    );
+    const correctProb = correct ? correct.probability : topPct;
+    isPassing = correctProb >= stage.passThreshold;
+
+    if(isPassing) {
+      if(passTimestamp === 0) passTimestamp = now;
+      const elapsed = (now - passTimestamp) / 1000;
+      const needed = stage.passSeconds || 3;
+      const remaining = Math.max(0, needed - elapsed).toFixed(1);
+      document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
+      document.getElementById('status-box').className = 'status-box detecting';
+      document.getElementById('status-box').textContent = `✅ 振搖正確！維持 ${remaining} 秒...`;
+      if(elapsed >= needed) passStage();
+    } else {
+      passTimestamp = 0;
+      document.getElementById('webcam-overlay').className = 'webcam-overlay wrong';
+      document.getElementById('status-box').className = 'status-box fail';
+      document.getElementById('status-box').textContent = `❌ 請持續搖勻吸入器（目前 ${Math.round(correctProb*100)}%，需達 85%）`;
+    }
+    return;
+  }
 
   if(stage.specialMode === 'holdBreath') {
     // Stage 3: 按壓+吸 must exceed threshold FIRST, then start hold countdown
