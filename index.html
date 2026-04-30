@@ -1062,6 +1062,7 @@
 
     <!-- Buttons -->
     <div class="button-row" id="button-row">
+      <button class="btn-action btn-primary" id="btn-pharmacist" onclick="passStage()" style="display:none; background:linear-gradient(135deg,#ff3cac,#784ba0);">✅ 藥師確認通過</button>
       <button class="btn-action btn-next visible" id="btn-next" onclick="nextStage()" style="display:none;">
         很棒！進入下一關 →
       </button>
@@ -1309,17 +1310,8 @@ async function loadStage(idx) {
   document.getElementById('webcam-overlay').className = 'webcam-overlay';
   document.getElementById('ai-model-label').textContent = '模型載入中...';
   document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('btn-pharmacist').style.display = 'none';
   document.getElementById('manual-note').style.display = 'none';
-
-  // Reset btn-try style
-  document.getElementById('btn-try').style.display = 'none';
-  document.getElementById('btn-try').style.background = '';
-  document.getElementById('btn-try').style.color = '';
-  document.getElementById('btn-try').textContent = '📷 換我操作';
-  document.getElementById('btn-try').onclick = startAIPhase;
-
-  // Remove any leftover manual buttons
-  document.querySelectorAll('#button-row .btn-primary').forEach(b => b.remove());
 
   // Set video iframe
   document.getElementById('video-iframe').src = stage.videoURL;
@@ -1385,21 +1377,13 @@ async function startAIPhase() {
   }
 
   if(stage.manualPass) {
-    // Stage 1: manual
     document.getElementById('ai-section').style.display = 'none';
     document.getElementById('manual-note').style.display = 'block';
     document.getElementById('status-box').className = 'status-box detecting';
     document.getElementById('status-box').textContent = '⏳ 等待藥師確認振搖動作...';
-    document.getElementById('ai-results').innerHTML = '<div style="text-align:center;padding:20px;font-size:15px;color:rgba(255,255,255,0.6);">藥師確認後請點擊「手動通過」</div>';
-
-    // Show manual pass button - INSERT BEFORE next button
-    const manualBtn = document.createElement('button');
-    manualBtn.className = 'btn-action btn-primary';
-    manualBtn.style.background = 'linear-gradient(135deg, #ff3cac, #784ba0)';
-    manualBtn.innerHTML = '✅ 藥師確認通過';
-    manualBtn.onclick = () => passStage();
-    const buttonRow = document.getElementById('button-row');
-    buttonRow.insertBefore(manualBtn, buttonRow.firstChild);
+    document.getElementById('ai-results').innerHTML = '<div style="text-align:center;padding:20px;font-size:15px;color:rgba(255,255,255,0.6);">藥師確認後請點擊按鈕通過</div>';
+    // Show permanent pharmacist button
+    document.getElementById('btn-pharmacist').style.display = 'inline-block';
     return;
   }
 
@@ -1572,7 +1556,7 @@ function passStage() {
     : '🎉 太棒了！進入下一關！';
 
   // Remove any existing manual buttons first (fix double button bug)
-  document.querySelectorAll('#button-row .btn-primary').forEach(b => b.remove());
+  document.getElementById('btn-pharmacist').style.display = 'none';
 
   // Show next button
   const nextBtn = document.getElementById('btn-next');
