@@ -44,7 +44,7 @@
 
   /* ===== SCREENS ===== */
   .screen { display:none; position:relative; z-index:1; min-height:100vh; }
-  .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+  .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; min-height:100vh; width:100%; box-sizing:border-box; }
 
   /* ===== INTRO SCREEN ===== */
   #screen-intro {
@@ -481,6 +481,8 @@
   /* Push stage content to right when side panel is shown */
   #screen-stage.active {
     padding-left: 156px;
+    padding-top: 60px;
+    justify-content: flex-start;
   }
 
   .stage-topbar {
@@ -594,8 +596,11 @@
   .video-iframe-wrap {
     position: relative;
     width: 100%;
-    padding-top: 56.25%;
     background: #000;
+    height: 0;
+    padding-top: 56.25%;
+    max-height: 420px;
+    overflow: hidden;
   }
 
   .video-iframe-wrap iframe {
