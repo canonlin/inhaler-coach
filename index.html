@@ -482,7 +482,9 @@
   #screen-stage.active {
     padding-left: 156px;
     padding-top: 60px;
+    padding-bottom: 20px;
     justify-content: flex-start;
+    align-items: center;
   }
 
   .stage-topbar {
@@ -567,11 +569,13 @@
   /* Video section */
   .video-section {
     width: 100%;
+    max-width: 960px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 20px;
     overflow: hidden;
     backdrop-filter: blur(10px);
+    flex-shrink: 0;
   }
 
   .video-label {
@@ -598,9 +602,15 @@
     width: 100%;
     background: #000;
     height: 0;
-    padding-top: 56.25%;
-    max-height: 420px;
+    padding-top: min(56.25%, 420px);
     overflow: hidden;
+  }
+
+  @media (min-height: 700px) {
+    .video-iframe-wrap {
+      padding-top: 0;
+      height: 380px;
+    }
   }
 
   .video-iframe-wrap iframe {
@@ -608,6 +618,7 @@
     top: 0; left: 0;
     width: 100%; height: 100%;
     border: none;
+    max-height: 400px;
   }
 
   /* AI Section */
