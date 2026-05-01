@@ -44,13 +44,14 @@
 
   /* ===== SCREENS ===== */
   .screen { display:none; position:relative; z-index:1; min-height:100vh; }
-  .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+  .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 32px; width:100%; box-sizing:border-box; }
 
   /* ===== INTRO SCREEN ===== */
   #screen-intro {
     text-align: center;
-    padding: 20px 16px;
+    padding: 16px 24px;
     width: 100%;
+    max-width: 100%;
   }
 
   .title-badge {
@@ -118,6 +119,7 @@
     flex-direction: column;
     align-items: center;
     margin: 0 0 16px 0;
+    width: 100%;
     background: rgba(0,245,255,0.08);
     border: 1px solid rgba(0,245,255,0.3);
     border-radius: 20px;
@@ -147,7 +149,7 @@
     align-items: center;
     gap: 20px;
     width: 100%;
-    max-width: 720px;
+    max-width: 100%;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 24px;
@@ -229,8 +231,9 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     width: 100%;
-    max-width: 680px;
+    max-width: 100%;
     margin-bottom: 28px;
+    max-width: 100%;
   }
 
   .step-card {
@@ -530,7 +533,7 @@
 
   .stage-container {
     width: 100%;
-    max-width: 900px;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
