@@ -1095,9 +1095,9 @@
       請搖勻吸入器（約 5 秒），讓藥物充分混合
     </div>
 
-    <!-- Video section -->
+    <!-- ===== PHASE 1: VIDEO ===== -->
     <div class="video-section" id="video-section">
-      <div class="video-label" id="video-label">
+      <div class="video-label">
         🎬 <span id="video-label-text">藥師示範影片</span>
       </div>
       <div class="video-iframe-wrap">
@@ -1107,13 +1107,15 @@
           allowfullscreen>
         </iframe>
       </div>
-      <div style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; border-top:1px solid rgba(255,255,255,0.08);">
-        <span style="font-size:13px;color:rgba(255,255,255,0.45);" id="video-watch-hint">📺 觀看完畢後，點擊「換我操作」開始</span>
-        <button class="btn-action btn-primary" id="btn-try" onclick="startAIPhase()" style="display:none; padding:10px 28px; font-size:15px;">📷 換我操作</button>
+      <div style="padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; border-top:1px solid rgba(255,255,255,0.08);">
+        <span style="font-size:14px;color:rgba(255,255,255,0.5);">📺 觀看完藥師示範後，點右側按鈕開始練習</span>
+        <button class="btn-action btn-primary" id="btn-try" onclick="startAIPhase()" style="display:none; padding:12px 32px; font-size:16px; background:linear-gradient(135deg,#4facfe,#00f2fe); color:#000; font-weight:900;">
+          📷 換我操作 →
+        </button>
       </div>
     </div>
 
-    <!-- AI section -->
+    <!-- ===== PHASE 2: AI DETECTION ===== -->
     <div class="ai-section" id="ai-section" style="display:none;">
       <div class="ai-label">
         🤖 <span>AI 即時辨識</span>
@@ -1121,7 +1123,7 @@
       </div>
       <div class="ai-body">
         <div class="webcam-container">
-          <canvas id="webcam-canvas" width="280" height="210"></canvas>
+          <canvas id="webcam-canvas" width="320" height="240"></canvas>
           <div class="webcam-overlay" id="webcam-overlay"></div>
         </div>
         <div class="ai-results" id="ai-results">
@@ -1130,14 +1132,20 @@
           </div>
         </div>
       </div>
+      <!-- Back to video button -->
+      <div style="padding:10px 16px; border-top:1px solid rgba(255,255,255,0.08); text-align:left;">
+        <button onclick="backToVideo()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:13px;cursor:pointer;font-family:inherit;">
+          ← 重新觀看影片
+        </button>
+      </div>
     </div>
 
     <!-- Status -->
-    <div class="status-box waiting" id="status-box">
+    <div class="status-box waiting" id="status-box" style="display:none;">
       等待操作中...
     </div>
 
-    <!-- Countdown (for stage 3) -->
+    <!-- Countdown -->
     <div class="countdown-display" id="countdown-display">5</div>
 
     <!-- Buttons -->
@@ -1148,7 +1156,6 @@
       </button>
     </div>
 
-    <!-- Stage 1 manual note -->
     <div class="manual-note" id="manual-note" style="display:none;">
       ⚠ 第一關振搖由藥師確認後手動通過
     </div>
@@ -1390,14 +1397,23 @@ async function loadStage(idx) {
     document.getElementById('screen-stage').style.paddingLeft = '156px';
   }
   document.getElementById('video-section').style.display = 'block';
+  document.getElementById('ai-section').style.display = 'none';
+  document.getElementById('status-box').style.display = 'none';
   document.getElementById('status-box').className = 'status-box waiting';
-  document.getElementById('status-box').textContent = '📺 請觀看影片後再操作';
   document.getElementById('countdown-display').className = 'countdown-display';
   document.getElementById('webcam-overlay').className = 'webcam-overlay';
   document.getElementById('ai-model-label').textContent = '模型載入中...';
   document.getElementById('btn-next').style.display = 'none';
   document.getElementById('btn-pharmacist').style.display = 'none';
   document.getElementById('manual-note').style.display = 'none';
+
+  // Reset btn-try
+  const btnTry = document.getElementById('btn-try');
+  btnTry.style.display = 'none';
+  btnTry.style.background = 'linear-gradient(135deg,#4facfe,#00f2fe)';
+  btnTry.style.color = '#000';
+  btnTry.textContent = '📷 換我操作 →';
+  btnTry.onclick = startAIPhase;
 
   // Set video iframe
   document.getElementById('video-iframe').src = stage.videoURL;
@@ -1445,6 +1461,21 @@ async function loadModel(url, type) {
   }
 }
 
+// ===== BACK TO VIDEO =====
+function backToVideo() {
+  stopWebcam();
+  isRunning = false;
+  document.getElementById('video-section').style.display = 'block';
+  document.getElementById('ai-section').style.display = 'none';
+  document.getElementById('status-box').style.display = 'none';
+  document.getElementById('btn-pharmacist').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+  // Reload video
+  const stage = STAGES[currentStage];
+  document.getElementById('video-iframe').src = stage.videoURL;
+  document.getElementById('btn-try').style.display = 'inline-block';
+}
+
 // ===== VIDEO PHASE =====
 function openVideo() {}
 function showVideoPhase() {}
@@ -1458,6 +1489,7 @@ async function startAIPhase() {
   document.getElementById('video-iframe').src = '';
   document.getElementById('video-section').style.display = 'none';
   document.getElementById('ai-section').style.display = 'block';
+  document.getElementById('status-box').style.display = 'block';
   document.getElementById('status-box').className = 'status-box detecting';
   document.getElementById('status-box').textContent = '🤖 AI 偵測中，請開始操作...';
 
