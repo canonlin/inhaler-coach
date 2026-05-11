@@ -1219,15 +1219,16 @@ const STAGES = [
     stepEmoji: '💊',
     stepSub: '讓藥物充分混合，每次使用前都要搖',
     videoURL: 'https://www.youtube.com/embed/itUWRBAkbR4?rel=0&modestbranding=1',
-    modelURL: 'https://teachablemachine.withgoogle.com/models/UGnA1m9ww/',
-    modelType: 'pose',
+    modelURL: 'https://teachablemachine.withgoogle.com/models/4s-Cq3RqD/',
+    modelType: 'image',
+    passClass: 'V振搖 正確',
     passThreshold: 0.85,
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
     badgeClass: 'stage-number-badge-1',
     titleClass: 'stage-title-1',
-    failHint: '請重新搖勻，動作要明顯',
+    failHint: '請持續搖勻吸入器，動作要明顯（需達 85%）',
     specialMode: 'shake',
   },
   {
@@ -1419,20 +1420,64 @@ async function loadStage(idx) {
   document.getElementById('video-iframe').src = stage.videoURL;
   document.getElementById('video-label-text').textContent = stage.isIntro ? '🎬 整體衛教影片' : '藥師示範影片｜' + stage.name;
 
-  // Show action button after delay
-  const delay = stage.isIntro ? 5000 : 6000;
-  setTimeout(() => {
-    if(!stagePassed) {
-      const btn = document.getElementById('btn-try');
-      btn.style.display = 'inline-block';
-      if(stage.isIntro) {
+  // Stage 0 (intro): show button after 5s
+  if(stage.isIntro) {
+    setTimeout(() => {
+      if(!stagePassed) {
+        const btn = document.getElementById('btn-try');
+        btn.style.display = 'inline-block';
         btn.textContent = '✅ 影片看完，開始挑戰！';
         btn.style.background = 'linear-gradient(135deg,#43e97b,#00c853)';
         btn.style.color = '#000';
+        btn.style.cursor = 'pointer';
+        btn.style.border = 'none';
         btn.onclick = startAIPhase;
       }
-    }
-  }, delay);
+    }, 5000);
+
+  } else if(idx === 1) {
+    // Stage 1 (振搖): video-lock countdown — unlock after 30s
+    const btnTry = document.getElementById('btn-try');
+    btnTry.style.display = 'inline-block';
+    btnTry.textContent = '⏳ 請先觀看影片（30 秒後解鎖）';
+    btnTry.style.background = 'rgba(255,255,255,0.08)';
+    btnTry.style.color = 'rgba(255,255,255,0.4)';
+    btnTry.style.cursor = 'not-allowed';
+    btnTry.style.border = '1px solid rgba(255,255,255,0.15)';
+    btnTry.onclick = null;
+
+    let secondsLeft = 30;
+    const lockInterval = setInterval(() => {
+      if(stagePassed) { clearInterval(lockInterval); return; }
+      secondsLeft--;
+      if(secondsLeft > 0) {
+        btnTry.textContent = `⏳ 請先觀看影片（${secondsLeft} 秒後解鎖）`;
+      } else {
+        clearInterval(lockInterval);
+        btnTry.textContent = '📷 我看完了！換我操作 →';
+        btnTry.style.background = 'linear-gradient(135deg,#ff3cac,#784ba0)';
+        btnTry.style.color = '#fff';
+        btnTry.style.cursor = 'pointer';
+        btnTry.style.border = 'none';
+        btnTry.onclick = startAIPhase;
+      }
+    }, 1000);
+
+  } else {
+    // Stage 2-4: show button after 6s
+    setTimeout(() => {
+      if(!stagePassed) {
+        const btn = document.getElementById('btn-try');
+        btn.style.display = 'inline-block';
+        btn.style.background = 'linear-gradient(135deg,#4facfe,#00f2fe)';
+        btn.style.color = '#000';
+        btn.style.cursor = 'pointer';
+        btn.style.border = 'none';
+        btn.textContent = '📷 換我操作 →';
+        btn.onclick = startAIPhase;
+      }
+    }, 6000);
+  }
 
   // Preload model in background
   if(stage.modelURL) {
@@ -1457,7 +1502,10 @@ async function loadModel(url, type) {
     }
   } catch(e) {
     console.error('Model load error:', e);
-    document.getElementById('ai-model-label').textContent = '❌ 載入失敗，請重整頁面';
+    const msg = e.message && e.message.includes('fetch')
+      ? '❌ 模型載入失敗（網路問題）：請確認網路連線，或改用 Chrome 瀏覽器'
+      : '❌ 模型載入失敗，請重整頁面再試';
+    document.getElementById('ai-model-label').textContent = msg;
   }
 }
 
@@ -1592,12 +1640,13 @@ function evaluatePredictions(predictions) {
   let isPassing = false;
 
   if(stage.specialMode === 'shake') {
-    // Pose model: find correct shake class
+    // Image model: find correct shake class using passClass
     const correct = predictions.find(p =>
+      p.className === stage.passClass ||
       p.className.includes('正確') ||
       p.className.toLowerCase().includes('correct')
     );
-    const correctProb = correct ? correct.probability : topPct;
+    const correctProb = correct ? correct.probability : 0;
     isPassing = correctProb >= stage.passThreshold;
 
     if(isPassing) {
