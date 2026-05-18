@@ -1151,6 +1151,7 @@
     <!-- Buttons -->
     <div class="button-row" id="button-row">
       <button class="btn-action btn-primary" id="btn-pharmacist" onclick="passStage()" style="display:none; background:linear-gradient(135deg,#ff3cac,#784ba0);">✅ 藥師確認通過</button>
+      <button class="btn-action" id="btn-retry" onclick="retryStage()" style="display:none; background:linear-gradient(135deg,#f7971e,#ffd200); color:#000; font-weight:900;">🔄 再測一次</button>
       <button class="btn-action btn-next visible" id="btn-next" onclick="nextStage()" style="display:none;">
         很棒！進入下一關 →
       </button>
@@ -1513,6 +1514,7 @@ function backToVideo() {
   document.getElementById('status-box').style.display = 'none';
   document.getElementById('btn-pharmacist').style.display = 'none';
   document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('btn-retry').style.display = 'none';
   // Reload video
   const stage = STAGES[currentStage];
   document.getElementById('video-iframe').src = stage.videoURL;
@@ -1545,6 +1547,7 @@ async function startAIPhase() {
 
   // Show pharmacist confirm button for all stages
   document.getElementById('btn-pharmacist').style.display = 'inline-block';
+  document.getElementById('btn-retry').style.display = 'inline-block';
   document.getElementById('ai-section').style.display = 'block';
   document.getElementById('video-section').style.display = 'none';
 
@@ -1754,6 +1757,7 @@ function passStage() {
 
   // Remove any existing manual buttons first (fix double button bug)
   document.getElementById('btn-pharmacist').style.display = 'none';
+  document.getElementById('btn-retry').style.display = 'none';
 
   // Show next button
   const nextBtn = document.getElementById('btn-next');
@@ -1771,6 +1775,37 @@ function passStage() {
   }
   const doneLine = document.getElementById('side-line-'+dotIdx);
   if(doneLine) doneLine.classList.add('done');
+}
+
+function retryStage() {
+  // 重置狀態，重新啟動 AI 攝影機，不重播影片
+  stagePassed = false;
+  passTimestamp = 0;
+  passTimer = 0;
+  holdCountdown = 0;
+  if(holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+
+  document.getElementById('webcam-overlay').className = 'webcam-overlay';
+  document.getElementById('status-box').className = 'status-box detecting';
+  document.getElementById('status-box').textContent = '🤖 AI 偵測中，請開始操作...';
+  document.getElementById('countdown-display').className = 'countdown-display';
+  document.getElementById('btn-next').style.display = 'none';
+
+  // 重新啟動攝影機
+  stopWebcam();
+  setTimeout(async () => {
+    try {
+      webcam = new tmImage.Webcam(280, 210, true);
+      await webcam.setup({ facingMode: 'user' });
+      await webcam.play();
+      webcam.canvas = document.getElementById('webcam-canvas');
+      isRunning = true;
+      predictionLoop();
+    } catch(e) {
+      document.getElementById('status-box').className = 'status-box fail';
+      document.getElementById('status-box').textContent = '❌ 無法啟動攝影機，請確認瀏覽器權限';
+    }
+  }, 300);
 }
 
 function nextStage() {
