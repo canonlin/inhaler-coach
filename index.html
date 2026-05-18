@@ -1262,7 +1262,8 @@ const STAGES = [
     stepSub: '按壓與吸氣動作要同步，吸入後憋住不要馬上吐',
     videoURL: 'https://www.youtube.com/embed/uH9Rw71MNvc?rel=0&modestbranding=1',
     modelURL: 'https://teachablemachine.withgoogle.com/models/kOX75yZD8_/',
-    passThreshold: 0.85,
+    passThreshold: 0.75,
+    passClass: '吸壓_正確',
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
@@ -1435,18 +1436,27 @@ async function loadStage(idx) {
       }
     }, 5000);
 
-  } else if(idx === 1) {
-    // Stage 1 (振搖): video-lock countdown — unlock after 30s
+  } else {
+    // Stage 1-4: smart video-lock countdown based on each stage's video length
+    // videoLockSeconds = actual video duration + 2s buffer
+    const videoLockMap = {
+      1: 12,   // 振搖影片 10s + 2s
+      2: 11,   // 吐氣影片 9s + 2s
+      3: 37,   // 壓吸憋影片 35s + 2s
+      4: 14,   // 漱口影片 12s + 2s
+    };
+    const lockSeconds = videoLockMap[idx] || 12;
+
     const btnTry = document.getElementById('btn-try');
     btnTry.style.display = 'inline-block';
-    btnTry.textContent = '⏳ 請先觀看影片（30 秒後解鎖）';
+    btnTry.textContent = `⏳ 請先觀看影片（${lockSeconds} 秒後解鎖）`;
     btnTry.style.background = 'rgba(255,255,255,0.08)';
     btnTry.style.color = 'rgba(255,255,255,0.4)';
     btnTry.style.cursor = 'not-allowed';
     btnTry.style.border = '1px solid rgba(255,255,255,0.15)';
     btnTry.onclick = null;
 
-    let secondsLeft = 30;
+    let secondsLeft = lockSeconds;
     const lockInterval = setInterval(() => {
       if(stagePassed) { clearInterval(lockInterval); return; }
       secondsLeft--;
@@ -1462,21 +1472,6 @@ async function loadStage(idx) {
         btnTry.onclick = startAIPhase;
       }
     }, 1000);
-
-  } else {
-    // Stage 2-4: show button after 6s
-    setTimeout(() => {
-      if(!stagePassed) {
-        const btn = document.getElementById('btn-try');
-        btn.style.display = 'inline-block';
-        btn.style.background = 'linear-gradient(135deg,#4facfe,#00f2fe)';
-        btn.style.color = '#000';
-        btn.style.cursor = 'pointer';
-        btn.style.border = 'none';
-        btn.textContent = '📷 換我操作 →';
-        btn.onclick = startAIPhase;
-      }
-    }, 6000);
   }
 
   // Preload model in background
@@ -1668,22 +1663,18 @@ function evaluatePredictions(predictions) {
   }
 
   if(stage.specialMode === 'holdBreath') {
-    // Stage 3: 按壓+吸 must exceed threshold FIRST, then start hold countdown
-    const pressInhale = predictions.find(p =>
-      p.className.includes('按壓') && p.className.includes('吸') ||
-      p.className.toLowerCase().includes('press') ||
-      p.className === '按壓+吸'
-    );
-    const pressInhaleProb = pressInhale ? pressInhale.probability : 0;
-    isPassing = pressInhaleProb >= stage.passThreshold;
+    // Stage 3: 用 passClass '吸壓_正確' 比對，threshold 75%，確認後開始憋氣倒數
+    const correct = predictions.find(p => p.className === stage.passClass);
+    const correctProb = correct ? correct.probability : 0;
+    isPassing = correctProb >= stage.passThreshold;
 
     if(isPassing) {
       if(passTimestamp === 0) passTimestamp = now;
       document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
       document.getElementById('status-box').className = 'status-box detecting';
-      document.getElementById('status-box').textContent = `✅ 按壓+吸氣正確！維持動作，準備倒數憋氣...`;
+      document.getElementById('status-box').textContent = `✅ 吸壓正確！維持動作，準備倒數憋氣...`;
 
-      // Only start hold countdown after 1 second of confirmed press+inhale
+      // 確認動作達 1 秒後才啟動憋氣倒數
       const elapsed = (now - passTimestamp) / 1000;
       if(elapsed >= 1 && holdCountdown === 0 && !stagePassed) {
         startHoldCountdown();
@@ -1692,7 +1683,7 @@ function evaluatePredictions(predictions) {
       passTimestamp = 0;
       document.getElementById('webcam-overlay').className = 'webcam-overlay wrong';
       document.getElementById('status-box').className = 'status-box fail';
-      document.getElementById('status-box').textContent = `❌ 請同時按壓並深吸氣（目前 ${Math.round((pressInhale?.probability||0)*100)}%，需達 85%）`;
+      document.getElementById('status-box').textContent = `❌ 請同時按壓並深吸氣（目前 ${Math.round(correctProb*100)}%，需達 75%）`;
     }
     return;
   }
