@@ -1159,6 +1159,15 @@
     <!-- Countdown -->
     <div class="countdown-display" id="countdown-display">5</div>
 
+    <!-- 藥師確認提示框（第四關專用） -->
+    <div id="pharmacist-confirm-box" style="display:none; align-items:center; gap:16px; background:rgba(67,233,123,0.12); border:2px solid rgba(67,233,123,0.5); border-radius:20px; padding:20px 28px; width:100%; max-width:700px; margin-bottom:4px;">
+      <span style="font-size:40px;">💧</span>
+      <div style="flex:1;">
+        <div style="font-size:19px; font-weight:900; color:#43e97b; margin-bottom:4px;">病患漱口完成了嗎？</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.6);">請目視確認病患確實以清水漱口並吐掉後，再按下確認按鈕</div>
+      </div>
+    </div>
+
     <!-- Buttons -->
     <div class="button-row" id="button-row">
       <button class="btn-action btn-primary" id="btn-pharmacist" onclick="passStage()" style="display:none; background:linear-gradient(135deg,#ff3cac,#784ba0);">✅ 藥師確認通過</button>
@@ -1334,6 +1343,7 @@ const STAGES = [
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
+    pharmacistConfirm: true,   // ✅ 第四關改由藥師人工確認通關
     badgeClass: 'stage-number-badge-4',
     titleClass: 'stage-title-4',
     failHint: '請再漱口一次～加油！',
@@ -1623,6 +1633,27 @@ async function startAIPhase() {
   document.getElementById('ai-section').style.display = 'block';
   document.getElementById('video-section').style.display = 'none';
 
+  // 第四關：藥師人工確認模式
+  if(stage.pharmacistConfirm) {
+    document.getElementById('status-box').className = 'status-box waiting';
+    document.getElementById('status-box').textContent = '💧 請讓病患漱口，完成後由藥師確認';
+    document.getElementById('btn-pharmacist').textContent = '✅ 確認漱口完成';
+    document.getElementById('btn-pharmacist').style.background = 'linear-gradient(135deg,#43e97b,#00c853)';
+    document.getElementById('btn-pharmacist').style.color = '#000';
+    document.getElementById('btn-pharmacist').style.fontSize = '20px';
+    document.getElementById('btn-pharmacist').style.padding = '18px 48px';
+    const confirmBox = document.getElementById('pharmacist-confirm-box');
+    if(confirmBox) confirmBox.style.display = 'flex';
+  } else {
+    document.getElementById('btn-pharmacist').textContent = '✅ 藥師確認通過';
+    document.getElementById('btn-pharmacist').style.background = 'linear-gradient(135deg,#ff3cac,#784ba0)';
+    document.getElementById('btn-pharmacist').style.color = '#fff';
+    document.getElementById('btn-pharmacist').style.fontSize = '';
+    document.getElementById('btn-pharmacist').style.padding = '';
+    const confirmBox = document.getElementById('pharmacist-confirm-box');
+    if(confirmBox) confirmBox.style.display = 'none';
+  }
+
   if(!model) {
     document.getElementById('status-box').textContent = '⏳ 模型載入中，請稍候...';
     await loadModel(stage.modelURL, stage.modelType || 'image');
@@ -1770,6 +1801,20 @@ function evaluatePredictions(predictions) {
     isPassing = topPct > stage.passThreshold;
   }
 
+  // 第四關藥師人工確認：AI 只顯示參考值，不自動過關
+  if(stage.pharmacistConfirm) {
+    const target = predictions.find(p => p.className === stage.passClass);
+    const pct = target ? Math.round(target.probability * 100) : 0;
+    const isGood = pct >= Math.round(stage.passThreshold * 100);
+    document.getElementById('webcam-overlay').className = 'webcam-overlay';
+    document.getElementById('status-box').className = 'status-box waiting';
+    document.getElementById('status-box').textContent =
+      isGood
+        ? `💧 AI 偵測：可能已漱口（${pct}%）— 請藥師目視確認後按下確認按鈕`
+        : `💧 請讓病患以清水漱口並吐掉 — AI 參考：${pct}%`;
+    return;
+  }
+
   if(isPassing) {
     if(passTimestamp === 0) passTimestamp = now;
     const elapsed = (now - passTimestamp) / 1000;
@@ -1857,9 +1902,13 @@ function retryStage() {
   holdCountdown = 0;
   if(holdInterval) { clearInterval(holdInterval); holdInterval = null; }
 
+  const stage = STAGES[currentStage];
+
   document.getElementById('webcam-overlay').className = 'webcam-overlay';
-  document.getElementById('status-box').className = 'status-box detecting';
-  document.getElementById('status-box').textContent = '🤖 AI 偵測中，請開始操作...';
+  document.getElementById('status-box').className = stage.pharmacistConfirm ? 'status-box waiting' : 'status-box detecting';
+  document.getElementById('status-box').textContent = stage.pharmacistConfirm
+    ? '💧 請讓病患漱口，完成後由藥師確認'
+    : '🤖 AI 偵測中，請開始操作...';
   document.getElementById('countdown-display').className = 'countdown-display';
   document.getElementById('btn-next').style.display = 'none';
 
