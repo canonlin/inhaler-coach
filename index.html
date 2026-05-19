@@ -1193,6 +1193,40 @@
 <script>
 
 // ===== STAGE CONFIG =====
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 【測試版】更換模型只需修改下方四個 modelURL 及 passClass
+// 訓練完成後，將 Teachable Machine 的模型網址貼入對應位置
+// 原版備份請保留 原版_index.html，此檔為測試用
+// 最後更新：2025/05/19
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 【步驟一】：將四個新模型網址貼在這裡 ↓
+const MODEL_URLS = {
+  振搖:  'https://teachablemachine.withgoogle.com/models/RcJf6DJzm/',  // ✅ 更新 2025/05/19
+  吐氣:  'https://teachablemachine.withgoogle.com/models/6WnxZvQoJ/',  // ✅ 更新 2025/05/19
+  吸壓憋: 'https://teachablemachine.withgoogle.com/models/kOX75yZD8_/', // ✅ 更新 2025/05/19（與原版相同）
+  漱口:  'https://teachablemachine.withgoogle.com/models/2TAE1AzD_/',  // ✅ 更新 2025/05/19
+};
+
+// 【步驟二】：確認每個模型的「正確類別名稱」與 Teachable Machine 訓練時命名一致 ↓
+const PASS_CLASSES = {
+  振搖:  'V振搖 正確',   // ← 必須與 Teachable Machine 的類別名稱完全一致（含空格大小寫）
+  吐氣:  '吐氣',         // ← 必須與 Teachable Machine 的類別名稱完全一致
+  吸壓憋: '吸壓_正確',   // ← 必須與 Teachable Machine 的類別名稱完全一致
+  漱口:  null,           // ← 漱口不限定 passClass，由最高機率判斷
+};
+
+// 【步驟三】：調整各步驟判斷門檻（0~1，預設值已設好，不確定不用改）
+const THRESHOLDS = {
+  振搖:  0.85,
+  吐氣:  0.85,
+  吸壓憋: 0.75,
+  漱口:  0.85,
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 以下不需要修改
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const STAGES = [
   {
     id: 0,
@@ -1220,10 +1254,10 @@ const STAGES = [
     stepEmoji: '💊',
     stepSub: '讓藥物充分混合，每次使用前都要搖',
     videoURL: 'https://www.youtube.com/embed/itUWRBAkbR4?rel=0&modestbranding=1',
-    modelURL: 'https://teachablemachine.withgoogle.com/models/4s-Cq3RqD/',
+    modelURL: MODEL_URLS.振搖,
     modelType: 'image',
-    passClass: 'V振搖 正確',
-    passThreshold: 0.85,
+    passClass: PASS_CLASSES.振搖,
+    passThreshold: THRESHOLDS.振搖,
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
@@ -1242,9 +1276,9 @@ const STAGES = [
     stepInstruction: '緩慢吐氣，直到肺部排空',
     stepSub: '⚠ 不要對著吸嘴吐氣，吐完才含入吸嘴',
     videoURL: 'https://www.youtube.com/embed/lS0ppt5Aic0?rel=0&modestbranding=1',
-    modelURL: 'https://teachablemachine.withgoogle.com/models/EY9yUdpzU/',
-    passClass: '吐氣',
-    passThreshold: 0.85,
+    modelURL: MODEL_URLS.吐氣,
+    passClass: PASS_CLASSES.吐氣,
+    passThreshold: THRESHOLDS.吐氣,
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
@@ -1262,9 +1296,9 @@ const STAGES = [
     stepInstruction: '含住吸嘴 → 按壓 + 深吸氣 → 憋氣 5 秒',
     stepSub: '按壓與吸氣動作要同步，吸入後憋住不要馬上吐',
     videoURL: 'https://www.youtube.com/embed/uH9Rw71MNvc?rel=0&modestbranding=1',
-    modelURL: 'https://teachablemachine.withgoogle.com/models/kOX75yZD8_/',
-    passThreshold: 0.75,
-    passClass: '吸壓_正確',
+    modelURL: MODEL_URLS.吸壓憋,
+    passThreshold: THRESHOLDS.吸壓憋,
+    passClass: PASS_CLASSES.吸壓憋,
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
@@ -1283,8 +1317,9 @@ const STAGES = [
     stepInstruction: '含水漱口，再把水吐掉',
     stepSub: '去除口腔殘留藥物，預防念珠菌感染',
     videoURL: 'https://www.youtube.com/embed/bhQ2fYn7GVo?rel=0&modestbranding=1',
-    modelURL: 'https://teachablemachine.withgoogle.com/models/oZ5pQam2k/',
-    passThreshold: 0.85,
+    modelURL: MODEL_URLS.漱口,
+    passThreshold: THRESHOLDS.漱口,
+    passClass: PASS_CLASSES.漱口,
     passSeconds: 3,
     manualPass: false,
     showPharmacist: true,
