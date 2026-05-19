@@ -1077,6 +1077,17 @@
   <button class="btn-start" onclick="startGame()">🎮 開始挑戰！</button>
   <p class="intro-tagline">像玩遊戲一樣・一關一關學・藥師全程陪您</p>
 
+  <!-- 測試模式選關 -->
+  <div style="margin-top:24px;width:100%;max-width:860px;background:rgba(255,215,0,0.07);border:1px dashed rgba(255,215,0,0.4);border-radius:16px;padding:16px 20px;">
+    <div style="font-size:13px;color:rgba(255,215,0,0.8);letter-spacing:2px;font-weight:700;margin-bottom:12px;text-align:center;">🧪 測試模式：直接跳到指定關卡</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+      <button onclick="jumpToStage(1)" style="background:rgba(255,154,86,0.15);border:1px solid rgba(255,154,86,0.5);border-radius:12px;padding:12px 8px;color:#ff9a56;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;line-height:1.8;">💊<br>第一關<br>振搖</button>
+      <button onclick="jumpToStage(2)" style="background:rgba(161,140,209,0.15);border:1px solid rgba(161,140,209,0.5);border-radius:12px;padding:12px 8px;color:#d4aaff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;line-height:1.8;">💨<br>第二關<br>吐氣</button>
+      <button onclick="jumpToStage(3)" style="background:rgba(79,172,254,0.15);border:1px solid rgba(79,172,254,0.5);border-radius:12px;padding:12px 8px;color:#4facfe;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;line-height:1.8;">🫁<br>第三關<br>壓吸憋</button>
+      <button onclick="jumpToStage(4)" style="background:rgba(67,233,123,0.15);border:1px solid rgba(67,233,123,0.5);border-radius:12px;padding:12px 8px;color:#43e97b;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;line-height:1.8;">💧<br>第四關<br>漱口</button>
+    </div>
+  </div>
+
   </div><!-- end intro-wrapper -->
 </div>
 
@@ -1346,6 +1357,32 @@ let stagePassed = false;
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+}
+
+function jumpToStage(stageIdx) {
+  // 測試模式：直接跳到指定關卡，跳過影片鎖定
+  currentStage = stageIdx;
+  document.getElementById('side-progress').classList.remove('hidden');
+  document.getElementById('stage-topbar').classList.remove('hidden');
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('side-dot-'+i);
+    dot.classList.remove('done','active','pending');
+    dot.classList.add(i < stageIdx ? 'done' : i === stageIdx ? 'active' : 'pending');
+  }
+  showScreen('screen-stage');
+  loadStage(stageIdx);
+  // 測試模式：立即解鎖操作按鈕，不等影片
+  setTimeout(() => {
+    const btnTry = document.getElementById('btn-try');
+    if(btnTry && btnTry.onclick === null) {
+      btnTry.textContent = '📷 測試模式：直接操作 →';
+      btnTry.style.background = 'linear-gradient(135deg,#ffd700,#ff9a56)';
+      btnTry.style.color = '#000';
+      btnTry.style.cursor = 'pointer';
+      btnTry.style.border = 'none';
+      btnTry.onclick = startAIPhase;
+    }
+  }, 1500);
 }
 
 function startGame() {
