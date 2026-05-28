@@ -265,14 +265,31 @@
   .step-card:hover::before { opacity: 0.25; }
   .step-card:hover { transform: translateY(-4px); }
 
-  .step-card-1 { background: rgba(255,100,60,0.18); border-color: rgba(255,120,60,0.55); }
+  .step-card-1 { background: rgba(255,100,60,0.18); border-color: rgba(255,120,60,0.55); cursor: pointer; }
   .step-card-1::before { background: linear-gradient(135deg, #ff9a56, #ff6b6b); }
-  .step-card-2 { background: rgba(161,140,209,0.18); border-color: rgba(161,140,209,0.55); }
+  .step-card-1:hover { border-color: #ff9a56; box-shadow: 0 0 28px rgba(255,154,86,0.7); transform: translateY(-6px) scale(1.03); }
+  .step-card-2 { background: rgba(161,140,209,0.18); border-color: rgba(161,140,209,0.55); cursor: pointer; }
   .step-card-2::before { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
-  .step-card-3 { background: rgba(79,172,254,0.18); border-color: rgba(79,172,254,0.55); }
+  .step-card-2:hover { border-color: #a18cd1; box-shadow: 0 0 28px rgba(161,140,209,0.7); transform: translateY(-6px) scale(1.03); }
+  .step-card-3 { background: rgba(79,172,254,0.18); border-color: rgba(79,172,254,0.55); cursor: pointer; }
   .step-card-3::before { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-  .step-card-4 { background: rgba(67,233,123,0.18); border-color: rgba(67,233,123,0.55); }
+  .step-card-3:hover { border-color: #4facfe; box-shadow: 0 0 28px rgba(79,172,254,0.7); transform: translateY(-6px) scale(1.03); }
+  .step-card-4 { background: rgba(67,233,123,0.18); border-color: rgba(67,233,123,0.55); cursor: pointer; }
   .step-card-4::before { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+  .step-card-4:hover { border-color: #43e97b; box-shadow: 0 0 28px rgba(67,233,123,0.7); transform: translateY(-6px) scale(1.03); }
+
+  .step-card-hint {
+    position: absolute;
+    bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+    letter-spacing: 1px;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .step-card:hover .step-card-hint { opacity: 1; }
 
   .step-card-num {
     width: 40px; height: 40px;
@@ -1051,25 +1068,29 @@
 
   <!-- 2x2 steps grid -->
   <div class="steps-grid">
-    <div class="step-card step-card-1">
+    <div class="step-card step-card-1" onclick="startSingleStage(1)" title="單獨練習振搖">
       <div class="step-card-num">1</div>
       <div class="step-card-emoji">💊</div>
       <div class="step-card-label">振搖</div>
+      <div class="step-card-hint">👆 單獨練習</div>
     </div>
-    <div class="step-card step-card-2">
+    <div class="step-card step-card-2" onclick="startSingleStage(2)" title="單獨練習吐氣">
       <div class="step-card-num">2</div>
       <div class="step-card-emoji">💨</div>
       <div class="step-card-label">吐氣</div>
+      <div class="step-card-hint">👆 單獨練習</div>
     </div>
-    <div class="step-card step-card-3">
+    <div class="step-card step-card-3" onclick="startSingleStage(3)" title="單獨練習壓吸憋氣">
       <div class="step-card-num">3</div>
       <div class="step-card-emoji">🫁</div>
       <div class="step-card-label">壓吸憋氣</div>
+      <div class="step-card-hint">👆 單獨練習</div>
     </div>
-    <div class="step-card step-card-4">
+    <div class="step-card step-card-4" onclick="startSingleStage(4)" title="單獨練習漱口">
       <div class="step-card-num">4</div>
       <div class="step-card-emoji">💧</div>
       <div class="step-card-label">漱口</div>
+      <div class="step-card-hint">👆 單獨練習</div>
     </div>
   </div>
 
@@ -1299,6 +1320,7 @@ const STAGES = [
 let currentStage = 0;
 let model = null;
 let modelType = 'image';
+let singleMode = false; // 單關練習模式旗標
 let webcam = null;
 let isRunning = false;
 let passTimer = 0;
@@ -1315,6 +1337,7 @@ function showScreen(id) {
 }
 
 function startGame() {
+  singleMode = false;
   currentStage = 0;
   document.getElementById('side-progress').classList.remove('hidden');
   document.getElementById('stage-topbar').classList.remove('hidden');
@@ -1326,6 +1349,21 @@ function startGame() {
   }
   showScreen('screen-stage');
   loadStage(0);
+}
+
+function startSingleStage(stageNum) {
+  singleMode = true;
+  currentStage = stageNum;
+  document.getElementById('side-progress').classList.remove('hidden');
+  document.getElementById('stage-topbar').classList.remove('hidden');
+  // 只亮該關的 dot，其他 pending
+  for(let i=1;i<=4;i++){
+    const dot = document.getElementById('side-dot-'+i);
+    dot.classList.remove('done','active','pending');
+    dot.classList.add(i === stageNum ? 'active' : 'pending');
+  }
+  showScreen('screen-stage');
+  loadStage(stageNum);
 }
 
 function restartGame() {
@@ -1763,8 +1801,22 @@ function passStage() {
   // Show next button
   const nextBtn = document.getElementById('btn-next');
   nextBtn.style.display = 'inline-block';
-  nextBtn.textContent = isLast ? '▶ 觀看劑量說明影片' : '很棒！進入下一關 →';
-  nextBtn.className = 'btn-action btn-next visible';
+
+  if(singleMode) {
+    // 單關練習完成 → 返回首頁或再練一次
+    nextBtn.textContent = '🏠 返回首頁';
+    nextBtn.className = 'btn-action btn-next visible';
+    nextBtn.onclick = () => {
+      stopWebcam();
+      document.getElementById('side-progress').classList.add('hidden');
+      document.getElementById('stage-topbar').classList.add('hidden');
+      showScreen('screen-intro');
+    };
+  } else {
+    nextBtn.textContent = isLast ? '▶ 觀看劑量說明影片' : '很棒！進入下一關 →';
+    nextBtn.className = 'btn-action btn-next visible';
+    nextBtn.onclick = nextStage;
+  }
   document.getElementById('button-row').appendChild(nextBtn);
 
   // Mark side dot as done (offset by 1 for intro stage)
