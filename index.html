@@ -1103,6 +1103,7 @@
   <!-- Start button -->
   <button class="btn-start" onclick="startGame()">🎮 開始挑戰！</button>
   <p class="intro-tagline">像玩遊戲一樣・一關一關學・藥師全程陪您</p>
+  <div id="patient-id-display" style="margin-top:10px;font-size:13px;color:rgba(255,255,255,0.35);letter-spacing:1px;"></div>
 
   </div><!-- end intro-wrapper -->
 </div>
@@ -1177,7 +1178,7 @@
 
     <!-- Buttons -->
     <div class="button-row" id="button-row">
-      <button class="btn-action btn-primary" id="btn-pharmacist" onclick="passStage()" style="display:none; background:linear-gradient(135deg,#ff3cac,#784ba0);">✅ 藥師確認通過</button>
+      <button class="btn-action btn-primary" id="btn-pharmacist" onclick="pharmacistConfirm()" style="display:none; background:linear-gradient(135deg,#ff3cac,#784ba0);">✅ 藥師確認通過</button>
       <button class="btn-action" id="btn-retry" onclick="retryStage()" style="display:none; background:linear-gradient(135deg,#f7971e,#ffd200); color:#000; font-weight:900;">🔄 再測一次</button>
       <button class="btn-action btn-next visible" id="btn-next" onclick="nextStage()" style="display:none;">
         很棒！進入下一關 →
@@ -1322,19 +1323,48 @@ const STAGES = [
   },
 ];
 
+// ===== Google Apps Script URL =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz8OmH1WXiwqx-Eko19KKXVffu89jz-w2opkc6hl1hf2nSB13_FGWkUynA7uWPkFP8/exec'; // ← 請填入你的 Apps Script 網址
+
 // ===== STATE =====
 let currentStage = 0;
 let model = null;
 let modelType = 'image';
-let singleMode = false; // 單關練習模式旗標
+let singleMode = false;
 let webcam = null;
 let isRunning = false;
 let passTimer = 0;
 let passTimestamp = 0;
 let holdCountdown = 0;
 let holdInterval = null;
-let phase = 'video'; // 'video' | 'ai'
+let phase = 'video';
 let stagePassed = false;
+
+// ===== 研究記錄變數 =====
+let patientId = '';         // 從URL ?id= 帶入
+let stageAttempts = {};     // 各關嘗試次數 {1:2, 2:1, 3:4, 4:1}
+let stageAIConfidence = {}; // 各關藥師確認時的AI信心值
+let stagePharmacist = {};   // 各關藥師判讀結果 {1:'pass', 2:'pass'...}
+let lastAIConfidence = 0;   // 當前最新AI信心值
+
+// ===== 讀取URL病人ID =====
+function getPatientIdFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id') || '';
+}
+
+// 初始化
+patientId = getPatientIdFromURL();
+for(let i=1;i<=4;i++){
+  stageAttempts[i] = 0;
+  stageAIConfidence[i] = 0;
+  stagePharmacist[i] = '';
+}
+// 顯示病人ID（若有帶入）
+window.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('patient-id-display');
+  if(el && patientId) el.textContent = '研究編號：' + patientId;
+});
 
 // ===== NAVIGATION =====
 function showScreen(id) {
@@ -1590,7 +1620,11 @@ async function startAIPhase() {
     return;
   }
 
-  // Show pharmacist confirm button for all stages
+  // 初始化本關嘗試次數
+  if(!stageAttempts[currentStage]) stageAttempts[currentStage] = 0;
+  stageAttempts[currentStage]++;
+
+  // 藥師確認按鈕與重試按鈕一開始就顯示（不等AI達標）
   document.getElementById('btn-pharmacist').style.display = 'inline-block';
   document.getElementById('btn-retry').style.display = 'inline-block';
   document.getElementById('ai-section').style.display = 'block';
@@ -1678,6 +1712,15 @@ function evaluatePredictions(predictions) {
   // Find top prediction
   const top = predictions.reduce((a,b) => a.probability > b.probability ? a : b);
   const topPct = top.probability;
+
+  // 記錄當前目標類別的AI信心值（供藥師確認時儲存）
+  const stage = STAGES[currentStage];
+  if(stage.passClass) {
+    const target = predictions.find(p => p.className === stage.passClass);
+    lastAIConfidence = target ? Math.round(target.probability * 100) : 0;
+  } else {
+    lastAIConfidence = Math.round(topPct * 100);
+  }
 
   // Determine if this is a passing prediction
   let isPassing = false;
@@ -1785,6 +1828,49 @@ function startHoldCountdown() {
       document.getElementById('countdown-display').textContent = holdCountdown;
     }
   }, 1000);
+}
+
+// ===== 藥師確認通過（記錄數據）=====
+function pharmacistConfirm() {
+  const stageIdx = currentStage; // 1~4
+  stagePharmacist[stageIdx] = 'pass';
+  stageAIConfidence[stageIdx] = lastAIConfidence;
+  passStage();
+}
+
+// ===== 送出數據到 Google Sheets =====
+async function sendSessionData() {
+  if(!patientId) return; // 無病人ID則不送出
+
+  const payload = {
+    action: 'recordSession',
+    patientId: patientId,
+    timestamp: new Date().toISOString(),
+    stage1_attempts: stageAttempts[1] || 0,
+    stage1_ai_confidence: stageAIConfidence[1] || 0,
+    stage1_pharmacist: stagePharmacist[1] || 'not_recorded',
+    stage2_attempts: stageAttempts[2] || 0,
+    stage2_ai_confidence: stageAIConfidence[2] || 0,
+    stage2_pharmacist: stagePharmacist[2] || 'not_recorded',
+    stage3_attempts: stageAttempts[3] || 0,
+    stage3_ai_confidence: stageAIConfidence[3] || 0,
+    stage3_pharmacist: stagePharmacist[3] || 'not_recorded',
+    stage4_attempts: stageAttempts[4] || 0,
+    stage4_ai_confidence: stageAIConfidence[4] || 0,
+    stage4_pharmacist: stagePharmacist[4] || 'not_recorded',
+  };
+
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    console.log('✅ 數據已送出:', payload);
+  } catch(e) {
+    console.error('❌ 數據送出失敗:', e);
+  }
 }
 
 function passStage() {
@@ -1902,6 +1988,7 @@ function showBonusVideo() {
 
 function showSuccessScreen() {
   stopWebcam();
+  sendSessionData(); // ← 自動送出研究數據到 Google Sheets
   document.getElementById('side-progress').classList.add('hidden');
   document.getElementById('stage-topbar').classList.add('hidden');
   showScreen('screen-success');
