@@ -1860,11 +1860,27 @@ async function sendSessionData() {
   };
 
   try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    // 改用GET方式送出，Apps Script可靠接收
+    const params = new URLSearchParams({
+      action: 'ai_coach_record',
+      patientId: payload.patientId,
+      timestamp: payload.timestamp,
+      stage1_attempts: payload.stage1_attempts,
+      stage1_ai_confidence: payload.stage1_ai_confidence,
+      stage1_pharmacist: payload.stage1_pharmacist,
+      stage2_attempts: payload.stage2_attempts,
+      stage2_ai_confidence: payload.stage2_ai_confidence,
+      stage2_pharmacist: payload.stage2_pharmacist,
+      stage3_attempts: payload.stage3_attempts,
+      stage3_ai_confidence: payload.stage3_ai_confidence,
+      stage3_pharmacist: payload.stage3_pharmacist,
+      stage4_attempts: payload.stage4_attempts,
+      stage4_ai_confidence: payload.stage4_ai_confidence,
+      stage4_pharmacist: payload.stage4_pharmacist,
+    });
+    await fetch(GAS_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'no-cors'
     });
     console.log('✅ 數據已送出:', payload);
   } catch(e) {
