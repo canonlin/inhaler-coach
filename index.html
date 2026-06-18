@@ -1742,7 +1742,7 @@ function evaluatePredictions(predictions) {
       document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
       document.getElementById('status-box').className = 'status-box detecting';
       document.getElementById('status-box').textContent = `✅ 振搖正確！維持 ${remaining} 秒...`;
-      if(elapsed >= needed) passStage();
+      if(elapsed >= needed) waitForPharmacist();
     } else {
       passTimestamp = 0;
       document.getElementById('webcam-overlay').className = 'webcam-overlay wrong';
@@ -1796,7 +1796,8 @@ function evaluatePredictions(predictions) {
     document.getElementById('status-box').textContent = `✅ 動作正確！維持 ${remaining} 秒...`;
 
     if(elapsed >= needed) {
-      passStage();
+      // AI達標，等待藥師確認
+      waitForPharmacist();
     }
   } else {
     passTimestamp = 0;
@@ -1822,11 +1823,31 @@ function startHoldCountdown() {
       clearInterval(holdInterval);
       holdInterval = null;
       document.getElementById('countdown-display').className = 'countdown-display';
-      passStage();
+      waitForPharmacist();
     } else {
       document.getElementById('countdown-display').textContent = holdCountdown;
     }
   }, 1000);
+}
+
+// ===== 等待藥師確認（AI達標後）=====
+function waitForPharmacist() {
+  isRunning = false; // 停止AI偵測
+  stopWebcam();      // 關閉鏡頭節省資源
+
+  // 更新狀態顯示
+  document.getElementById('status-box').className = 'status-box detecting';
+  document.getElementById('status-box').textContent = '✅ AI判讀通過！請藥師確認';
+  document.getElementById('webcam-overlay').className = 'webcam-overlay correct';
+
+  // 顯示藥師確認按鈕（確保可見）
+  const btn = document.getElementById('btn-pharmacist');
+  btn.style.display = 'inline-block';
+  btn.textContent = '✅ 藥師確認通過';
+  btn.style.background = 'linear-gradient(135deg,#00c853,#00796b)';
+
+  // 同時顯示重試按鈕
+  document.getElementById('btn-retry').style.display = 'inline-block';
 }
 
 // ===== 藥師確認通過（記錄數據）=====
