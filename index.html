@@ -1877,7 +1877,7 @@ async function sendSessionData() {
   const payload = {
     action: 'recordSession',
     patientId: patientId,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toLocaleString('zh-TW', {timeZone:'Asia/Taipei'}).replace(/\//g,'-'),
     stage1_attempts: stageAttempts[1] || 0,
     stage1_ai_confidence: stageAIConfidence[1] || 0,
     stage1_pharmacist: stagePharmacist[1] || 'not_recorded',
