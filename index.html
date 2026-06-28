@@ -1346,6 +1346,7 @@ let stageAttempts = {};     // 各關嘗試次數 {1:2, 2:1, 3:4, 4:1}
 let stageAIConfidence = {}; // 各關藥師確認時的AI信心值
 let stagePharmacist = {};   // 各關藥師判讀結果 {1:'pass', 2:'pass'...}
 let lastAIConfidence = 0;   // 當前最新AI信心值
+let sessionDataSent = false; // 防止重複送出
 
 // ===== 讀取URL病人ID =====
 function getPatientIdFromURL() {
@@ -1405,6 +1406,15 @@ function startSingleStage(stageNum) {
 function restartGame() {
   document.querySelectorAll('.confetti-piece').forEach(c => c.remove());
   currentStage = 0;
+  sessionDataSent = false; // ← 重置送出旗標，允許下一輪重新送出
+  stageAttempts = {};
+  stageAIConfidence = {};
+  stagePharmacist = {};
+  for(let i=1;i<=4;i++){
+    stageAttempts[i] = 0;
+    stageAIConfidence[i] = 0;
+    stagePharmacist[i] = 'not_recorded';
+  }
   showScreen('screen-intro');
   document.getElementById('side-progress').classList.add('hidden');
   document.getElementById('stage-topbar').classList.add('hidden');
@@ -1861,6 +1871,8 @@ function pharmacistConfirm() {
 // ===== 送出數據到 Google Sheets =====
 async function sendSessionData() {
   if(!patientId) return; // 無病人ID則不送出
+  if(sessionDataSent) return; // 防止重複送出
+  sessionDataSent = true;
 
   const payload = {
     action: 'recordSession',
@@ -2024,7 +2036,7 @@ function showBonusVideo() {
 
 function showSuccessScreen() {
   stopWebcam();
-  sendSessionData(); // ← 自動送出研究數據到 Google Sheets
+  sendSessionData(); // ← 自動送出研究數據到 Google Sheets（有防重複保護）
   document.getElementById('side-progress').classList.add('hidden');
   document.getElementById('stage-topbar').classList.add('hidden');
   showScreen('screen-success');
