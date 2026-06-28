@@ -1872,6 +1872,13 @@ function pharmacistConfirm() {
 async function sendSessionData() {
   if(!patientId) return; // 無病人ID則不送出
   if(sessionDataSent) return; // 防止重複送出
+  // 確認四關都有完成記錄才送出
+  for(let i=1;i<=4;i++){
+    if(!stagePharmacist[i] || stagePharmacist[i]===''){
+      console.warn('⚠️ 第'+i+'關尚未完成，不送出資料');
+      return;
+    }
+  }
   sessionDataSent = true;
 
   const payload = {
