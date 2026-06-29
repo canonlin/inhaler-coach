@@ -1918,15 +1918,9 @@ async function sendSessionData() {
       s4c: payload.stage4_ai_confidence,
       s4p: payload.stage4_pharmacist,
     });
-    // 用 no-cors fetch 送出
-    fetch(GAS_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'no-cors',
-      redirect: 'follow'
-    }).catch(()=>{});
-    // 也用 Image ping 雙重保險
+    // 用 Image ping 送出（繞過 CORS）
     const _img = new Image();
-    _img.src = GAS_URL + '?' + params.toString() + '&t=' + Date.now();
+    _img.src = GAS_URL + '?' + params.toString();
     console.log('✅ 數據已送出:', payload);
   } catch(e) {
     console.error('❌ 數據送出失敗:', e);
