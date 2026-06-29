@@ -1324,7 +1324,7 @@ const STAGES = [
 ];
 
 // ===== Google Apps Script URL =====
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz8OmH1WXiwqx-Eko19KKXVffu89jz-w2opkc6hl1hf2nSB13_FGWkUynA7uWPkFP8/exec'; // ← 請填入你的 Apps Script 網址
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwcMXorYCJo32Q8FfLWGk7Jw221DX1PPaTorAlisE5ItJJfjtxm-okmD40Ke8Pg_u0N/exec'; // ← 請填入你的 Apps Script 網址
 
 // ===== STATE =====
 let currentStage = 0;
@@ -1918,13 +1918,15 @@ async function sendSessionData() {
       s4c: payload.stage4_ai_confidence,
       s4p: payload.stage4_pharmacist,
     });
-    // 用 Image ping 方式送出，完全繞過 CORS 限制
-    await new Promise((resolve) => {
-      const img = new Image();
-      img.onload = img.onerror = resolve;
-      img.src = GAS_URL + '?' + params.toString();
-      setTimeout(resolve, 5000); // 最多等5秒
-    });
+    // 用 no-cors fetch 送出
+    fetch(GAS_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'no-cors',
+      redirect: 'follow'
+    }).catch(()=>{});
+    // 也用 Image ping 雙重保險
+    const _img = new Image();
+    _img.src = GAS_URL + '?' + params.toString() + '&t=' + Date.now();
     console.log('✅ 數據已送出:', payload);
   } catch(e) {
     console.error('❌ 數據送出失敗:', e);
