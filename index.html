@@ -1918,12 +1918,11 @@ async function sendSessionData() {
       s4c: payload.stage4_ai_confidence,
       s4p: payload.stage4_pharmacist,
     });
-    const resp = await fetch(GAS_URL + '?' + params.toString(), {
+    await fetch(GAS_URL + '?' + params.toString(), {
       method: 'GET',
-      mode: 'cors'
+      mode: 'no-cors'
     });
-    const text = await resp.text();
-    console.log('✅ 數據已送出 (status='+resp.status+'):', payload, '回應:', text);
+    console.log('✅ 數據已送出:', payload);
   } catch(e) {
     console.error('❌ 數據送出失敗:', e);
   }
