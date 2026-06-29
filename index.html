@@ -1918,9 +1918,12 @@ async function sendSessionData() {
       s4c: payload.stage4_ai_confidence,
       s4p: payload.stage4_pharmacist,
     });
-    await fetch(GAS_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'no-cors'
+    // 用 Image ping 方式送出，完全繞過 CORS 限制
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = img.onerror = resolve;
+      img.src = GAS_URL + '?' + params.toString();
+      setTimeout(resolve, 5000); // 最多等5秒
     });
     console.log('✅ 數據已送出:', payload);
   } catch(e) {
