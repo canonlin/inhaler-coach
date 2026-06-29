@@ -1884,7 +1884,7 @@ async function sendSessionData() {
   const payload = {
     action: 'recordSession',
     patientId: patientId,
-    timestamp: (() => { const d = new Date(); const offset = d.getTime() + 8*3600000; const t = new Date(offset); return t.toISOString().replace('T',' ').substring(0,19); })(),
+    timestamp: (() => { const d = new Date(); const offset = d.getTime() + 8*3600000; const t = new Date(offset); return t.toISOString().substring(0,19).replace('T','_'); })(),
     stage1_attempts: stageAttempts[1] || 0,
     stage1_ai_confidence: stageAIConfidence[1] || 0,
     stage1_pharmacist: stagePharmacist[1] || 'not_recorded',
