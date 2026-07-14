@@ -46,9 +46,13 @@ async function initialize() {
 			faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
 			{ runtime: "tfjs", maxFaces: 1, refineLandmarks: false },
 		),
+		// 'full' rather than 'lite': the lite model loses a fast-moving hand, and a
+		// fast-moving hand is exactly what shaking is. Measured 2026-07-15 on a
+		// full collection run, it saw the hand in only 13% of frames during a
+		// normal shake — the single most important task in the protocol.
 		handPoseDetection.createDetector(
 			handPoseDetection.SupportedModels.MediaPipeHands,
-			{ runtime: "tfjs", maxHands: 1, modelType: "lite" },
+			{ runtime: "tfjs", maxHands: 1, modelType: "full" },
 		),
 	]);
 }

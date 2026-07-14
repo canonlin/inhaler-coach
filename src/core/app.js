@@ -405,11 +405,10 @@ async function predictionLoop() {
 		const stage = STAGES[state.currentStage];
 		const now = Date.now();
 
+		// Sample every frame, even without a hand: the sampler needs the previous
+		// frame to difference against, and skipping the call throws that away.
 		const roi = resolveHandROI(results.hands, timestamp);
-		const motion = roi
-			? motionEnergy.sample(canvas, roi)
-			: { hand: 0, background: 0, ratio: 0 };
-		if (!roi) motionEnergy.reset();
+		const motion = motionEnergy.sample(canvas, roi);
 
 		const sound = audio.sample();
 

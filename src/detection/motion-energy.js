@@ -94,6 +94,13 @@ export class MotionEnergy {
 			}
 		}
 
+		// The reference frame is updated on EVERY call, including the ones where
+		// there is no hand to measure. It has to be: it holds the whole frame, not
+		// the hand region, so it stays valid whether or not the hand model saw
+		// anything. Discarding it whenever tracking blinked meant the next frame
+		// had nothing to difference against and reported zero motion — and hand
+		// tracking blinks most exactly when the hand is moving fastest. The harder
+		// someone shook, the more of their shake was recorded as no motion at all.
 		this.previous = gray;
 
 		if (handCells.length === 0 || backgroundCells.length === 0) {
