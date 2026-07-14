@@ -14,7 +14,14 @@ export class TFJSBackend extends DetectionBackend {
 
 	async initialize() {
 		const tf = await import("@tensorflow/tfjs-core");
-		await import("@tensorflow/tfjs-backend-wasm");
+		const wasmBackend = await import("@tensorflow/tfjs-backend-wasm");
+
+		// Point WASM binaries to CDN
+		if (wasmBackend.setWasmPaths) {
+			wasmBackend.setWasmPaths(
+				"https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/",
+			);
+		}
 
 		await tf.setBackend("wasm");
 		await tf.ready();
