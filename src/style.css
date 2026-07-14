@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Noto Sans TC', sans-serif;
+  --color-primary: #3b82f6;
+  --color-primary-dark: #1d4ed8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-bg: #111827;
+  --color-surface: #1f2937;
+  --color-surface-light: #374151;
+  --color-border: #4b5563;
+  --color-text: #f9fafb;
+  --color-text-secondary: #9ca3af;
+
+  --animate-fade-in: fade-in 0.4s ease both;
+  --animate-slide-up: slide-up 0.4s ease both;
+  --animate-countdown-pulse: countdown-pulse 1s infinite;
+}
+
+@keyframes fade-in {
+	0% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes slide-up {
+	0% {
+		transform: translateY(12px);
+		opacity: 0;
+	}
+	100% {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes countdown-pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.05);
+	}
+}
