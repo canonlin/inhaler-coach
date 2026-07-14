@@ -172,6 +172,10 @@ function finish() {
 		// machine has to travel with the data, or the same trap is waiting.
 		videoWidth: recorder.video.videoWidth,
 		videoHeight: recorder.video.videoHeight,
+		// What the camera actually granted, which is not necessarily what was
+		// asked for — laptops differ, and a session recorded at 15fps or 480p has
+		// to be recognisable as such when the analysis disagrees with the others.
+		cameraSettings: recorder.cameraSettings,
 		protocol: TASKS.map((t) => ({ id: t.id, seconds: t.seconds })),
 	};
 

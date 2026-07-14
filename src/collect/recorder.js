@@ -45,8 +45,25 @@ export class SessionRecorder {
 	async initialize(canvas) {
 		this.canvas = canvas;
 
+		// Record at the highest fidelity the camera will give, not at the
+		// resolution the live detector happens to want.
+		//
+		// Everything is re-derived from this file later, so whatever the recording
+		// throws away is gone for good. At 640x480 a small wrist-only shake did not
+		// appear in the motion signal at all (2.5, against 2.3 for a motionless
+		// hand) — and it is not established whether the motion was too small or
+		// simply below the resolution. That question can only be answered if the
+		// pixels were kept.
+		//
+		// The detection loop still runs at 640x480 off a downscaled canvas; this is
+		// only about what gets written to disk.
 		this.stream = await navigator.mediaDevices.getUserMedia({
-			video: { facingMode: "user", width: 640, height: 480 },
+			video: {
+				facingMode: "user",
+				width: { ideal: 1280 },
+				height: { ideal: 720 },
+				frameRate: { ideal: 30, min: 24 },
+			},
 			// The browser's cleanup is tuned to preserve speech and will filter out
 			// a broadband hiss — which is exactly the actuation we need to hear.
 			audio: {
@@ -62,8 +79,10 @@ export class SessionRecorder {
 		this.video.srcObject = this.stream;
 		await this.video.play();
 
+		// 16:9, matching the camera — squeezing a 1280x720 frame into a 4:3 canvas
+		// would distort every landmark and every motion measurement.
 		canvas.width = 640;
-		canvas.height = 480;
+		canvas.height = 360;
 
 		await this.detection.initialize();
 		await this.audio.initialize(this.stream);
@@ -71,6 +90,14 @@ export class SessionRecorder {
 
 	get backendName() {
 		return this.detection.getBackendName();
+	}
+
+	/** What the camera actually granted, not what was requested. */
+	get cameraSettings() {
+		const track = this.stream?.getVideoTracks()[0];
+		if (!track) return null;
+		const { width, height, frameRate, deviceId } = track.getSettings();
+		return { width, height, frameRate, deviceId, label: track.label };
 	}
 
 	start() {
@@ -84,7 +111,12 @@ export class SessionRecorder {
 			mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
 				? "video/webm;codecs=vp9,opus"
 				: "video/webm",
-			videoBitsPerSecond: 1_200_000,
+			// Generous, deliberately. Video compression works by discarding small
+			// changes between frames — which is precisely the signal here. A gentle
+			// wrist shake is exactly the kind of motion a low bitrate would smooth
+			// away, and it cannot be recovered afterwards. ~5 minutes lands around
+			// 150MB, which is a file to drag once, not a constraint worth optimising.
+			videoBitsPerSecond: 4_000_000,
 		});
 		this.mediaRecorder.ondataavailable = (e) => {
 			if (e.data.size > 0) this.chunks.push(e.data);
