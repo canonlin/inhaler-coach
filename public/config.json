@@ -1,4 +1,0 @@
-{
-  "_comment": "共用資料夾的連結。改這裡就好，不用重新 build。在 GitHub 上直接編輯 collector/config.json 也可以。",
-  "driveFolderUrl": ""
-}
