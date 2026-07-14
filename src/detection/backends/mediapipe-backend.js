@@ -4,7 +4,7 @@ import {
 	HandLandmarker,
 	PoseLandmarker,
 } from "@mediapipe/tasks-vision";
-import { DetectionBackend } from "./detection-backend.js";
+import { ALL_SIGNALS, DetectionBackend } from "./detection-backend.js";
 
 function isWebGLAvailable() {
 	try {
@@ -26,6 +26,7 @@ export class MediaPipeBackend extends DetectionBackend {
 		this.faceLandmarker = null;
 		this.handLandmarker = null;
 		this.isInitialized = false;
+		this.lastTimestamp = 0;
 	}
 
 	async initialize() {
@@ -80,22 +81,29 @@ export class MediaPipeBackend extends DetectionBackend {
 		this.isInitialized = true;
 	}
 
-	processFrame(canvas, timestamp) {
+	async processFrame(canvas, timestamp, needs = ALL_SIGNALS) {
 		if (!this.isInitialized) {
 			return { pose: null, face: null, hands: null };
 		}
 
-		const ctx = canvas.getContext("2d");
-		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		// detectForVideo requires strictly increasing timestamps per landmarker.
+		const ts = Math.max(timestamp, this.lastTimestamp + 1);
+		this.lastTimestamp = ts;
 
-		const poseResult = this.poseLandmarker.detectForVideo(imageData, timestamp);
-		const faceResult = this.faceLandmarker.detectForVideo(imageData, timestamp);
-		const handResult = this.handLandmarker.detectForVideo(imageData, timestamp);
+		const poseResult = needs.pose
+			? this.poseLandmarker.detectForVideo(canvas, ts)
+			: null;
+		const faceResult = needs.face
+			? this.faceLandmarker.detectForVideo(canvas, ts)
+			: null;
+		const handResult = needs.hands
+			? this.handLandmarker.detectForVideo(canvas, ts)
+			: null;
 
 		return {
-			pose: poseResult.landmarks?.[0] || null,
-			face: faceResult.faceLandmarks?.[0] || null,
-			hands: handResult.landmarks?.[0] || null,
+			pose: poseResult?.landmarks?.[0] || null,
+			face: faceResult?.faceLandmarks?.[0] || null,
+			hands: handResult?.landmarks?.[0] || null,
 		};
 	}
 

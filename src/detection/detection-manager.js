@@ -33,15 +33,19 @@ export class DetectionManager {
 			console.warn("MediaPipe initialization failed, trying TF.js:", e.message);
 		}
 
-		// Fallback to TF.js
+		// Fallback to TF.js, off the main thread. WASM inference is synchronous,
+		// so running it inline would freeze the UI for the length of every
+		// forward pass.
 		try {
-			const { TFJSBackend } = await import("./backends/tfjs-backend.js");
-			const backend = new TFJSBackend();
+			const { TFJSWorkerBackend } = await import(
+				"./backends/tfjs-worker-backend.js"
+			);
+			const backend = new TFJSWorkerBackend();
 			await backend.initialize();
 			this.backend = backend;
 			this.activeBackend = "tfjs";
 			this.isInitialized = true;
-			console.log("Detection: TF.js backend initialized (WASM)");
+			console.log("Detection: TF.js backend initialized (WASM, in worker)");
 			return;
 		} catch (e) {
 			console.error("TF.js initialization also failed:", e.message);
@@ -53,13 +57,13 @@ export class DetectionManager {
 	 * Process a video frame
 	 * @param {HTMLCanvasElement} canvas
 	 * @param {DOMHighResTimeStamp} timestamp
-	 * @returns {import('./backends/detection-backend.js').DetectionResult}
+	 * @returns {Promise<import('./backends/detection-backend.js').DetectionResult>}
 	 */
-	processFrame(canvas, timestamp) {
+	async processFrame(canvas, timestamp, needs) {
 		if (!this.isInitialized || !this.backend) {
 			return { pose: null, face: null, hands: null };
 		}
-		return this.backend.processFrame(canvas, timestamp);
+		return this.backend.processFrame(canvas, timestamp, needs);
 	}
 
 	/**
