@@ -14,13 +14,14 @@
           <header class="space-y-3">
             <h1 class="text-3xl font-bold">吸入器動作資料收集</h1>
             <p class="text-text-secondary leading-relaxed">
-              畫面會一項一項提示你要做的動作，照著做就好，全程約 2 分鐘。<br />
-              錄完之後會自動下載兩個檔案，再請你放進共用資料夾（畫面會有連結）。
+              總共 10 個動作，每個動作都會先<strong class="text-text">動畫示範</strong>給你看，
+              你看懂了再按開始，不用趕。全程約 5 分鐘。<br />
+              錄完會自動下載兩個檔案，再請你放進共用資料夾（畫面會有連結）。
             </p>
           </header>
 
           <div class="rounded-xl bg-surface border border-border p-5 space-y-2">
-            <div class="text-sm text-text-secondary">你這次的代碼（自動產生，不用記）</div>
+            <div class="text-sm text-text-secondary">這次的代碼（自動產生，不用記）</div>
             <div id="participant" class="text-2xl font-mono font-bold tracking-wider"></div>
           </div>
 
@@ -32,7 +33,43 @@
             class="w-full rounded-xl bg-success text-black font-bold text-lg py-4
                    disabled:bg-surface-light disabled:text-text-secondary disabled:cursor-not-allowed"
           >
-            開始錄製
+            開始
+          </button>
+        </section>
+
+        <!-- Brief: demo + instructions, before each task -->
+        <section id="screen-brief" class="hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div id="brief-step" class="text-sm text-text-secondary"></div>
+            <div id="brief-seconds" class="text-sm text-text-secondary"></div>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6 items-center">
+            <div class="space-y-2">
+              <div id="demo" class="rounded-xl bg-surface border border-border"></div>
+              <button
+                id="btn-pause-demo"
+                class="w-full text-sm text-text-secondary py-2 rounded-lg bg-surface-light"
+              >
+                ⏸ 暫停示範動畫
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <h2 id="brief-title" class="text-3xl font-bold leading-snug"></h2>
+              <p id="brief-detail" class="text-text-secondary leading-relaxed"></p>
+              <div class="rounded-lg bg-surface border border-border p-4">
+                <div class="text-xs text-text-secondary mb-1">為什麼要錄這個</div>
+                <div id="brief-why" class="text-sm"></div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btn-ready"
+            class="w-full rounded-xl bg-success text-black font-bold text-lg py-4"
+          >
+            我看懂了，開始這一項
           </button>
         </section>
 
@@ -46,8 +83,12 @@
             <div id="task-count" class="text-6xl font-black tabular-nums"></div>
           </div>
 
-          <div class="relative rounded-xl overflow-hidden bg-black">
-            <canvas id="preview" class="w-full block"></canvas>
+          <div class="grid md:grid-cols-[2fr_1fr] gap-4 items-center">
+            <div class="relative rounded-xl overflow-hidden bg-black">
+              <canvas id="preview" class="w-full block"></canvas>
+            </div>
+            <!-- The demo keeps playing while they record, so they can copy it. -->
+            <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
           </div>
 
           <div class="flex items-center gap-3">
@@ -58,11 +99,31 @@
           </div>
         </section>
 
+        <!-- Between tasks: keep it, or redo it -->
+        <section id="screen-review" class="hidden space-y-6 text-center">
+          <div class="text-5xl">👍</div>
+          <h2 class="text-2xl font-bold">這一項錄好了</h2>
+          <p id="review-note" class="text-text-secondary">
+            如果剛剛做錯了、或被打斷，可以重錄這一項。
+          </p>
+          <div class="flex gap-3">
+            <button id="btn-redo" class="flex-1 rounded-xl bg-surface-light text-text py-4">
+              重錄這一項
+            </button>
+            <button
+              id="btn-next"
+              class="flex-1 rounded-xl bg-success text-black font-bold py-4"
+            >
+              下一項 →
+            </button>
+          </div>
+        </section>
+
         <!-- Done -->
         <section id="screen-done" class="hidden space-y-6">
           <div class="text-center space-y-2">
             <div class="text-5xl">✅</div>
-            <h2 class="text-2xl font-bold">錄完了，謝謝！</h2>
+            <h2 class="text-2xl font-bold">全部錄完了，謝謝！</h2>
           </div>
 
           <div class="rounded-xl bg-surface border border-border p-5 space-y-4">
@@ -84,16 +145,10 @@
           </div>
 
           <div class="flex gap-3">
-            <button
-              id="btn-resave"
-              class="flex-1 rounded-xl bg-surface-light text-text py-3"
-            >
+            <button id="btn-resave" class="flex-1 rounded-xl bg-surface-light text-text py-3">
               沒看到檔案？再下載一次
             </button>
-            <button
-              id="btn-again"
-              class="flex-1 rounded-xl bg-surface-light text-text py-3"
-            >
+            <button id="btn-again" class="flex-1 rounded-xl bg-surface-light text-text py-3">
               再錄一次
             </button>
           </div>
