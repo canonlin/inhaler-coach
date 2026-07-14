@@ -19,8 +19,26 @@ import { saveSession } from "./saver.js";
  * different guesses — worse than no data, because it would look like data.
  */
 
-/** The shared Drive folder recordings get dropped into. Set at build time. */
-const FOLDER_URL = import.meta.env.VITE_DRIVE_FOLDER_URL ?? "";
+/**
+ * Where the recordings are meant to end up.
+ *
+ * Read at RUNTIME from config.json, not baked in at build time. Build-time
+ * injection had already broken the deployed collector: with the variable unset,
+ * the bundler inlined an empty string, eliminated the branch that shows the
+ * link, and shipped a page that never told the pharmacist where to put the
+ * files. It also meant changing the folder required a rebuild by someone who can
+ * run a build. Now the project lead edits collector/config.json on GitHub.
+ */
+async function loadFolderUrl() {
+	try {
+		const response = await fetch("./config.json", { cache: "no-store" });
+		if (!response.ok) return "";
+		const config = await response.json();
+		return config.driveFolderUrl ?? "";
+	} catch {
+		return "";
+	}
+}
 
 const $ = (id) => document.getElementById(id);
 const recorder = new SessionRecorder();
@@ -29,7 +47,18 @@ const recorder = new SessionRecorder();
  * Nobody knows whether they are "P01" or "P07", and asking them to invent an ID
  * invites collisions and typos. The machine names the session.
  */
-const sessionId = crypto.randomUUID().slice(0, 8);
+const sessionId = makeSessionId();
+
+/** randomUUID needs a secure context and a recent browser; neither is worth a
+ * blank page, since the id only has to be unlikely to collide. */
+function makeSessionId() {
+	if (crypto?.randomUUID) return crypto.randomUUID().slice(0, 8);
+	if (crypto?.getRandomValues) {
+		const bytes = crypto.getRandomValues(new Uint8Array(4));
+		return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+	}
+	return Math.random().toString(16).slice(2, 10);
+}
 
 let session = null;
 let filename = "";
@@ -52,10 +81,16 @@ async function init() {
 			: "⏸ 暫停示範動畫";
 	};
 
-	if (FOLDER_URL) {
-		$("btn-folder").href = FOLDER_URL;
+	const folderUrl = await loadFolderUrl();
+	if (folderUrl) {
+		$("btn-folder").href = folderUrl;
 	} else {
-		$("btn-folder").classList.add("hidden");
+		// Never silently hide the one instruction that tells them what to do with
+		// the files they just recorded.
+		$("btn-folder").removeAttribute("href");
+		$("btn-folder").textContent =
+			"⚠️ 尚未設定共用資料夾 — 請把下載的檔案交給研究負責人";
+		$("btn-folder").classList.add("cursor-not-allowed", "opacity-70");
 	}
 
 	try {

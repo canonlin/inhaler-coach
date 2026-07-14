@@ -21,6 +21,27 @@ const AUDIO_INTERVAL_MS = 10;
 /** How long a hand box stays usable after the hand model loses the hand. */
 const ROI_GRACE_MS = 600;
 
+/**
+ * Preference order for the recording container. VP9 first for quality per bit,
+ * then VP8, then whatever WebM the browser has, then MP4 for Safari — which
+ * supports no WebM at all and would otherwise throw NotSupportedError out of the
+ * MediaRecorder constructor, leaving the pharmacist with a dead page.
+ */
+const MIME_CANDIDATES = [
+	"video/webm;codecs=vp9,opus",
+	"video/webm;codecs=vp8,opus",
+	"video/webm",
+	"video/mp4;codecs=h264,aac",
+	"video/mp4",
+];
+
+function pickMimeType() {
+	if (typeof MediaRecorder?.isTypeSupported !== "function") return "";
+	return (
+		MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type)) ?? ""
+	);
+}
+
 export class SessionRecorder {
 	constructor() {
 		this.detection = new DetectionManager();
@@ -107,10 +128,13 @@ export class SessionRecorder {
 		this.running = true;
 		this.startedAt = performance.now();
 
+		this.mimeType = pickMimeType();
 		this.mediaRecorder = new MediaRecorder(this.stream, {
-			mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-				? "video/webm;codecs=vp9,opus"
-				: "video/webm",
+			// Omitting mimeType entirely (rather than forcing webm) is the last
+			// resort: on a browser without WebM the constructor throws
+			// NotSupportedError, and the pharmacist gets a dead page instead of a
+			// recording.
+			...(this.mimeType ? { mimeType: this.mimeType } : {}),
 			// Generous, deliberately. Video compression works by discarding small
 			// changes between frames — which is precisely the signal here. A gentle
 			// wrist shake is exactly the kind of motion a low bitrate would smooth
@@ -249,9 +273,12 @@ export class SessionRecorder {
 		this.running = false;
 		this.audio.stopSampling();
 
+		// Label the blob with what was actually recorded, not with what we hoped
+		// for — a Safari MP4 saved as .webm is a file nothing will open.
+		const type = this.mediaRecorder.mimeType || this.mimeType || "video/webm";
 		const video = await new Promise((resolve) => {
 			this.mediaRecorder.onstop = () =>
-				resolve(new Blob(this.chunks, { type: "video/webm" }));
+				resolve(new Blob(this.chunks, { type }));
 			this.mediaRecorder.stop();
 		});
 

@@ -34,8 +34,12 @@ export class MediaPipeBackend extends DetectionBackend {
 			throw new Error("WebGL not available — MediaPipe requires WebGL");
 		}
 
+		// Pinned, not @latest. An unpinned CDN URL means the deployed collector can
+		// change behaviour — or break outright — without anyone touching it, and
+		// two pharmacists recording a week apart could be running different code.
+		// Keep in step with the @mediapipe/tasks-vision version in package.json.
 		const vision = await FilesetResolver.forVisionTasks(
-			"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
+			"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm",
 		);
 
 		this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {

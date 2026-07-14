@@ -15,14 +15,18 @@
 
 /** @returns {string[]} the filenames written */
 export function saveSession(name, { metadata, signals, video }) {
-	saveBlob(`${name}.webm`, video);
+	// The extension follows the blob's real type: Safari records MP4, and an MP4
+	// saved as .webm is a file nothing will open.
+	const extension = video.type.includes("mp4") ? "mp4" : "webm";
+
+	saveBlob(`${name}.${extension}`, video);
 	saveBlob(
 		`${name}.json`,
 		new Blob([JSON.stringify({ metadata, signals })], {
 			type: "application/json",
 		}),
 	);
-	return [`${name}.webm`, `${name}.json`];
+	return [`${name}.${extension}`, `${name}.json`];
 }
 
 function saveBlob(filename, blob) {
