@@ -13,6 +13,10 @@ export function normalizeKeypoints(keypoints, imageWidth, imageHeight) {
 		x: kp.x / imageWidth,
 		y: kp.y / imageHeight,
 		z: (kp.z || 0) / imageWidth,
+		// Keep the per-landmark confidence. The models emit all 33/468/21 points
+		// whether or not the body part is actually visible, so without this there
+		// is no way to tell a tracked wrist from an off-frame guess.
+		score: kp.score ?? null,
 	}));
 }
 

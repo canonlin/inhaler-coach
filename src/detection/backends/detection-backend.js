@@ -6,6 +6,17 @@
  */
 
 /**
+ * @typedef {Object} SignalNeeds
+ * @property {boolean} pose
+ * @property {boolean} face
+ * @property {boolean} hands
+ */
+
+/** Every model on. Stages that only need a subset should say so — on the WASM
+ * backend each model costs real main-thread time. */
+export const ALL_SIGNALS = { pose: true, face: true, hands: true };
+
+/**
  * @interface DetectionBackend
  */
 export class DetectionBackend {
@@ -21,9 +32,9 @@ export class DetectionBackend {
 	 * Process a video frame and return landmarks
 	 * @param {HTMLCanvasElement} canvas - Input frame
 	 * @param {DOMHighResTimeStamp} timestamp - Frame timestamp
-	 * @returns {DetectionResult}
+	 * @returns {Promise<DetectionResult>}
 	 */
-	processFrame() {
+	async processFrame() {
 		throw new Error("processFrame() must be implemented");
 	}
 
