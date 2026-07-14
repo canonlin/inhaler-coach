@@ -23,7 +23,7 @@ export class DetectionBackend {
 	 * @param {DOMHighResTimeStamp} timestamp - Frame timestamp
 	 * @returns {DetectionResult}
 	 */
-	processFrame(_canvas, _timestamp) {
+	processFrame() {
 		throw new Error("processFrame() must be implemented");
 	}
 
