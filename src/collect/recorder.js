@@ -157,6 +157,30 @@ export class SessionRecorder {
 		this.label = label;
 	}
 
+	/**
+	 * Mark a task's frames as a discarded attempt rather than deleting them.
+	 *
+	 * The video is one continuous recording, so the botched attempt is in it
+	 * regardless — cutting the signals out would only make the two disagree.
+	 * Relabelling keeps them aligned, and a discarded attempt is itself worth
+	 * having: it's a recording of someone doing the task wrong, which is data.
+	 */
+	discardAttempt(taskId) {
+		let attempt = 1;
+		while (
+			this.frames.some((f) => f.label === `discarded${attempt}_${taskId}`)
+		) {
+			attempt++;
+		}
+		const discarded = `discarded${attempt}_${taskId}`;
+		for (const f of this.frames) {
+			if (f.label === taskId) f.label = discarded;
+		}
+		for (const a of this.audioSamples) {
+			if (a.label === taskId) a.label = discarded;
+		}
+	}
+
 	/** @returns {Promise<{video: Blob, signals: object}>} */
 	async stop() {
 		this.running = false;
