@@ -26,7 +26,15 @@ export async function startWebcam() {
 
 	const stream = await navigator.mediaDevices.getUserMedia({
 		video: { facingMode: "user", width: 480, height: 360 },
-		audio: false,
+		// Audio carries the events vision can't see: the actuation spray, and
+		// exhalation. Disable the browser's cleanup — echo cancellation and noise
+		// suppression are tuned to preserve speech and will happily filter out a
+		// broadband hiss, which is exactly the signal we're after.
+		audio: {
+			echoCancellation: false,
+			noiseSuppression: false,
+			autoGainControl: false,
+		},
 	});
 	video.srcObject = stream;
 	await video.play();
@@ -34,7 +42,8 @@ export async function startWebcam() {
 	const canvas = document.getElementById("webcam-canvas");
 	canvas.width = 480;
 	canvas.height = 360;
-	const ctx = canvas.getContext("2d");
+	// The detection backends read this canvas back every frame.
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 	ctx.drawImage(video, 0, 0, 480, 360);
 
 	state.stream = stream;
@@ -42,5 +51,5 @@ export async function startWebcam() {
 	state.webcamCanvas = canvas;
 	state.isRunning = true;
 
-	return { video, canvas };
+	return { video, canvas, stream };
 }

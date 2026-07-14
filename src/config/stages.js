@@ -21,7 +21,9 @@ export const STAGES = [
 		id: 1,
 		name: "振搖",
 		badge: "第一關",
-		hint: "請搖勻吸入器（約 5 秒），讓藥物充分混合",
+		// 「將吸入器上下搖動 4-5 次，使藥物充分混合」— 台灣胸腔暨重症加護醫學會, p.5。
+		// 臨床標準是次數，不是秒數；偵測邏輯改為計數（見 steps/step1-shake.js）。
+		hint: "請上下搖動吸入器 4-5 次，讓藥物充分混合",
 		icon: "💊",
 		stepEmoji: "💊",
 		stepSub: "讓藥物充分混合，每次使用前都要搖",
@@ -75,6 +77,11 @@ export const STAGES = [
 		passThreshold: 0.75,
 		passClass: "吸壓_正確",
 		passSeconds: 3,
+		// 閉氣 5-10 秒（台灣胸腔暨重症加護醫學會, 肺阻塞的吸入性裝置衛教, p.5）。
+		// 原本硬編碼為 3 秒，低於臨床下限。
+		holdSeconds: 5,
+		// 成人吸氣 4-5 秒且不可中斷（同上）。尚未實作檢查。
+		inhaleSeconds: 4,
 		manualPass: false,
 		showPharmacist: true,
 		badgeClass: "bg-gradient-to-br from-[#4facfe] to-[#00f2fe] text-black",

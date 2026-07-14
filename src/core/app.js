@@ -1,8 +1,14 @@
 import { STAGES } from "../config/stages.js";
+import { ActuationDetector } from "../detection/actuation-detector.js";
+import { AudioFeatures } from "../detection/audio-features.js";
 import { DetectionManager } from "../detection/detection-manager.js";
 import { extractFaceFeatures } from "../detection/face-features.js";
 import { extractHandFeatures } from "../detection/hand-features.js";
-import { extractPoseFeatures } from "../detection/pose-features.js";
+import { handROI, MotionEnergy } from "../detection/motion-energy.js";
+import {
+	extractPoseFeatures,
+	resetDominantSide,
+} from "../detection/pose-features.js";
 import { ShakeDetector } from "../steps/step1-shake.js";
 import { RinseDetector } from "../steps/step4-rinse.js";
 import {
@@ -52,9 +58,13 @@ import {
 } from "../ui/side-progress.js";
 import { sendSessionData } from "./data-logger.js";
 import {
+	clearPersistedState,
 	getPatientIdFromURL,
+	getStageFromURL,
+	persistState,
 	resetSessionData,
 	resetStageTracking,
+	restorePersistedState,
 	state,
 } from "./state.js";
 import { startWebcam, stopWebcam } from "./webcam.js";
@@ -64,6 +74,9 @@ const $ = (id) => document.getElementById(id);
 const detection = new DetectionManager();
 const shakeDetector = new ShakeDetector();
 const rinseDetector = new RinseDetector();
+const motionEnergy = new MotionEnergy();
+const audio = new AudioFeatures();
+const actuation = new ActuationDetector();
 
 export function initApp() {
 	state.patientId = getPatientIdFromURL();
@@ -80,8 +93,33 @@ export function initApp() {
 	$("btn-retry").onclick = retryStage;
 	$("btn-restart").onclick = restartGame;
 
+	restorePersistedState();
 	showScreen("screen-intro");
 	initDetection();
+
+	const stage = getStageFromURL();
+	if (stage !== null) {
+		jumpToStage(stage);
+	}
+}
+
+/**
+ * ?stage=N — go straight to a stage. The demo video is still there if you want
+ * it, but the try button is unlocked immediately rather than gated on watching
+ * it through; sitting through the video is the thing this shortcut exists to
+ * skip. The camera still only starts when you click.
+ */
+async function jumpToStage(idx) {
+	state.singleMode = false;
+	state.currentStage = idx;
+
+	showSideProgress();
+	initDotsAsPending();
+	showScreen("screen-stage");
+	await loadStage(idx);
+
+	setBtnTryVisible();
+	setBtnTryUnlocked("📷 換我操作 →", startAIPhase);
 }
 
 function startGame() {
@@ -96,6 +134,7 @@ function startGame() {
 function restartGame() {
 	state.currentStage = 0;
 	resetSessionData();
+	clearPersistedState();
 	showScreen("screen-intro");
 	hideSideProgress();
 	resetDots();
@@ -149,6 +188,8 @@ async function loadStage(idx) {
 	setVideoLabel(
 		stage.isIntro ? "🎬 整體衛教影片" : `藥師示範影片｜${stage.name}`,
 	);
+
+	persistState();
 
 	onVideoEndCallback = () => {
 		if (!state.stagePassed) {
@@ -255,6 +296,7 @@ async function startAIPhase() {
 	if (!state.stageAttempts[state.currentStage])
 		state.stageAttempts[state.currentStage] = 0;
 	state.stageAttempts[state.currentStage]++;
+	persistState();
 
 	showPharmacistBtn();
 	showRetryBtn();
@@ -265,20 +307,76 @@ async function startAIPhase() {
 
 	shakeDetector.reset();
 	rinseDetector.reset();
+	resetDominantSide();
+
+	actuation.reset();
 
 	try {
-		await startWebcam();
+		const { stream } = await startWebcam();
+		if (!audio.isReady) {
+			await audio.initialize(stream);
+		}
+		// Audio runs on its own 100 Hz timer — a spray is too short to measure at
+		// render-loop rate.
+		audio.startSampling((sound, timestamp) => {
+			if (actuation.update(sound, timestamp)) {
+				console.log(`Actuation detected (total: ${actuation.count})`);
+			}
+		});
 		predictionLoop();
 	} catch (_e) {
 		setStatusFail("❌ 無法啟動攝影機，請確認瀏覽器權限");
 	}
 }
 
-function predictionLoop() {
+/**
+ * The hand model loses a fast-moving hand, and a fast-moving hand is exactly
+ * what shaking looks like — measured 2026-07-15, it went blind for two full
+ * seconds in the middle of a shake. Reuse the last known box for a moment
+ * rather than dropping the motion signal precisely when it matters. A shaking
+ * hand doesn't travel far, so a slightly stale box still frames it.
+ */
+const ROI_GRACE_MS = 600;
+let lastROI = null;
+let lastROIAt = 0;
+
+function resolveHandROI(hands, timestamp) {
+	const roi = handROI(hands);
+	if (roi) {
+		lastROI = roi;
+		lastROIAt = timestamp;
+		return roi;
+	}
+	if (lastROI && timestamp - lastROIAt < ROI_GRACE_MS) {
+		return lastROI;
+	}
+	lastROI = null;
+	return null;
+}
+
+/**
+ * Which models a stage actually needs. On the TF.js WASM backend every model
+ * blocks the main thread, so running all three when a stage only reads wrist
+ * position is what freezes the page.
+ */
+function signalsNeededFor(stage) {
+	// Shaking tracks the hand: the hand model's null-when-absent behaviour is a
+	// presence gate the pose model doesn't give us.
+	if (stage.specialMode === "shake")
+		return { pose: true, face: false, hands: true };
+	if (stage.id === 4) return { pose: true, face: false, hands: false };
+	if (stage.id === 2) return { pose: true, face: true, hands: false };
+	return { pose: true, face: true, hands: true };
+}
+
+const MEASURE_MODE =
+	new URLSearchParams(window.location.search).get("measure") === "1";
+
+async function predictionLoop() {
 	if (!state.isRunning || state.stagePassed) return;
 
 	const canvas = $("webcam-canvas");
-	const ctx = canvas.getContext("2d");
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 	const video = state.webcamVideo;
 
 	if (video && video.readyState >= 2) {
@@ -288,7 +386,11 @@ function predictionLoop() {
 	const timestamp = performance.now();
 
 	try {
-		const results = detection.processFrame(canvas, timestamp);
+		const needs = signalsNeededFor(STAGES[state.currentStage]);
+		const results = await detection.processFrame(canvas, timestamp, needs);
+
+		// The webcam may have been torn down while inference was in flight.
+		if (!state.isRunning || state.stagePassed) return;
 
 		drawPoseLandmarks(ctx, results.pose);
 		drawFaceLandmarks(ctx, results.face);
@@ -303,8 +405,32 @@ function predictionLoop() {
 		const stage = STAGES[state.currentStage];
 		const now = Date.now();
 
-		if (stage.specialMode === "shake") {
-			evaluateShakeStep(poseFeatures, stage, now);
+		const roi = resolveHandROI(results.hands, timestamp);
+		const motion = roi
+			? motionEnergy.sample(canvas, roi)
+			: { hand: 0, background: 0, ratio: 0 };
+		if (!roi) motionEnergy.reset();
+
+		const sound = audio.sample();
+
+		recordSignalSample(
+			now,
+			poseFeatures,
+			handFeatures,
+			results.hands,
+			motion,
+			sound,
+		);
+
+		// ?measure=1 — record signals only. No pass/fail evaluation, so nothing
+		// can trip waitForPharmacist() and kill the camera mid-recording. Used to
+		// gather the data a real threshold has to be calibrated against.
+		if (MEASURE_MODE) {
+			setStatusDetecting(
+				`📊 量測模式（不判定）｜已錄 ${window.__signalLog.records.length} 幀｜🔊 按壓 ${actuation.count} 次`,
+			);
+		} else if (stage.specialMode === "shake") {
+			evaluateShakeStep(roi, motion, now);
 		} else if (stage.id === 4) {
 			evaluateRinseStep(poseFeatures, stage, now);
 		} else {
@@ -314,7 +440,60 @@ function predictionLoop() {
 		console.error("Detection error:", e);
 	}
 
+	// Inference runs in a worker and drops frames when it falls behind, so the
+	// loop can just track the display refresh.
 	requestAnimationFrame(predictionLoop);
+}
+
+// Dev-only signal trace, read from the console while testing a stage.
+// window.__signalLog.label tags the samples; .records holds the raw series.
+window.__signalLog = { records: [], label: "unlabelled", enabled: true };
+
+function recordSignalSample(
+	now,
+	poseFeatures,
+	handFeatures,
+	hands,
+	motion,
+	sound,
+) {
+	const log = window.__signalLog;
+	if (!log?.enabled) return;
+	log.records.push({
+		// Audio. hiHz is the 2–8 kHz band where a spray lives; flat is spectral
+		// flatness, which is what tells a broadband hiss apart from a voice or a
+		// television playing in the room.
+		hiHz: sound ? +sound.highBand.toExponential(2) : null,
+		brHz: sound ? +sound.breathBand.toExponential(2) : null,
+		flat: sound ? +sound.flatness.toFixed(4) : null,
+		rms: sound ? +sound.rms.toExponential(2) : null,
+		// Hand-model landmarks: wrist (0) and middle-finger MCP (9). Finer spatial
+		// scale than the pose wrist, and the hand model returns null rather than
+		// guessing when it can't see a hand.
+		handY: hands?.[0] ? +hands[0].y.toFixed(4) : null,
+		handX: hands?.[0] ? +hands[0].x.toFixed(4) : null,
+		handMidY: hands?.[9] ? +hands[9].y.toFixed(4) : null,
+		// Pixel change inside the hand ROI, and how far it stands above the same
+		// frame's background (the sensor noise floor under these exact conditions).
+		motion: +motion.hand.toFixed(2),
+		bg: +motion.background.toFixed(2),
+		ratio: +motion.ratio.toFixed(2),
+		t: now,
+		label: log.label,
+		wristY: poseFeatures ? +poseFeatures.dominantWrist.y.toFixed(4) : null,
+		wristX: poseFeatures ? +poseFeatures.dominantWrist.x.toFixed(4) : null,
+		wristScore: poseFeatures?.dominantWrist.score ?? null,
+		lY: poseFeatures ? +poseFeatures.leftWrist.y.toFixed(4) : null,
+		lScore: poseFeatures?.leftWrist.score ?? null,
+		rY: poseFeatures ? +poseFeatures.rightWrist.y.toFixed(4) : null,
+		rScore: poseFeatures?.rightWrist.score ?? null,
+		elbow: poseFeatures ? Math.round(poseFeatures.elbowAngle) : null,
+		handSeen: !!handFeatures,
+		grip: handFeatures?.gripPosture ?? null,
+		pressing: handFeatures?.isPressing ?? null,
+		conf: state.lastAIConfidence,
+	});
+	if (log.records.length > 3000) log.records.shift();
 }
 
 function updateFeatureDisplay(poseFeatures, faceFeatures, handFeatures) {
@@ -344,31 +523,42 @@ function updateFeatureDisplay(poseFeatures, faceFeatures, handFeatures) {
 		`<div class="text-sm text-text-secondary font-mono leading-relaxed">${items.join("  ·  ")}</div>`;
 }
 
-function evaluateShakeStep(poseFeatures, stage, now) {
-	if (!poseFeatures?.dominantWrist) {
+function evaluateShakeStep(roi, motion, now) {
+	if (!roi) {
 		setOverlay("none");
-		setStatusDetecting("🤖 請搖動手臂...");
+		setStatusDetecting("🤖 請把拿著吸入器的手抬到鏡頭前...");
+		shakeDetector.reset();
 		return;
 	}
 
-	shakeDetector.update(poseFeatures.dominantWrist.y, now);
-	const result = shakeDetector.detect();
-	state.lastAIConfidence = Math.round(result.confidence * 100);
-
-	if (result.shaking) {
-		if (state.passTimestamp === 0) state.passTimestamp = now;
-		const elapsed = (now - state.passTimestamp) / 1000;
-		const remaining = Math.max(0, stage.passSeconds - elapsed).toFixed(1);
-		setOverlay("correct");
-		setStatusDetecting(`✅ 振搖正確！維持 ${remaining} 秒...`);
-		if (elapsed >= stage.passSeconds) waitForPharmacist();
-	} else {
-		state.passTimestamp = 0;
-		setOverlay("wrong");
-		setStatusFail(
-			`❌ 請持續搖勻吸入器（信心 ${Math.round(result.confidence * 100)}%）`,
+	shakeDetector.update(motion, now);
+	const result = shakeDetector.detect(now);
+	if (MEASURE_MODE) {
+		console.log(
+			`shake: periodicity=${result.periodicity.toFixed(2)} hz=${result.shakeHz?.toFixed(1) ?? "-"} held=${result.secondsHeld.toFixed(1)}s`,
 		);
 	}
+	state.lastAIConfidence = Math.round(
+		Math.min(1, result.sustainedMs / (result.requiredSeconds * 1000)) * 100,
+	);
+
+	if (result.passed) {
+		setOverlay("correct");
+		setStatusDetecting(`✅ 搖勻完成（${result.requiredSeconds} 秒）！`);
+		waitForPharmacist();
+		return;
+	}
+
+	if (result.shaking) {
+		const left = (result.requiredSeconds - result.secondsHeld).toFixed(1);
+		const hz = result.shakeHz ? `（${result.shakeHz.toFixed(1)} 次/秒）` : "";
+		setOverlay("correct");
+		setStatusDetecting(`✅ 正在搖勻${hz}…還要 ${left} 秒`);
+		return;
+	}
+
+	setOverlay("wrong");
+	setStatusFail("❌ 請上下搖動吸入器，持續 5 秒");
 }
 
 function evaluateRinseStep(poseFeatures, stage, now) {
@@ -406,10 +596,19 @@ function evaluateGenericStep(
 	setStatusDetecting("🤖 偵測中...");
 }
 
+/**
+ * Breath-hold countdown.
+ *
+ * 「吸氣完畢後自口中移去吸入器，閉緊雙唇，接著盡可能地閉氣，越久越好
+ *   （或閉氣 5-10 秒）」— 台灣胸腔暨重症加護醫學會, p.5.
+ *
+ * The original counted 3 seconds while its own on-screen copy told the patient
+ * to hold for 5 — the system was releasing them below the clinical minimum.
+ */
 function _startHoldCountdown() {
 	if (state.holdCountdown > 0) return;
 	state.isRunning = false;
-	state.holdCountdown = 3;
+	state.holdCountdown = STAGES[state.currentStage].holdSeconds ?? 5;
 
 	showCountdown(state.holdCountdown);
 	setStatusDetecting("憋氣中...");
@@ -427,19 +626,46 @@ function _startHoldCountdown() {
 	}, 1000);
 }
 
+/**
+ * AI has judged the step passed; a pharmacist now confirms.
+ *
+ * The camera deliberately keeps running. It used to be torn down here, which
+ * froze the last frame on screen — and a frozen video feed is indistinguishable
+ * from a crashed page. Both the pharmacist and the patient need to see that the
+ * system is still alive, and during development this ambiguity sent us hunting
+ * for camera bugs that didn't exist. Only the detection loop stops.
+ */
 function waitForPharmacist() {
 	state.isRunning = false;
-	stopWebcam();
+	audio.stopSampling();
 	setStatusDetecting("✅ AI判讀通過！請藥師確認");
 	setOverlay("correct");
 	showPharmacistBtn();
 	showRetryBtn();
+	keepPreviewAlive();
+}
+
+/** Keep painting the webcam to the canvas after the detection loop stops. */
+function keepPreviewAlive() {
+	const canvas = $("webcam-canvas");
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+	const paint = () => {
+		const video = state.webcamVideo;
+		if (!video || state.isRunning) return; // torn down, or detection resumed
+		if (video.readyState >= 2) {
+			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+		}
+		requestAnimationFrame(paint);
+	};
+	requestAnimationFrame(paint);
 }
 
 function pharmacistConfirm() {
 	const idx = state.currentStage;
 	state.stagePharmacist[idx] = "pass";
 	state.stageAIConfidence[idx] = state.lastAIConfidence;
+	persistState();
 	passStage();
 }
 
@@ -482,6 +708,7 @@ function retryStage() {
 	stopWebcam();
 	shakeDetector.reset();
 	rinseDetector.reset();
+	resetDominantSide();
 
 	setTimeout(async () => {
 		try {
@@ -524,6 +751,7 @@ function showBonusVideo() {
 function showSuccessScreen() {
 	stopWebcam();
 	sendSessionData();
+	clearPersistedState();
 	hideSideProgress();
 	setTopbarVisible(false);
 	showScreen("screen-success");
