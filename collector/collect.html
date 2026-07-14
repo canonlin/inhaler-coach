@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>吸入器動作資料收集</title>
     <link rel="icon" type="image/svg+xml" href="/inhaler-coach/collector/favicon.svg" />
-    <script type="module" crossorigin src="/inhaler-coach/collector/assets/collect-CEecd4Ib.js"></script>
-    <link rel="modulepreload" crossorigin href="/inhaler-coach/collector/assets/pose-features-DHegYqhT.js">
-    <link rel="stylesheet" crossorigin href="/inhaler-coach/collector/assets/pose-features-Cd1GR5SU.css">
+    <script type="module" crossorigin src="/inhaler-coach/collector/assets/collect-xIDDs9V8.js"></script>
+    <link rel="modulepreload" crossorigin href="/inhaler-coach/collector/assets/pose-features-AW4lmw-V.js">
+    <link rel="stylesheet" crossorigin href="/inhaler-coach/collector/assets/pose-features-CrgBB8HN.css">
   </head>
   <body class="bg-bg text-text font-sans">
     <main class="min-h-screen flex items-center justify-center p-6">
@@ -88,7 +88,14 @@
 
           <div class="grid md:grid-cols-[2fr_1fr] gap-4 items-center">
             <div class="relative rounded-xl overflow-hidden bg-black">
-              <canvas id="preview" class="w-full block"></canvas>
+              <canvas
+                id="preview"
+                class="w-full block"
+                role="img"
+                aria-label="攝影機即時畫面，顯示你目前的動作"
+              >
+                你的瀏覽器不支援 canvas，無法顯示攝影機畫面。請改用 Chrome 或 Edge。
+              </canvas>
             </div>
             <!-- The demo keeps playing while they record, so they can copy it. -->
             <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
