@@ -18,6 +18,9 @@ import { extractPoseFeatures } from "../detection/pose-features.js";
  * 60–110 ms, which the ~27 fps video loop samples two or three times. */
 const AUDIO_INTERVAL_MS = 10;
 
+/** How long a hand box stays usable after the hand model loses the hand. */
+const ROI_GRACE_MS = 600;
+
 export class SessionRecorder {
 	constructor() {
 		this.detection = new DetectionManager();
@@ -35,6 +38,8 @@ export class SessionRecorder {
 		this.label = "idle";
 		this.running = false;
 		this.startedAt = 0;
+		this.lastROI = null;
+		this.lastROIAt = 0;
 	}
 
 	async initialize(canvas) {
@@ -117,11 +122,10 @@ export class SessionRecorder {
 			});
 			if (!this.running) return;
 
-			const roi = handROI(results.hands);
-			const motion = roi
-				? this.motionEnergy.sample(this.canvas, roi)
-				: { hand: 0, background: 0, ratio: 0 };
-			if (!roi) this.motionEnergy.reset();
+			// Sample every frame, even without a hand: the sampler needs the previous
+			// frame to difference against, and skipping the call throws that away.
+			const roi = this.resolveROI(results.hands, now);
+			const motion = this.motionEnergy.sample(this.canvas, roi);
 
 			const pose = extractPoseFeatures(results.pose);
 
@@ -129,6 +133,10 @@ export class SessionRecorder {
 				t: Math.round(now - this.startedAt),
 				label: this.label,
 				handSeen: !!results.hands,
+				// Whether a box was available at all, including a briefly reused one.
+				// Distinguishes "the model blinked" from "there is no hand here",
+				// which the earlier data could not tell apart.
+				roi: !!roi,
 				// Full hand landmarks: cheap, and lets any future feature be derived
 				// without re-recording.
 				hand: results.hands?.map((p) => [
@@ -151,6 +159,29 @@ export class SessionRecorder {
 		}
 
 		requestAnimationFrame(() => this.loop());
+	}
+
+	/**
+	 * The hand box, reused briefly when the hand model blinks.
+	 *
+	 * It blinks constantly, and worst when the hand is moving fastest — measured
+	 * over a full collection run, it saw the hand in 13% of frames during a normal
+	 * shake. Without this, the motion signal is absent for exactly the movements
+	 * the recording exists to capture. A shaking hand doesn't travel far, so a
+	 * slightly stale box still frames it.
+	 */
+	resolveROI(hands, timestamp) {
+		const roi = handROI(hands);
+		if (roi) {
+			this.lastROI = roi;
+			this.lastROIAt = timestamp;
+			return roi;
+		}
+		if (this.lastROI && timestamp - this.lastROIAt < ROI_GRACE_MS) {
+			return this.lastROI;
+		}
+		this.lastROI = null;
+		return null;
 	}
 
 	setLabel(label) {
