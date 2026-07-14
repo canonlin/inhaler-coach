@@ -20,25 +20,15 @@ import { saveSession } from "./saver.js";
  */
 
 /**
- * Where the recordings are meant to end up.
+ * The page does not know, and does not need to know, where the recordings go.
  *
- * Read at RUNTIME from config.json, not baked in at build time. Build-time
- * injection had already broken the deployed collector: with the variable unset,
- * the bundler inlined an empty string, eliminated the branch that shows the
- * link, and shipped a page that never told the pharmacist where to put the
- * files. It also meant changing the folder required a rebuild by someone who can
- * run a build. Now the project lead edits collector/config.json on GitHub.
+ * It carried a shared-folder link for a while — first baked in at build time
+ * (which shipped an empty one and stranded every recording), then read from a
+ * config file. Both were machinery in service of something the project lead
+ * already does anyway: send the pharmacist the folder link when asking them to
+ * record. The page just saves the two files; the person who asked for them says
+ * where to put them.
  */
-async function loadFolderUrl() {
-	try {
-		const response = await fetch("./config.json", { cache: "no-store" });
-		if (!response.ok) return "";
-		const config = await response.json();
-		return config.driveFolderUrl ?? "";
-	} catch {
-		return "";
-	}
-}
 
 const $ = (id) => document.getElementById(id);
 const recorder = new SessionRecorder();
@@ -80,18 +70,6 @@ async function init() {
 			? "▶ 繼續播放示範"
 			: "⏸ 暫停示範動畫";
 	};
-
-	const folderUrl = await loadFolderUrl();
-	if (folderUrl) {
-		$("btn-folder").href = folderUrl;
-	} else {
-		// Never silently hide the one instruction that tells them what to do with
-		// the files they just recorded.
-		$("btn-folder").removeAttribute("href");
-		$("btn-folder").textContent =
-			"⚠️ 尚未設定共用資料夾 — 請把下載的檔案交給研究負責人";
-		$("btn-folder").classList.add("cursor-not-allowed", "opacity-70");
-	}
 
 	try {
 		await recorder.initialize($("preview"));
