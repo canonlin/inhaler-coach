@@ -6,6 +6,19 @@ import {
 } from "@mediapipe/tasks-vision";
 import { DetectionBackend } from "./detection-backend.js";
 
+function isWebGLAvailable() {
+	try {
+		const c = document.createElement("canvas");
+		return !!(
+			c.getContext("webgl2") ||
+			c.getContext("webgl") ||
+			c.getContext("experimental-webgl")
+		);
+	} catch {
+		return false;
+	}
+}
+
 export class MediaPipeBackend extends DetectionBackend {
 	constructor() {
 		super();
@@ -16,6 +29,10 @@ export class MediaPipeBackend extends DetectionBackend {
 	}
 
 	async initialize() {
+		if (!isWebGLAvailable()) {
+			throw new Error("WebGL not available — MediaPipe requires WebGL");
+		}
+
 		const vision = await FilesetResolver.forVisionTasks(
 			"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
 		);
