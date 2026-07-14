@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>吸入器動作資料收集</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-bg text-text font-sans">
+    <main class="min-h-screen flex items-center justify-center p-6">
+      <div class="w-full max-w-3xl">
+        <!-- Setup -->
+        <section id="screen-setup" class="space-y-8">
+          <header class="space-y-3">
+            <h1 class="text-3xl font-bold">吸入器動作資料收集</h1>
+            <p class="text-text-secondary leading-relaxed">
+              畫面會一項一項提示你要做的動作，照著做就好，全程約 2 分鐘。<br />
+              錄完之後會自動下載兩個檔案，再請你放進共用資料夾（畫面會有連結）。
+            </p>
+          </header>
+
+          <div class="rounded-xl bg-surface border border-border p-5 space-y-2">
+            <div class="text-sm text-text-secondary">你這次的代碼（自動產生，不用記）</div>
+            <div id="participant" class="text-2xl font-mono font-bold tracking-wider"></div>
+          </div>
+
+          <p id="setup-status" class="text-text-secondary">正在載入偵測模型…</p>
+
+          <button
+            id="btn-begin"
+            disabled
+            class="w-full rounded-xl bg-success text-black font-bold text-lg py-4
+                   disabled:bg-surface-light disabled:text-text-secondary disabled:cursor-not-allowed"
+          >
+            開始錄製
+          </button>
+        </section>
+
+        <!-- Recording -->
+        <section id="screen-record" class="hidden space-y-5">
+          <div class="flex items-baseline justify-between gap-4">
+            <div>
+              <div id="task-title" class="text-3xl font-bold"></div>
+              <div id="task-detail" class="text-text-secondary mt-1"></div>
+            </div>
+            <div id="task-count" class="text-6xl font-black tabular-nums"></div>
+          </div>
+
+          <div class="relative rounded-xl overflow-hidden bg-black">
+            <canvas id="preview" class="w-full block"></canvas>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-2 rounded-full bg-surface-light overflow-hidden">
+              <div id="progress" class="h-full bg-success" style="width: 0%"></div>
+            </div>
+            <div id="progress-label" class="text-sm text-text-secondary tabular-nums"></div>
+          </div>
+        </section>
+
+        <!-- Done -->
+        <section id="screen-done" class="hidden space-y-6">
+          <div class="text-center space-y-2">
+            <div class="text-5xl">✅</div>
+            <h2 class="text-2xl font-bold">錄完了，謝謝！</h2>
+          </div>
+
+          <div class="rounded-xl bg-surface border border-border p-5 space-y-4">
+            <p class="font-bold">最後一步：把剛剛下載的檔案放進共用資料夾</p>
+            <ol class="space-y-2 text-text-secondary list-decimal list-inside leading-relaxed">
+              <li>剛剛自動下載了 <strong id="file-names" class="text-text"></strong></li>
+              <li>點下面的按鈕打開共用資料夾</li>
+              <li>把那兩個檔案<strong class="text-text">拖進去</strong>就完成了</li>
+            </ol>
+            <a
+              id="btn-folder"
+              href="#"
+              target="_blank"
+              rel="noopener"
+              class="block text-center rounded-xl bg-primary text-white font-bold py-3"
+            >
+              打開共用資料夾
+            </a>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              id="btn-resave"
+              class="flex-1 rounded-xl bg-surface-light text-text py-3"
+            >
+              沒看到檔案？再下載一次
+            </button>
+            <button
+              id="btn-again"
+              class="flex-1 rounded-xl bg-surface-light text-text py-3"
+            >
+              再錄一次
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="/src/collect/main.js"></script>
+  </body>
+</html>

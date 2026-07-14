@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Collector upload endpoint — not secret, but not source either
+.env
+.env.local
