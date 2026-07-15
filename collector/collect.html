@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>吸入器動作資料收集</title>
+    <link rel="icon" type="image/svg+xml" href="/inhaler-coach/collector/favicon.svg" />
+    <script type="module" crossorigin src="/inhaler-coach/collector/assets/collect-DyYtUpO_.js"></script>
+    <link rel="modulepreload" crossorigin href="/inhaler-coach/collector/assets/pose-features-9rkHpGoP.js">
+    <link rel="stylesheet" crossorigin href="/inhaler-coach/collector/assets/pose-features-s048b9Yv.css">
+  </head>
+  <body class="bg-bg text-text font-sans">
+    <main class="min-h-screen flex items-center justify-center p-6">
+      <div class="w-full max-w-3xl">
+        <!-- Setup -->
+        <section id="screen-setup" class="space-y-8">
+          <header class="space-y-3">
+            <h1 class="text-3xl font-bold">吸入器動作資料收集</h1>
+            <p class="text-text-secondary leading-relaxed">
+              總共 10 個動作，每個動作都會先<strong class="text-text">動畫示範</strong>給你看，
+              你看懂了再按開始，不用趕。全程約 5 分鐘。<br />
+              錄完會自動下載兩個檔案，再請你放進研究負責人給你的雲端資料夾。
+            </p>
+          </header>
+
+          <div class="rounded-xl bg-surface border border-border p-5 space-y-2">
+            <div class="text-sm text-text-secondary">這次的代碼（自動產生，不用記）</div>
+            <div id="participant" class="text-2xl font-mono font-bold tracking-wider"></div>
+          </div>
+
+          <p id="setup-status" class="text-text-secondary">正在載入偵測模型…</p>
+
+          <button
+            id="btn-begin"
+            disabled
+            class="w-full rounded-xl bg-success text-black font-bold text-lg py-4
+                   disabled:bg-surface-light disabled:text-text-secondary disabled:cursor-not-allowed"
+          >
+            開始
+          </button>
+        </section>
+
+        <!-- Brief: demo + instructions, before each task -->
+        <section id="screen-brief" class="hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div id="brief-step" class="text-sm text-text-secondary"></div>
+            <div id="brief-seconds" class="text-sm text-text-secondary"></div>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6 items-center">
+            <div class="space-y-2">
+              <div id="demo" class="rounded-xl bg-surface border border-border"></div>
+              <button
+                id="btn-pause-demo"
+                class="w-full text-sm text-text-secondary py-2 rounded-lg bg-surface-light"
+              >
+                ⏸ 暫停示範動畫
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <h2 id="brief-title" class="text-3xl font-bold leading-snug"></h2>
+              <p id="brief-detail" class="text-text-secondary leading-relaxed"></p>
+              <div class="rounded-lg bg-surface border border-border p-4">
+                <div class="text-xs text-text-secondary mb-1">為什麼要錄這個</div>
+                <div id="brief-why" class="text-sm"></div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btn-ready"
+            class="w-full rounded-xl bg-success text-black font-bold text-lg py-4"
+          >
+            我看懂了，開始這一項
+          </button>
+        </section>
+
+        <!-- Recording -->
+        <section id="screen-record" class="hidden space-y-5">
+          <div class="flex items-baseline justify-between gap-4">
+            <div>
+              <div id="task-title" class="text-3xl font-bold"></div>
+              <div id="task-detail" class="text-text-secondary mt-1"></div>
+            </div>
+            <div id="task-count" class="text-6xl font-black tabular-nums"></div>
+          </div>
+
+          <div class="grid md:grid-cols-[2fr_1fr] gap-4 items-center">
+            <div class="relative rounded-xl overflow-hidden bg-black">
+              <canvas
+                id="preview"
+                class="w-full block"
+                role="img"
+                aria-label="攝影機即時畫面，顯示你目前的動作"
+              >
+                你的瀏覽器不支援 canvas，無法顯示攝影機畫面。請改用 Chrome 或 Edge。
+              </canvas>
+            </div>
+            <!-- The demo keeps playing while they record, so they can copy it. -->
+            <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-2 rounded-full bg-surface-light overflow-hidden">
+              <div id="progress" class="h-full bg-success" style="width: 0%"></div>
+            </div>
+            <div id="progress-label" class="text-sm text-text-secondary tabular-nums"></div>
+          </div>
+        </section>
+
+        <!-- Between tasks: keep it, or redo it -->
+        <section id="screen-review" class="hidden space-y-6 text-center">
+          <div class="text-5xl">👍</div>
+          <h2 class="text-2xl font-bold">這一項錄好了</h2>
+          <p id="review-note" class="text-text-secondary">
+            如果剛剛做錯了、或被打斷，可以重錄這一項。
+          </p>
+          <div class="flex gap-3">
+            <button id="btn-redo" class="flex-1 rounded-xl bg-surface-light text-text py-4">
+              重錄這一項
+            </button>
+            <button
+              id="btn-next"
+              class="flex-1 rounded-xl bg-success text-black font-bold py-4"
+            >
+              下一項 →
+            </button>
+          </div>
+        </section>
+
+        <!-- Done -->
+        <section id="screen-done" class="hidden space-y-6">
+          <div class="text-center space-y-2">
+            <div class="text-5xl">✅</div>
+            <h2 class="text-2xl font-bold">全部錄完了，謝謝！</h2>
+          </div>
+
+          <div class="rounded-xl bg-surface border border-border p-5 space-y-3">
+            <p class="font-bold">最後一步：把檔案放進共用資料夾</p>
+            <p class="text-text-secondary leading-relaxed">
+              剛剛自動下載了這兩個檔案（通常在「下載」資料夾裡）：
+            </p>
+            <p id="file-names" class="font-mono text-sm break-all"></p>
+            <p class="text-text-secondary leading-relaxed">
+              請把它們拖進<strong class="text-text">研究負責人給你的雲端資料夾連結</strong>就完成了。
+            </p>
+          </div>
+
+          <div class="flex gap-3">
+            <button id="btn-resave" class="flex-1 rounded-xl bg-surface-light text-text py-3">
+              沒看到檔案？再下載一次
+            </button>
+            <button id="btn-again" class="flex-1 rounded-xl bg-surface-light text-text py-3">
+              再錄一次
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+  </body>
+</html>

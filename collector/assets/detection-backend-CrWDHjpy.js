@@ -1,0 +1,1 @@
+const r={pose:!0,face:!0,hands:!0};class t{async initialize(){throw new Error("initialize() must be implemented")}async processFrame(){throw new Error("processFrame() must be implemented")}destroy(){throw new Error("destroy() must be implemented")}}export{r as A,t as D};
