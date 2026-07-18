@@ -4,8 +4,9 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/copy-ort.mjs && vite",
+    "build": "node scripts/copy-ort.mjs && vite build",
+    "postinstall": "node scripts/copy-ort.mjs",
     "preview": "vite preview",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
@@ -20,7 +21,8 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@tensorflow/tfjs-converter": "^4.22.0",
-    "@tensorflow/tfjs-core": "^4.22.0"
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "onnxruntime-web": "^1.27.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
