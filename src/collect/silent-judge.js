@@ -25,7 +25,12 @@ const PRESS_Y_UP = 0.5;
 /** Exhale: canister at or below this height — or mostly absent — is "lowered
  * away" (the correct pre-actuation posture; mirror of step2). */
 const EXHALE_Y_AWAY = 0.6;
-const PRESENT_FRAC = 0.5;
+/** How much of the window must contain a detection to count as "inhaler present".
+ * Low, and matched to the recorder's own presence smoothing, so the per-task
+ * verdict agrees with the always-on read-out instead of lagging half a window
+ * behind it (they were desyncing). Detection false positives are ~0, so a small
+ * fraction is safe. */
+const PRESENT_FRAC = 0.25;
 
 /** Which detector to run for each task, and what it should conclude. A metric
  * of null is not judged (e.g. spray counting is audio-only). `expect` null means
