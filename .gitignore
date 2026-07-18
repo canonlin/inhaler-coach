@@ -26,3 +26,6 @@ dist-ssr
 # Collector upload endpoint — not secret, but not source either
 .env
 .env.local
+
+# onnxruntime-web wasm backend (copied from node_modules by scripts/copy-ort.mjs)
+public/ort/

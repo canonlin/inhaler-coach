@@ -20,10 +20,8 @@
 /** Shake: hand-region motion this many times the background counts as shaking
  * (step1-shake.js RATIO_SHAKE). */
 const RATIO_SHAKE = 8;
-/** Press: canister above this normalized height (0=top) is "up at the mouth",
- * and it must be held at least this steady (step3 MIN_STEADY). */
+/** Press: canister above this normalized height (0=top) is "up at the mouth". */
 const PRESS_Y_UP = 0.5;
-const PRESS_STEADY = 0.45;
 /** Exhale: canister at or below this height — or mostly absent — is "lowered
  * away" (the correct pre-actuation posture; mirror of step2). */
 const EXHALE_Y_AWAY = 0.6;
@@ -61,13 +59,26 @@ const median = (xs) => {
  * @returns {{pass:boolean, label:string, detail:string, ready:boolean}}
  */
 export function judge(metric, frames) {
+	if (frames.length < 2)
+		return { pass: false, label: "偵測中…", detail: "", ready: false };
+
+	// Every step first requires a REAL inhaler in frame (the object detector, not
+	// the old colour filter). No inhaler → nothing can pass, whatever the motion.
+	// shake reads the presence flag stamped on the motion sample; press/exhale
+	// read the detection box `det` = [present, cx, cy, score].
+	const inhalerFrac =
+		metric === "shake"
+			? frames.filter((f) => f.inhaler).length / frames.length
+			: frames.filter((f) => f.det).length / frames.length;
+	const hasInhaler = inhalerFrac >= PRESENT_FRAC;
+
 	if (metric === "shake") {
 		const ratios = frames
 			.filter((f) => f.motionBg > 0.01)
 			.map((f) => f.motionHand / f.motionBg);
-		if (ratios.length < 2)
-			return { pass: false, label: "…", detail: "等待畫面", ready: false };
-		const r = median(ratios);
+		const r = ratios.length ? median(ratios) : 0;
+		if (!hasInhaler)
+			return { pass: false, label: "沒看到吸入器", detail: "把吸入器拿進畫面再搖", ready: true };
 		return {
 			pass: r >= RATIO_SHAKE,
 			label: r >= RATIO_SHAKE ? "搖晃中" : "沒在搖",
@@ -76,35 +87,29 @@ export function judge(metric, frames) {
 		};
 	}
 
-	const present = frames.filter((f) => f.dev);
-	const presentFrac = frames.length ? present.length / frames.length : 0;
-	const ys = present.map((f) => f.dev[1]);
-	const y = ys.length ? median(ys) : 1;
+	if (!hasInhaler)
+		return { pass: false, label: "沒看到吸入器", detail: "把吸入器拿進畫面", ready: true };
+
+	// Canister vertical position from the real detection box.
+	const y = median(frames.filter((f) => f.det).map((f) => f.det[2]));
 
 	if (metric === "press") {
-		const steady = median(present.map((f) => f.steady ?? 0));
-		if (present.length < 2)
-			return { pass: false, label: "沒看到吸入器", detail: "把紅色罐頭拿進畫面", ready: false };
-		const up = presentFrac >= PRESENT_FRAC && y < PRESS_Y_UP;
-		const held = steady >= PRESS_STEADY;
+		const up = y < PRESS_Y_UP;
 		return {
-			pass: up && held,
-			label: up && held ? "對準、拿穩" : up ? "拿穩一點" : "抬到嘴邊",
-			detail: `高度 ${y.toFixed(2)}（需 <${PRESS_Y_UP}）｜穩定度 ${steady.toFixed(2)}（需 ≥${PRESS_STEADY}）`,
+			pass: up,
+			label: up ? "對準嘴邊" : "抬到嘴邊",
+			detail: `吸入器高度 ${y.toFixed(2)}（需 <${PRESS_Y_UP}）`,
 			ready: true,
 		};
 	}
 
 	if (metric === "exhale") {
-		const away = presentFrac < PRESENT_FRAC || y >= EXHALE_Y_AWAY;
+		const away = y >= EXHALE_Y_AWAY;
 		return {
 			pass: away,
 			label: away ? "吸入器已移開" : "吸入器還在嘴邊",
-			detail:
-				presentFrac < PRESENT_FRAC
-					? "畫面中沒看到罐子（已放下）"
-					: `罐子高度 ${y.toFixed(2)}（移開需 ≥${EXHALE_Y_AWAY}）`,
-			ready: frames.length >= 2,
+			detail: `吸入器高度 ${y.toFixed(2)}（移開需 ≥${EXHALE_Y_AWAY}）`,
+			ready: true,
 		};
 	}
 
