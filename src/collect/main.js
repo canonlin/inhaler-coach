@@ -3,6 +3,7 @@ import { clearDemo, renderDemo, togglePaused } from "./demo.js";
 import { LEAD_IN_SECONDS, TASKS } from "./protocol.js";
 import { SessionRecorder } from "./recorder.js";
 import { saveSession } from "./saver.js";
+import { judge, judgeSession, TASK_JUDGE } from "./silent-judge.js";
 
 /**
  * Data collection app, deployed separately from the coaching app.
@@ -32,6 +33,40 @@ import { saveSession } from "./saver.js";
 
 const $ = (id) => document.getElementById(id);
 const recorder = new SessionRecorder();
+
+// Live detector read-out. The recorder fires onSample every frame; we keep a
+// short rolling window and, only while a judgeable task is actually recording,
+// show what the current detector concludes. Informational — the pharmacist
+// records the task no matter what this says; it just surfaces how the shipped
+// model reacts, and the same verdict is saved per task in the metadata.
+const JUDGE_WINDOW = 30; // ~1s of samples
+let liveBuf = [];
+
+// Route each stream to the task's metric: shake reads the fast, fixed-rate
+// motion samples (the ratio is only valid at that rate); press/exhale read the
+// inference-rate frames (canister position/steadiness, rate-insensitive).
+recorder.onMotion = (s) => feedLive("shake", s);
+recorder.onSample = (f) => feedLive("device", f);
+
+function feedLive(stream, sample) {
+	const task = TASKS[taskIndex];
+	const spec = task && TASK_JUDGE[task.id];
+	if (!spec?.metric || sample.label !== task.id) return;
+	const wantsMotion = spec.metric === "shake";
+	if (wantsMotion !== (stream === "shake")) return;
+	liveBuf.push(sample);
+	if (liveBuf.length > JUDGE_WINDOW) liveBuf.shift();
+	renderLiveJudge(judge(spec.metric, liveBuf));
+}
+
+function renderLiveJudge(r) {
+	$("live-judge").classList.remove("hidden");
+	$("judge-label").textContent = r.ready ? r.label : "偵測中…";
+	$("judge-label").className = `text-2xl font-bold tabular-nums ${
+		!r.ready ? "text-text-secondary" : r.pass ? "text-success" : "text-danger"
+	}`;
+	$("judge-detail").textContent = r.detail;
+}
 
 /**
  * Nobody knows whether they are "P01" or "P07", and asking them to invent an ID
@@ -125,6 +160,13 @@ async function recordCurrentTask() {
 	renderDemo($("demo-live"), task.demo);
 	updateProgress();
 
+	// Reset the live read-out; hide it entirely for tasks the detector can't judge
+	// (e.g. audio-only spray counting), so it never shows a stale or bogus verdict.
+	liveBuf = [];
+	$("live-judge").classList.toggle("hidden", !TASK_JUDGE[task.id]?.metric);
+	$("judge-label").textContent = "偵測中…";
+	$("judge-detail").textContent = "";
+
 	// Lead-in, so the recording doesn't start while they're still getting set.
 	recorder.setLabel(`leadin_${task.id}`);
 	for (let i = LEAD_IN_SECONDS; i > 0; i--) {
@@ -190,7 +232,19 @@ function finish() {
 		// to be recognisable as such when the analysis disagrees with the others.
 		cameraSettings: recorder.cameraSettings,
 		protocol: TASKS.map((t) => ({ id: t.id, seconds: t.seconds })),
+		// The current detectors scored against each task's ground truth, on this
+		// machine and person — in-domain validation the 0519 seed set can't give.
+		// Saved, not shown: the collection is about the raw data, this rides along.
+		silentJudge: judgeSession(session.signals.frames, session.signals.motion),
 	};
+
+	const j = session.metadata.silentJudge;
+	const scored = j.filter((x) => x.match != null);
+	const hits = scored.filter((x) => x.match).length;
+	console.log(
+		`[silent-judge] detector matched ground truth on ${hits}/${scored.length} judgeable tasks`,
+	);
+	console.table(j);
 
 	const files = saveSession(filename, session);
 	$("file-names").textContent = files.join("　和　");
