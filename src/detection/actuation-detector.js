@@ -23,6 +23,30 @@
  * 5 cued presses → 5 detected, 0 missed, 0 false positives. Single session,
  * single subject — the thresholds below are a starting point, not a validated
  * constant.
+ *
+ * ⚠️ 2026-07-18, five pharmacists on a Logi C920e webcam (the collector data):
+ * this detector got 0 of ~10 real sprays and false-fired 6× on the device being
+ * handled. It does NOT generalize, and the reason is capture, not tuning:
+ *
+ *   - 4 of the 5 sprays never rose above the room's noise floor. A webcam mic at
+ *     arm's length barely hears the propellant hiss (peak 2–8 kHz energy 2–14 vs
+ *     34–105 for the same person handling the device).
+ *   - Both discriminators point the WRONG way. Handling the inhaler is louder in
+ *     2–8 kHz AND spectrally flatter (flatness 0.05–0.16) than the actual sprays
+ *     (0.001–0.054) — a plastic click is broadband, a distant spray is faint. So
+ *     no (highBand, flatness) threshold separates them on this hardware.
+ *   - Full-band flatness is near-zero for everything here anyway: the webcam rolls
+ *     off above ~8 kHz, so the empty upper spectrum drags the geometric mean down
+ *     regardless of content. MIN_FLATNESS=0.05 is unreachable and blocked even the
+ *     one clearly-audible spray (976347dc: broadband, sustained ~80 ms, flatness
+ *     0.054 — a genuine spray, still not detected).
+ *
+ * The one audible spray WAS separable from handling by duration (sustained ~80 ms
+ * vs an impulsive ~20 ms click) and mid-band shape, so the approach isn't wrong —
+ * but it needs a mic that can hear the spray. Do not re-tune these constants on
+ * the collector data; a threshold fitted to the single audible example would
+ * overfit exactly as the 2026-07-15 single-session numbers did. Fix the capture
+ * (closer/better mic, or the patient's phone) before trusting audio actuation.
  */
 
 /** Noise-like, not tonal. Background video peaked at 0.026, speech at 0.017. */

@@ -77,6 +77,31 @@ export const TASKS = [
 		demo: { translate: 0.45, rotate: 0, periodMs: 350, press: true },
 	},
 	{
+		id: "press_air_steady",
+		title: "拿穩不動，對空慢慢按 5 下",
+		detail:
+			"把吸入器拿在胸前、罐口朝上、離開臉，握穩「完全不要晃」。每隔約 2 秒，用力把紅色罐頂按下去一次，總共 5 下。關鍵：手要穩、按要確實，不要對鏡頭揮動。",
+		why: "上一批大家對鏡頭揮吸入器，按壓的訊號被大動作蓋掉了。拿穩、按確實，系統才學得到「按壓」本身長什麼樣",
+		seconds: 15,
+		demo: { translate: 0, rotate: 0, periodMs: 0, steadyPress: true, presses: 5 },
+	},
+	{
+		id: "press_mouth_steady",
+		title: "含住吸嘴、拿穩，慢慢按 5 下",
+		detail:
+			"把吸嘴含到嘴邊（或輕靠嘴唇）、罐口朝上，握穩不要晃。每隔約 2 秒用力按一下紅色罐頂，總共 5 下。這是真正吸藥時的姿勢。",
+		why: "真實吸藥是把裝置拿到嘴邊按。這一項讓系統學會「嘴邊按壓」的樣子，並和對空按壓區分不同情境",
+		seconds: 15,
+		demo: {
+			translate: 0,
+			rotate: 0,
+			periodMs: 0,
+			steadyPress: true,
+			atMouth: true,
+			presses: 5,
+		},
+	},
+	{
 		id: "handle",
 		title: "放下吸入器，再拿起來（重複幾次）",
 		detail: "放到桌上，發出「叩」的聲音也沒關係，然後再拿起來。重複三、四次。",
