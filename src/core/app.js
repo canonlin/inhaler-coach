@@ -1,5 +1,8 @@
 import { STAGES } from "../config/stages.js";
 import { ActuationDetector } from "../detection/actuation-detector.js";
+import { DeviceTracker } from "../detection/device-tracker.js";
+import { analyzePressWindow } from "../detection/press-analyzer.js";
+import { RespirationSampler } from "../detection/respiration-sampler.js";
 import { AudioFeatures } from "../detection/audio-features.js";
 import { DetectionManager } from "../detection/detection-manager.js";
 import { extractFaceFeatures } from "../detection/face-features.js";
@@ -10,7 +13,9 @@ import {
 	resetDominantSide,
 } from "../detection/pose-features.js";
 import { ShakeDetector } from "../steps/step1-shake.js";
-import { RinseDetector } from "../steps/step4-rinse.js";
+import { ExhaleDetector } from "../steps/step2-exhale.js";
+import { PressInhaleDetector } from "../steps/step3-press-inhale.js";
+import { mouthROI, RinseDetector } from "../steps/step4-rinse.js";
 import {
 	hideCountdown,
 	hideStatus,
@@ -74,9 +79,36 @@ const $ = (id) => document.getElementById(id);
 const detection = new DetectionManager();
 const shakeDetector = new ShakeDetector();
 const rinseDetector = new RinseDetector();
+const pressInhale = new PressInhaleDetector();
+const exhaleDetector = new ExhaleDetector();
 const motionEnergy = new MotionEnergy();
+// A second, independent frame-differencer for the shake step. It runs in the
+// fixed-rate motion loop (below), not the inference loop, so it needs its own
+// previous-frame state — the two loops sample at different moments and would
+// otherwise corrupt each other's reference frame.
+const shakeMotion = new MotionEnergy();
+// Mouth-region motion for the rinse step — its own differencer so its previous
+// frame isn't clobbered by the hand sampler.
+const rinseMotion = new MotionEnergy();
+// Tracks the inhaler itself by colour (the red canister). Runs live and is
+// logged alongside the other signals; it does NOT yet gate pass/fail — the press
+// decision awaits a learned model trained on steady-hold clips. See
+// device-tracker.js and audio-actuation memory.
+const deviceTracker = new DeviceTracker();
 const audio = new AudioFeatures();
 const actuation = new ActuationDetector();
+
+// The press step (Stage 3) is judged as a COMPLETED window, not continuously —
+// a real-time detector floods on erratic waving (see press-analyzer.js). These
+// buffers fill during the press stage; the analyzer reads the whole buffer.
+let pressAudioBuf = [];
+let pressDeviceBuf = [];
+const isPressStage = () => STAGES[state.currentStage]?.id === 3;
+
+// Exhale (Stage 2) breathing: chest-motion sampled live, judged as a window (see
+// respiration-sampler.js). Telemetry alongside the existing model for now.
+const respiration = new RespirationSampler();
+const isExhaleStage = () => STAGES[state.currentStage]?.id === 2;
 
 export function initApp() {
 	state.patientId = getPatientIdFromURL();
@@ -306,7 +338,14 @@ async function startAIPhase() {
 	}
 
 	shakeDetector.reset();
+	shakeMotion.reset();
+	deviceTracker.reset();
+	respiration.reset();
+	pressAudioBuf = [];
+	pressDeviceBuf = [];
+	lastShakeSampleAt = 0;
 	rinseDetector.reset();
+	rinseMotion.reset();
 	resetDominantSide();
 
 	actuation.reset();
@@ -319,11 +358,15 @@ async function startAIPhase() {
 		// Audio runs on its own 100 Hz timer — a spray is too short to measure at
 		// render-loop rate.
 		audio.startSampling((sound, timestamp) => {
+			if (isPressStage() && sound) {
+				pressAudioBuf.push([timestamp, sound.highBand]);
+			}
 			if (actuation.update(sound, timestamp)) {
 				console.log(`Actuation detected (total: ${actuation.count})`);
 			}
 		});
 		predictionLoop();
+		shakeMotionLoop();
 	} catch (_e) {
 		setStatusFail("❌ 無法啟動攝影機，請確認瀏覽器權限");
 	}
@@ -364,7 +407,8 @@ function signalsNeededFor(stage) {
 	// presence gate the pose model doesn't give us.
 	if (stage.specialMode === "shake")
 		return { pose: true, face: false, hands: true };
-	if (stage.id === 4) return { pose: true, face: false, hands: false };
+	// Rinse now watches the mouth: it needs the face mesh, not the hands.
+	if (stage.id === 4) return { pose: true, face: true, hands: false };
 	if (stage.id === 2) return { pose: true, face: true, hands: false };
 	return { pose: true, face: true, hands: true };
 }
@@ -410,6 +454,21 @@ async function predictionLoop() {
 		const roi = resolveHandROI(results.hands, timestamp);
 		const motion = motionEnergy.sample(canvas, roi);
 
+		// Inhaler (red canister) track — sample the raw video, not `canvas`, which
+		// already has landmark overlays drawn on it. Logged for telemetry and the
+		// eventual learned press model; not a pass/fail input yet.
+		const video = state.webcamVideo;
+		const device =
+			video && video.readyState >= 2
+				? deviceTracker.sample(video, roi, timestamp)
+				: null;
+		if (isPressStage() && device) {
+			pressDeviceBuf.push([timestamp, device.present ? device.center.y : null]);
+		}
+		if (isExhaleStage() && video && video.readyState >= 2) {
+			respiration.sample(video, timestamp);
+		}
+
 		const sound = audio.sample();
 
 		recordSignalSample(
@@ -419,19 +478,38 @@ async function predictionLoop() {
 			results.hands,
 			motion,
 			sound,
+			device,
 		);
 
 		// ?measure=1 — record signals only. No pass/fail evaluation, so nothing
 		// can trip waitForPharmacist() and kill the camera mid-recording. Used to
 		// gather the data a real threshold has to be calibrated against.
 		if (MEASURE_MODE) {
+			// Windowed press analysis of the buffer so far — telemetry only; the
+			// analyzer judges a completed step, so mid-step counts are provisional.
+			const windowed =
+				isPressStage() && pressAudioBuf.length > 60
+					? analyzePressWindow(pressAudioBuf, pressDeviceBuf).pressCount
+					: null;
+			const breath =
+				isExhaleStage() && respiration.buffer.length > 45
+					? respiration.analyze()
+					: null;
 			setStatusDetecting(
-				`📊 量測模式（不判定）｜已錄 ${window.__signalLog.records.length} 幀｜🔊 按壓 ${actuation.count} 次`,
+				`📊 量測模式（不判定）｜已錄 ${window.__signalLog.records.length} 幀｜🔊 音訊按壓 ${actuation.count} 次${windowed !== null ? `｜🎯 視窗按壓 ${windowed}` : ""}${breath ? `｜🫁 呼吸 ${breath.detected ? `${breath.rateBpm.toFixed(0)}/分` : "未偵測"}` : ""}`,
 			);
 		} else if (stage.specialMode === "shake") {
-			evaluateShakeStep(roi, motion, now);
+			// Shake is evaluated in shakeMotionLoop() at a fixed high sample rate,
+			// not here — its ratio threshold is only valid when motion is sampled
+			// fast enough to see instantaneous velocity, and this inference loop
+			// degrades to a few fps on slow hardware. This loop's job for the shake
+			// stage is just to keep the hand ROI fresh (resolveHandROI, above).
+		} else if (stage.id === 2) {
+			evaluateExhaleStep(device, results.face, stage, now);
+		} else if (stage.id === 3) {
+			evaluatePressStep(device, results.face, stage, now);
 		} else if (stage.id === 4) {
-			evaluateRinseStep(poseFeatures, stage, now);
+			evaluateRinseStep(results.face, stage, now);
 		} else {
 			evaluateGenericStep(poseFeatures, faceFeatures, handFeatures, stage, now);
 		}
@@ -442,6 +520,43 @@ async function predictionLoop() {
 	// Inference runs in a worker and drops frames when it falls behind, so the
 	// loop can just track the display refresh.
 	requestAnimationFrame(predictionLoop);
+}
+
+/**
+ * The shake step's motion sampling, on its own fixed ~28 fps clock instead of
+ * the inference loop. Two reasons it has to be separate:
+ *
+ *  - The ratio threshold (step1-shake.js) is only valid at a high sample rate.
+ *    The inference loop's rate is whatever the pose/hand models can manage —
+ *    a few fps on weak hardware — and at that rate a plain translation is
+ *    indistinguishable from a shake. This loop pins the rate the threshold was
+ *    calibrated at, regardless of how slow inference is or how fast the monitor.
+ *  - It samples the raw camera frame, not #webcam-canvas, which by this point has
+ *    landmark overlays drawn on it — overlays that move with the hand and would
+ *    contaminate the very signal we're measuring.
+ *
+ * The inference loop still runs, keeping the hand ROI (lastROI) fresh.
+ */
+const SHAKE_SAMPLE_MS = 35; // ~28 fps — the rate RATIO_SHAKE was calibrated at.
+let lastShakeSampleAt = 0;
+
+function shakeMotionLoop() {
+	if (!state.isRunning || state.stagePassed) return;
+	requestAnimationFrame(shakeMotionLoop);
+
+	if (MEASURE_MODE) return;
+	if (STAGES[state.currentStage].specialMode !== "shake") return;
+
+	const nowPerf = performance.now();
+	if (nowPerf - lastShakeSampleAt < SHAKE_SAMPLE_MS) return;
+	lastShakeSampleAt = nowPerf;
+
+	const video = state.webcamVideo;
+	if (!video || video.readyState < 2) return;
+
+	const roi = lastROI && nowPerf - lastROIAt < ROI_GRACE_MS ? lastROI : null;
+	const motion = shakeMotion.sample(video, roi);
+	evaluateShakeStep(roi, motion, Date.now());
 }
 
 // Dev-only signal trace, read from the console while testing a stage.
@@ -455,10 +570,23 @@ function recordSignalSample(
 	hands,
 	motion,
 	sound,
+	device,
 ) {
 	const log = window.__signalLog;
 	if (!log?.enabled) return;
 	log.records.push({
+		// Inhaler (red canister) track: where it is, and the press-candidate dip
+		// (only meaningful while `steady` is high). Recorded raw — see device-tracker.js.
+		dev: device?.present
+			? [
+					+device.center.x.toFixed(4),
+					+device.center.y.toFixed(4),
+					+device.area.toFixed(4),
+					+device.height.toFixed(4),
+				]
+			: null,
+		dip: device ? +device.dip.toFixed(4) : null,
+		steady: device ? +device.steadiness.toFixed(3) : null,
 		// Audio. hiHz is the 2–8 kHz band where a spray lives; flat is spectral
 		// flatness, which is what tells a broadband hiss apart from a voice or a
 		// television playing in the room.
@@ -534,7 +662,7 @@ function evaluateShakeStep(roi, motion, now) {
 	const result = shakeDetector.detect(now);
 	if (MEASURE_MODE) {
 		console.log(
-			`shake: periodicity=${result.periodicity.toFixed(2)} hz=${result.shakeHz?.toFixed(1) ?? "-"} held=${result.secondsHeld.toFixed(1)}s`,
+			`shake: ratio=${result.ratio.toFixed(1)} (≥40) shaking=${result.shaking} held=${result.secondsHeld.toFixed(1)}s`,
 		);
 	}
 	state.lastAIConfidence = Math.round(
@@ -550,9 +678,8 @@ function evaluateShakeStep(roi, motion, now) {
 
 	if (result.shaking) {
 		const left = (result.requiredSeconds - result.secondsHeld).toFixed(1);
-		const hz = result.shakeHz ? `（${result.shakeHz.toFixed(1)} 次/秒）` : "";
 		setOverlay("correct");
-		setStatusDetecting(`✅ 正在搖勻${hz}…還要 ${left} 秒`);
+		setStatusDetecting(`✅ 正在搖勻…還要 ${left} 秒`);
 		return;
 	}
 
@@ -560,8 +687,90 @@ function evaluateShakeStep(roi, motion, now) {
 	setStatusFail("❌ 請上下搖動吸入器，持續 5 秒");
 }
 
-function evaluateRinseStep(poseFeatures, stage, now) {
-	const result = rinseDetector.detect({ poseFeatures });
+/** Mouth centre from the face mesh (midpoint of the inner lips). */
+function mouthCenter(faceLandmarks) {
+	if (!faceLandmarks || faceLandmarks.length < 468) return null;
+	const u = faceLandmarks[13];
+	const l = faceLandmarks[14];
+	if (!u || !l) return null;
+	return { x: (u.x + l.x) / 2, y: (u.y + l.y) / 2 };
+}
+
+/**
+ * Exhale, judged by the inhaler being lowered AWAY from the mouth (see
+ * step2-exhale.js): the clinical instruction is to breathe out fully before
+ * raising the inhaler, and on the pharmacist's own labels the canister's
+ * distance from the mouth separated correct from incorrect where breath motion
+ * could not. The chest-motion respiration sampler still runs (telemetry).
+ */
+function evaluateExhaleStep(device, faceLandmarks, stage, now) {
+	const result = exhaleDetector.detect({
+		device,
+		mouthPoint: mouthCenter(faceLandmarks),
+	});
+	state.lastAIConfidence = Math.round(result.confidence * 100);
+
+	if (result.exhaling) {
+		if (state.passTimestamp === 0) state.passTimestamp = now;
+		const elapsed = (now - state.passTimestamp) / 1000;
+		const remaining = Math.max(0, stage.passSeconds - elapsed).toFixed(1);
+		setOverlay("correct");
+		setStatusDetecting(`✅ 吸入器移開，慢慢把氣吐乾淨…維持 ${remaining} 秒`);
+		if (elapsed >= stage.passSeconds) waitForPharmacist();
+	} else {
+		state.passTimestamp = 0;
+		setOverlay("wrong");
+		setStatusFail("❌ 先把吸入器移開嘴巴，把氣吐出來後再壓");
+	}
+}
+
+/**
+ * Press + inhale, judged by the inhaler's posture (see step3-press-inhale.js):
+ * canister present, at the mouth, and held steady — then hold for the clinical
+ * breath-hold duration. Replaces the old no-op stub that never passed.
+ */
+function evaluatePressStep(device, faceLandmarks, stage, now) {
+	const result = pressInhale.detect({
+		device,
+		mouthPoint: mouthCenter(faceLandmarks),
+	});
+	state.lastAIConfidence = Math.round(result.confidence * 100);
+
+	if (result.pressing) {
+		if (state.passTimestamp === 0) state.passTimestamp = now;
+		const need = stage.holdSeconds ?? stage.passSeconds ?? 5;
+		const elapsed = (now - state.passTimestamp) / 1000;
+		const remaining = Math.max(0, need - elapsed).toFixed(1);
+		setOverlay("correct");
+		setStatusDetecting(`✅ 對準嘴巴、拿穩了！按壓吸氣後憋氣 ${remaining} 秒…`);
+		if (elapsed >= need) waitForPharmacist();
+	} else {
+		state.passTimestamp = 0;
+		setOverlay("wrong");
+		const hint = !result.present
+			? "請把吸入器拿到鏡頭前"
+			: !result.atMouth
+				? "請把吸入器對準嘴巴"
+				: "請拿穩不要晃動";
+		setStatusFail(`❌ ${hint}`);
+	}
+}
+
+function evaluateRinseStep(faceLandmarks, stage, now) {
+	const roi = mouthROI(faceLandmarks);
+	if (!roi || !state.webcamVideo || state.webcamVideo.readyState < 2) {
+		state.passTimestamp = 0;
+		setOverlay("none");
+		setStatusDetecting("🤖 請靠近鏡頭，讓系統看到嘴巴…");
+		rinseDetector.reset();
+		return;
+	}
+
+	// Mouth-region motion vs background, from the raw video (not the landmark-
+	// drawn canvas, whose overlays sit right on the mouth we're measuring).
+	const motion = rinseMotion.sample(state.webcamVideo, roi);
+	rinseDetector.update(motion.ratio, now);
+	const result = rinseDetector.detect();
 	state.lastAIConfidence = Math.round(result.confidence * 100);
 
 	if (result.rinsing) {
@@ -574,9 +783,7 @@ function evaluateRinseStep(poseFeatures, stage, now) {
 	} else {
 		state.passTimestamp = 0;
 		setOverlay("wrong");
-		setStatusFail(
-			`❌ 請靠近水杯漱口（信心 ${Math.round(result.confidence * 100)}%）`,
-		);
+		setStatusFail("❌ 請含水漱口，讓臉頰動起來");
 	}
 }
 
@@ -707,6 +914,7 @@ function retryStage() {
 	stopWebcam();
 	shakeDetector.reset();
 	rinseDetector.reset();
+	rinseMotion.reset();
 	resetDominantSide();
 
 	setTimeout(async () => {

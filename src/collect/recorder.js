@@ -1,5 +1,6 @@
 import { AudioFeatures } from "../detection/audio-features.js";
 import { DetectionManager } from "../detection/detection-manager.js";
+import { DeviceTracker } from "../detection/device-tracker.js";
 import { handROI, MotionEnergy } from "../detection/motion-energy.js";
 import { extractPoseFeatures } from "../detection/pose-features.js";
 
@@ -46,6 +47,7 @@ export class SessionRecorder {
 	constructor() {
 		this.detection = new DetectionManager();
 		this.motionEnergy = new MotionEnergy();
+		this.deviceTracker = new DeviceTracker();
 		this.audio = new AudioFeatures();
 
 		this.stream = null;
@@ -183,6 +185,13 @@ export class SessionRecorder {
 			const roi = this.resolveROI(results.hands, now);
 			const motion = this.motionEnergy.sample(this.canvas, roi);
 
+			// Track the inhaler itself by colour (the red canister). Sample the clean
+			// downscaled frame BEFORE any overlay — recorder.js draws no landmarks on
+			// the canvas, so this.canvas is the raw camera image. Position-agnostic on
+			// purpose: it serves both the into-air priming sprays and the at-mouth
+			// actuation; the step decides which from context. See device-tracker.js.
+			const device = this.deviceTracker.sample(this.canvas, roi, now);
+
 			const pose = extractPoseFeatures(results.pose);
 
 			this.frames.push({
@@ -209,6 +218,20 @@ export class SessionRecorder {
 					: null,
 				motionHand: +motion.hand.toFixed(2),
 				motionBg: +motion.background.toFixed(2),
+				// Inhaler (red canister) track. `dev` is present/where; `dip` is the
+				// press-candidate signal (canister pushed down), only trustworthy while
+				// `steady` is high — the threshold for "a press" still needs steady-hold
+				// clips to set, so this is recorded raw, not thresholded.
+				dev: device.present
+					? [
+							+device.center.x.toFixed(4),
+							+device.center.y.toFixed(4),
+							+device.area.toFixed(4),
+							+device.height.toFixed(4),
+						]
+					: null,
+				dip: +device.dip.toFixed(4),
+				steady: +device.steadiness.toFixed(3),
 			});
 		} catch (e) {
 			console.error("Detection error:", e);

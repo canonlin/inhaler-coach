@@ -32,6 +32,8 @@ const INHALER_SVG = `
 function caption(demo) {
 	if (demo.breathe) return "吐氣（吸入器不用動）";
 	if (demo.speak) return "說話（吸入器不用動）";
+	if (demo.steadyPress)
+		return `${demo.atMouth ? "含住吸嘴、" : "拿在胸前、"}拿穩不動，慢慢按 ${demo.presses ?? 5} 下`;
 	if (demo.press) return "搖 → 噴 → 搖 → 噴";
 	if (!demo.periodMs) return "完全靜止";
 	if (demo.putDown) return "放下 → 拿起，重複";
@@ -59,7 +61,8 @@ export function renderDemo(container, demo) {
       ${moving && !demo.drift && !demo.putDown ? '<div class="demo-arrow demo-arrow-up">▲</div>' : ""}
       <div class="demo-inhaler">${INHALER_SVG}</div>
       ${moving && !demo.drift && !demo.putDown ? '<div class="demo-arrow demo-arrow-down">▼</div>' : ""}
-      ${demo.press ? '<div class="demo-puff">💨</div>' : ""}
+      ${demo.press || demo.steadyPress ? '<div class="demo-puff">💨</div>' : ""}
+      ${demo.atMouth ? '<div class="demo-mouth" aria-hidden="true">👄</div>' : ""}
       ${demo.breathe ? '<div class="demo-breath">😮‍💨</div>' : ""}
       ${demo.speak ? '<div class="demo-speak">💬</div>' : ""}
     </div>
