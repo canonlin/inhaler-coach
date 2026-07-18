@@ -59,6 +59,21 @@ function feedLive(stream, sample) {
 	renderLiveJudge(judge(spec.metric, liveBuf));
 }
 
+// Always-on presence read-out from the real object detector, independent of the
+// per-task judge — so the pharmacist can hold the inhaler up and confirm it's
+// seen, before recording even starts.
+recorder.onInhaler = (r) => {
+	const el = $("inhaler-state");
+	if (!el) return;
+	if (r?.present) {
+		el.textContent = `✅ 有（信心 ${r.score.toFixed(2)}）`;
+		el.className = "font-bold text-success";
+	} else {
+		el.textContent = "✕ 沒看到";
+		el.className = "font-bold text-text-secondary";
+	}
+};
+
 function renderLiveJudge(r) {
 	$("live-judge").classList.remove("hidden");
 	$("judge-label").textContent = r.ready ? r.label : "偵測中…";

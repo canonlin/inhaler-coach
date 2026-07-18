@@ -1,6 +1,7 @@
 import { AudioFeatures } from "../detection/audio-features.js";
 import { DetectionManager } from "../detection/detection-manager.js";
 import { DeviceTracker } from "../detection/device-tracker.js";
+import { InhalerDetector } from "../detection/inhaler-detector.js";
 import { handROI, MotionEnergy } from "../detection/motion-energy.js";
 import { extractPoseFeatures } from "../detection/pose-features.js";
 
@@ -57,6 +58,13 @@ export class SessionRecorder {
 		// previous one it saw — mixing two rates corrupts both).
 		this.shakeMotion = new MotionEnergy();
 		this.deviceTracker = new DeviceTracker();
+		// The real inhaler object detector (replaces the colour filter for the
+		// presence gate). Runs on its own async, throttled loop; the latest result
+		// is held here and stamped onto each logged frame.
+		this.inhaler = new InhalerDetector();
+		this.lastInhaler = null;
+		this.lastInhalerAt = 0;
+		this.onInhaler = null;
 		this.audio = new AudioFeatures();
 
 		this.stream = null;
@@ -130,6 +138,9 @@ export class SessionRecorder {
 
 		await this.detection.initialize();
 		await this.audio.initialize(this.stream);
+		// Load the ONNX detector in the background; don't block camera setup on it.
+		// If it fails (e.g. offline first run), presence gating simply stays off.
+		this.inhaler.load().catch((e) => console.error("inhaler model load:", e));
 	}
 
 	get backendName() {
@@ -184,6 +195,36 @@ export class SessionRecorder {
 
 		this.loop();
 		this.fastMotionLoop();
+		this.inhalerLoop();
+	}
+
+	/**
+	 * The real inhaler detector on its own async, throttled clock (~5 fps — the
+	 * ONNX model runs ~50–150 ms on the wasm backend, too slow for every frame and
+	 * unnecessary for a presence gate). Holds the latest result on `lastInhaler`,
+	 * which the frame log and the live read-out both read. Async and self-
+	 * rescheduling so a slow inference never stalls the recording loops.
+	 */
+	async inhalerLoop() {
+		while (this.running) {
+			const t0 = performance.now();
+			if (this.inhaler.ready && this.video?.readyState >= 2) {
+				try {
+					const r = await this.inhaler.detect(
+						this.video,
+						this.video.videoWidth,
+						this.video.videoHeight,
+					);
+					this.lastInhaler = r;
+					this.lastInhalerAt = performance.now();
+					this.onInhaler?.(r);
+				} catch (e) {
+					console.error("inhaler detect:", e);
+				}
+			}
+			const dt = performance.now() - t0;
+			await new Promise((r) => setTimeout(r, Math.max(0, 200 - dt)));
+		}
 	}
 
 	/**
@@ -213,6 +254,8 @@ export class SessionRecorder {
 			// Same field names as the inference frames, so the judge reads either.
 			motionHand: +motion.hand.toFixed(2),
 			motionBg: +motion.background.toFixed(2),
+			// Latest presence flag, so shake can require a real inhaler in hand.
+			inhaler: this.lastInhaler?.present ? 1 : 0,
 		};
 		this.motionSamples.push(sample);
 		this.onMotion?.(sample);
@@ -287,6 +330,17 @@ export class SessionRecorder {
 					: null,
 				dip: +device.dip.toFixed(4),
 				steady: +device.steadiness.toFixed(3),
+				// Real inhaler detection (ONNX): [present, cx, cy, score] or null.
+				// This — not the colour `dev` above — is the authoritative presence
+				// and position signal; `dev` is kept only for comparison.
+				det: this.lastInhaler?.present
+					? [
+							1,
+							+this.lastInhaler.center.x.toFixed(4),
+							+this.lastInhaler.center.y.toFixed(4),
+							+this.lastInhaler.score.toFixed(3),
+						]
+					: null,
 			};
 			this.frames.push(frame);
 			this.onSample?.(frame);

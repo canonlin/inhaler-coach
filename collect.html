@@ -105,6 +105,12 @@
                 <div id="judge-label" class="text-2xl font-bold tabular-nums">—</div>
                 <div id="judge-detail" class="text-sm text-text-secondary mt-1"></div>
               </div>
+              <!-- Always-on: does the real object detector see an inhaler right now?
+                   Lets the pharmacist confirm detection works before/between tasks. -->
+              <div id="inhaler-presence" class="rounded-xl bg-surface border border-border p-3 text-sm">
+                <span class="text-text-secondary">吸入器偵測：</span>
+                <span id="inhaler-state" class="font-bold">載入模型中…</span>
+              </div>
             </div>
           </div>
 
