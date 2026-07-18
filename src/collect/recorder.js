@@ -22,6 +22,10 @@ const AUDIO_INTERVAL_MS = 10;
 /** How long a hand box stays usable after the hand model loses the hand. */
 const ROI_GRACE_MS = 600;
 
+/** Shake-motion sample interval, ~28 fps — the rate the shake ratio threshold
+ * was calibrated at (matches the coaching app's SHAKE_SAMPLE_MS). */
+const SHAKE_SAMPLE_MS = 35;
+
 /**
  * Preference order for the recording container. VP9 first for quality per bit,
  * then VP8, then whatever WebM the browser has, then MP4 for Safari — which
@@ -47,6 +51,11 @@ export class SessionRecorder {
 	constructor() {
 		this.detection = new DetectionManager();
 		this.motionEnergy = new MotionEnergy();
+		// A SECOND motion accumulator for the fast, decoupled shake-motion loop.
+		// Its own instance so its frame-to-frame history isn't interleaved with the
+		// slow inference-rate sampling above (each sample differences against the
+		// previous one it saw — mixing two rates corrupts both).
+		this.shakeMotion = new MotionEnergy();
 		this.deviceTracker = new DeviceTracker();
 		this.audio = new AudioFeatures();
 
@@ -58,11 +67,23 @@ export class SessionRecorder {
 
 		this.frames = [];
 		this.audioSamples = [];
+		// High-rate shake motion, sampled on its own clock (see fastMotionLoop).
+		// Separate from `frames` because the shake ratio is only meaningful at a
+		// high, fixed sample rate — the inference loop runs at a few fps on weak
+		// hardware, and at that rate a slow move is indistinguishable from a shake
+		// (measured: the old JSON couldn't tell "move" from "shake" at all).
+		this.motionSamples = [];
 		this.label = "idle";
 		this.running = false;
 		this.startedAt = 0;
 		this.lastROI = null;
 		this.lastROIAt = 0;
+		this.lastMotionAt = 0;
+		// onSample: every inference-rate frame (canister/steadiness — rate-
+		// insensitive). onMotion: every fast shake-motion sample. The UI uses each
+		// for the live read-out without the recorder knowing about detectors.
+		this.onSample = null;
+		this.onMotion = null;
 	}
 
 	async initialize(canvas) {
@@ -126,6 +147,7 @@ export class SessionRecorder {
 	start() {
 		this.frames = [];
 		this.audioSamples = [];
+		this.motionSamples = [];
 		this.chunks = [];
 		this.running = true;
 		this.startedAt = performance.now();
@@ -161,6 +183,39 @@ export class SessionRecorder {
 		}, AUDIO_INTERVAL_MS);
 
 		this.loop();
+		this.fastMotionLoop();
+	}
+
+	/**
+	 * Shake motion on its own fixed ~28 fps clock, decoupled from the inference
+	 * loop, mirroring the coaching app's shakeMotionLoop. The shake ratio is only
+	 * valid at this rate; sampling it inside the (slow, variable) inference loop is
+	 * exactly what made the earlier recordings unable to separate a shake from a
+	 * plain move. Samples the live video directly — not this.canvas, which the
+	 * inference loop only refreshes at its own slow rate — reusing the last hand
+	 * box, and logs a dense motion series alongside the rich inference frames.
+	 */
+	fastMotionLoop() {
+		if (!this.running) return;
+		requestAnimationFrame(() => this.fastMotionLoop());
+
+		const now = performance.now();
+		if (now - this.lastMotionAt < SHAKE_SAMPLE_MS) return;
+		this.lastMotionAt = now;
+		if (!this.video || this.video.readyState < 2) return;
+
+		const roi =
+			this.lastROI && now - this.lastROIAt < ROI_GRACE_MS ? this.lastROI : null;
+		const motion = this.shakeMotion.sample(this.video, roi);
+		const sample = {
+			t: Math.round(now - this.startedAt),
+			label: this.label,
+			// Same field names as the inference frames, so the judge reads either.
+			motionHand: +motion.hand.toFixed(2),
+			motionBg: +motion.background.toFixed(2),
+		};
+		this.motionSamples.push(sample);
+		this.onMotion?.(sample);
 	}
 
 	async loop() {
@@ -194,7 +249,7 @@ export class SessionRecorder {
 
 			const pose = extractPoseFeatures(results.pose);
 
-			this.frames.push({
+			const frame = {
 				t: Math.round(now - this.startedAt),
 				label: this.label,
 				handSeen: !!results.hands,
@@ -232,7 +287,9 @@ export class SessionRecorder {
 					: null,
 				dip: +device.dip.toFixed(4),
 				steady: +device.steadiness.toFixed(3),
-			});
+			};
+			this.frames.push(frame);
+			this.onSample?.(frame);
 		} catch (e) {
 			console.error("Detection error:", e);
 		}
@@ -313,6 +370,9 @@ export class SessionRecorder {
 			signals: {
 				frames: this.frames,
 				audio: this.audioSamples,
+				// Dense, fixed-rate shake motion — the channel the earlier JSONs
+				// lacked, which left the shake signal recoverable only from the webm.
+				motion: this.motionSamples,
 			},
 		};
 	}
