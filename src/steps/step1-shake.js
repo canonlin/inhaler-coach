@@ -1,52 +1,97 @@
-import { periodicity } from "../detection/periodicity.js";
-
 /**
- * Shake detection, by periodicity of motion in the hand region.
+ * Shake detection, by how far hand-region motion stands above the background.
  *
- * Two earlier approaches failed, and the way each failed is what led here.
+ * The history matters, because the obvious answers were each tried and each
+ * failed for a specific, measured reason:
  *
  * 1. Track the wrist landmark, look for oscillation. BlazePose's wrist carries
- *    no trace of the shake at all — measured 2026-07-15, its spectrum while
- *    genuinely shaking was indistinguishable from its spectrum while holding
- *    still (peak power 0.0134 vs 0.0166). Shaking an inhaler is a small fast
- *    wrist motion and a temporally-smoothed landmark doesn't resolve it.
- *    Everything the landmark showed was tracking jitter.
+ *    no trace of the shake — measured 2026-07-15, its spectrum while genuinely
+ *    shaking was indistinguishable from its spectrum while holding still. A
+ *    temporally-smoothed landmark can't resolve a small fast wrist motion.
  *
- * 2. Threshold the amount of pixel motion in the hand region. This works on the
- *    recording you tuned it against and nowhere else. Same person, same action,
- *    two sessions: still read 7.3 then 13–15; shaking read 10.4 then 25–35. The
- *    second session's STILL exceeds the first session's SHAKING. Lighting and
- *    camera distance move the scale by 3×, and a bigger hand, a closer camera or
- *    a gentler shake would move it again. Any constant tuned there is over-fitted
- *    to one person in one room.
+ * 2. Threshold raw pixel motion in the hand region. Not comparable across
+ *    sessions — lighting and camera distance move the absolute scale by 3×, so a
+ *    still hand in one room reads higher than a shaking hand in another.
  *
- * What survives all of that is that SHAKING IS PERIODIC — it repeats, whoever is
- * doing it and however hard. Sensor noise doesn't repeat. Deliberate slow
- * movement doesn't repeat. So this measures repetition (normalized
- * autocorrelation, dimensionless, 0..1) rather than size, which is the frequency-
- * estimation approach the hand-tremor literature actually uses (arXiv 1809.03218).
+ * 3. Measure periodicity (autocorrelation), on the theory that shaking repeats
+ *    and noise doesn't. This is what used to live here — and it was calibrated
+ *    against data that, we later found, was sampled at only ~3 fps because
+ *    MediaPipe inference bottlenecked the capture loop. A 3–5 Hz shake sampled at
+ *    3 fps is below Nyquist: it aliases to noise. On five pharmacists' recordings
+ *    (2026-07-18) the periodicity estimate for a motionless hand actually beat
+ *    the estimate for a real shake. The signal it depended on was never there.
  *
- * There is no energy threshold anywhere in here, by design.
+ * What does survive, on those same five people, is fix #2's scale problem solved
+ * the way motion-energy.js already solves it: a SPATIAL baseline. The ratio of
+ * hand-region motion to the same frame's background is dimensionless and stable
+ * across lighting and distance, because sensor noise lands on both equally.
+ * Pooled over five people, the sustained-median ratio was:
  *
- * The clinical target is a DURATION: 「shaking well for 5 seconds before each
+ *              still    shaking (normal / hard)
+ *   ratio      ~5–13         ~50–130
+ *
+ * with one catch that only surfaced when the ratio was recomputed frame-by-frame
+ * from the 30 fps video instead of the 3 fps signal log: THE THRESHOLD DEPENDS ON
+ * THE SAMPLING RATE. At 3 fps, 300 ms passes between frames, so even a slow
+ * translation ("move the inhaler without shaking it") displaces the hand far
+ * enough to read ratio ~100 — indistinguishable from a shake. At ~28 fps the same
+ * translation reads ~10 while a real shake still reads ~50–70, because now the
+ * per-frame change reflects instantaneous velocity and a shake is simply faster.
+ * Recomputed at 28 fps over five people (motion-energy.js exactly, from video):
+ *
+ *              still   move   handle/exhale/speak   shake normal/hard
+ *   ratio        2    ~10          ~2–8                 ~50–70
+ *
+ * So this detector is only valid when motion is sampled at a high, fixed rate —
+ * see the fixed-interval loop in app.js that feeds it, decoupled from inference
+ * for exactly this reason.
+ *
+ * On the threshold there is a real clinical choice, made deliberately. A high
+ * threshold (~32) sits above every negative INCLUDING the collector's "move"
+ * stress-test and passes only vigorous shaking — but it misses gentle and
+ * wrist-only shakes, and the protocol flags exactly those as most important: a
+ * frail or arthritic patient CANNOT shake vigorously, and their genuine weak
+ * shake must still count. Failing them and saying "shake harder" is wrong when
+ * they physically can't. Measured over five people, still sits at ratio 2
+ * (person-invariant) and weak shakes at 6–26, so a threshold of 8 recovers the
+ * weak shakes (gentle 4/5, limited 4/5) while keeping a 4× margin over a still
+ * hand. The cost: a SUSTAINED non-shaking movement would also pass — but that is
+ * the unrealistic "move" case (nobody translates an inhaler for five continuous
+ * seconds during a "please shake" prompt), while the real negative here, holding
+ * still, is rejected with margin. The 5-second sustained requirement below is the
+ * guard against incidental motion.
+ *
+ * The remaining criterion is a DURATION: 「shaking well for 5 seconds before each
  * spray」 (Symbicort prescribing information). Note this differs from the generic
  * pMDI teaching (「上下搖動 4-5 次」, a count) — the product label wins.
  */
 
 /**
- * How strongly the motion must repeat. Dimensionless: 1 is a perfect sine, 0 is
- * noise. Not a magnitude, so it does not inherit the scale problems above.
+ * How far the hand region must stand above the background to count as shaking.
+ * Dimensionless (hand motion ÷ background motion), so it does not inherit the
+ * cross-session scale problem. Set to 8 to include the weak (gentle / wrist-only /
+ * limited-mobility) shakes the protocol cares most about: a still hand sits at
+ * ratio 2 across all five people, weak shakes at 6–26, so 8 keeps a 4× margin
+ * over still while catching them. See the header for the clinical trade-off (this
+ * also passes a sustained non-shaking "move", which does not occur in a real
+ * shake step). Only valid at a high sampling rate — see the fixed-rate loop.
  */
-const MIN_PERIODICITY = 0.3;
+const RATIO_SHAKE = 8;
 
 /**
- * Analysis window. 2000 ms was too short: during an uninterrupted shake the
- * estimate itself flickered, dipping below threshold for 1.5–2 s at a time, so
- * the "sustained" clock kept resetting and the step could never pass. Measured
- * over a real shake, a 2 s window accumulated at most 2.2 s of detection; a 3 s
- * window reached 6.8 s.
+ * The instantaneous ratio is noisy frame to frame, so the "shaking right now"
+ * decision is the MEDIAN ratio over a short trailing window rather than any
+ * single sample. 1000 ms is the smallest window that still holds enough samples
+ * to take a median when the capture loop is degraded to ~3 fps (which it is when
+ * inference bottlenecks the main thread — the whole reason the collected data
+ * came out at 3 fps); at a healthy 30 fps it holds thirty, and either way it
+ * responds well within the 5 s the sustained clock needs.
  */
-const WINDOW_MS = 3000;
+const SMOOTH_MS = 1000;
+
+/** Need at least this many samples in the window before trusting the median.
+ * Two is the floor a ~3 fps rig can guarantee inside SMOOTH_MS. */
+const MIN_SAMPLES = 2;
 
 /** Shaking must persist this long before the step passes (Symbicort label). */
 const REQUIRED_SUSTAINED_MS = 5000;
@@ -54,8 +99,6 @@ const REQUIRED_SUSTAINED_MS = 5000;
 /** Brief dropouts shouldn't reset the clock — the hand model loses a fast-moving
  * hand routinely, and that is precisely when the user is doing it right. */
 const DROPOUT_GRACE_MS = 1500;
-
-const SAMPLE_RATE_HZ = 30;
 
 export class ShakeDetector {
 	constructor() {
@@ -65,12 +108,12 @@ export class ShakeDetector {
 	}
 
 	/**
-	 * @param {{hand:number}} motion - motion energy in the hand region
+	 * @param {{hand:number, background:number, ratio:number}} motion - from MotionEnergy
 	 * @param {number} timestamp
 	 */
 	update(motion, timestamp) {
-		this.samples.push({ e: motion.hand, t: timestamp });
-		this.samples = this.samples.filter((s) => s.t > timestamp - WINDOW_MS);
+		this.samples.push({ r: motion.ratio, t: timestamp });
+		this.samples = this.samples.filter((s) => s.t > timestamp - SMOOTH_MS);
 	}
 
 	detect(timestamp) {
@@ -100,43 +143,11 @@ export class ShakeDetector {
 	}
 
 	analyse() {
-		if (this.samples.length < 20) {
-			return { shaking: false, periodicity: 0, shakeHz: null };
+		if (this.samples.length < MIN_SAMPLES) {
+			return { shaking: false, ratio: 0 };
 		}
-
-		const { periodicity: strength, dominantHz } = periodicity(
-			this.resample(),
-			SAMPLE_RATE_HZ,
-		);
-
-		return {
-			shaking: strength >= MIN_PERIODICITY,
-			periodicity: strength,
-			// The energy signal peaks twice per shake cycle, so the shake itself is
-			// half the dominant frequency of the signal.
-			shakeHz: dominantHz === null ? null : dominantHz / 2,
-		};
-	}
-
-	/** Frames arrive unevenly (inference drops them), so interpolate onto a
-	 * uniform grid before looking for repetition. */
-	resample() {
-		const first = this.samples[0].t;
-		const last = this.samples.at(-1).t;
-		const count = Math.floor(((last - first) / 1000) * SAMPLE_RATE_HZ);
-		const out = [];
-
-		let j = 0;
-		for (let i = 0; i < count; i++) {
-			const t = first + (i * 1000) / SAMPLE_RATE_HZ;
-			while (j < this.samples.length - 2 && this.samples[j + 1].t < t) j++;
-			const a = this.samples[j];
-			const b = this.samples[j + 1] ?? a;
-			const span = b.t - a.t;
-			const w = span === 0 ? 0 : Math.max(0, Math.min(1, (t - a.t) / span));
-			out.push(a.e + (b.e - a.e) * w);
-		}
-		return out;
+		const ratio = median(this.samples.map((s) => s.r));
+		return { shaking: ratio >= RATIO_SHAKE, ratio };
 	}
 
 	reset() {
@@ -144,4 +155,10 @@ export class ShakeDetector {
 		this.shakingSince = null;
 		this.lastShakingAt = null;
 	}
+}
+
+function median(values) {
+	const v = [...values].sort((a, b) => a - b);
+	const mid = Math.floor(v.length / 2);
+	return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
 }
