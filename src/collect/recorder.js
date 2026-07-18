@@ -27,6 +27,14 @@ const ROI_GRACE_MS = 600;
  * was calibrated at (matches the coaching app's SHAKE_SAMPLE_MS). */
 const SHAKE_SAMPLE_MS = 35;
 
+/** Inhaler detector confidence floor. Low because the model's false-positive
+ * rate is near zero even at 0.05 (a no-inhaler clip fired 0/20), so we favour
+ * recall; the temporal persistence below removes the residual flicker. */
+const INHALER_CONF = 0.3;
+/** How long a positive inhaler detection keeps counting as "present" — bridges
+ * the ~0.7-recall frame-to-frame drops so the gate doesn't strobe. */
+const INHALER_PERSIST_MS = 900;
+
 /**
  * Preference order for the recording container. VP9 first for quality per bit,
  * then VP8, then whatever WebM the browser has, then MP4 for Safari — which
@@ -201,11 +209,19 @@ export class SessionRecorder {
 	/**
 	 * The real inhaler detector on its own async, throttled clock (~5 fps — the
 	 * ONNX model runs ~50–150 ms on the wasm backend, too slow for every frame and
-	 * unnecessary for a presence gate). Holds the latest result on `lastInhaler`,
-	 * which the frame log and the live read-out both read. Async and self-
-	 * rescheduling so a slow inference never stalls the recording loops.
+	 * unnecessary for a presence gate). Async and self-rescheduling so a slow
+	 * inference never stalls the recording loops.
+	 *
+	 * Recall is ~0.7, so a held inhaler flickers in and out frame to frame (a clean
+	 * pose scores 0.78, a tilt or motion-blur drops it). Since false positives are
+	 * near zero, we SMOOTH presence: `lastInhaler` holds the most recent POSITIVE
+	 * detection, and it counts as present for INHALER_PERSIST_MS after — bridging
+	 * the drops so the gate and read-out don't strobe. `lastInhaler` is exposed
+	 * already-smoothed (null once the window lapses).
 	 */
 	async inhalerLoop() {
+		let lastPositive = null;
+		let lastPositiveAt = 0;
 		while (this.running) {
 			const t0 = performance.now();
 			if (this.inhaler.ready && this.video?.readyState >= 2) {
@@ -214,10 +230,20 @@ export class SessionRecorder {
 						this.video,
 						this.video.videoWidth,
 						this.video.videoHeight,
+						INHALER_CONF,
 					);
-					this.lastInhaler = r;
-					this.lastInhalerAt = performance.now();
-					this.onInhaler?.(r);
+					if (r.present) {
+						lastPositive = r;
+						lastPositiveAt = performance.now();
+					}
+					const active =
+						lastPositive &&
+						performance.now() - lastPositiveAt < INHALER_PERSIST_MS
+							? lastPositive
+							: null;
+					this.lastInhaler = active;
+					this.lastInhalerAt = lastPositiveAt;
+					this.onInhaler?.(active);
 				} catch (e) {
 					console.error("inhaler detect:", e);
 				}
