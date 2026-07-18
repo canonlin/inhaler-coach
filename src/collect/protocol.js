@@ -16,6 +16,12 @@
  *   translate — vertical travel, as a fraction of the inhaler's height
  *   rotate    — degrees of wrist rotation
  *   periodMs  — one full back-and-forth
+ *
+ * `expect` is the ground truth for the SILENT background judge (silent-judge.js):
+ * what the live detector should conclude for this task. The pharmacist never sees
+ * it; it turns every recording into a labelled confusion matrix for the detector,
+ * in the collector's own domain — the in-domain data the 0519 seed set lacks.
+ * A metric left out of `expect` (e.g. audio-only spray counting) isn't judged.
  */
 
 export const TASKS = [

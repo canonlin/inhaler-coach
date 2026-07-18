@@ -94,8 +94,18 @@
                 你的瀏覽器不支援 canvas，無法顯示攝影機畫面。請改用 Chrome 或 Edge。
               </canvas>
             </div>
-            <!-- The demo keeps playing while they record, so they can copy it. -->
-            <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
+            <!-- Right column: the demo to copy, and the live detector read-out. -->
+            <div class="space-y-3">
+              <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
+              <!-- What the current detector thinks, live. Informational only —
+                   the pharmacist records the task regardless; this just shows how
+                   the shipped model reacts, and the same verdict is saved. -->
+              <div id="live-judge" class="rounded-xl bg-surface border border-border p-4 hidden">
+                <div class="text-xs text-text-secondary mb-1">目前模型判讀</div>
+                <div id="judge-label" class="text-2xl font-bold tabular-nums">—</div>
+                <div id="judge-detail" class="text-sm text-text-secondary mt-1"></div>
+              </div>
+            </div>
           </div>
 
           <div class="flex items-center gap-3">
