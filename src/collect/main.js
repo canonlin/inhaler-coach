@@ -3,7 +3,12 @@ import { clearDemo, renderDemo, togglePaused } from "./demo.js";
 import { LEAD_IN_SECONDS, TASKS } from "./protocol.js";
 import { SessionRecorder } from "./recorder.js";
 import { saveSession } from "./saver.js";
-import { judge, judgeSession, TASK_JUDGE } from "./silent-judge.js";
+import {
+	captureHealth,
+	judge,
+	judgeSession,
+	TASK_JUDGE,
+} from "./silent-judge.js";
 
 /**
  * Data collection app, deployed separately from the coaching app.
@@ -39,7 +44,11 @@ const recorder = new SessionRecorder();
 // show what the current detector concludes. Informational — the pharmacist
 // records the task no matter what this says; it just surfaces how the shipped
 // model reacts, and the same verdict is saved per task in the metadata.
-const JUDGE_WINDOW = 30; // ~1s of samples
+// Rolling window per metric. Shake/press read an instantaneous state, so ~1s is
+// plenty; respiration needs several breathing cycles before analyzeRespiration
+// can resolve a rate, so exhale keeps a much longer window (~7s at the inference
+// loop's few-fps rate).
+const JUDGE_WINDOW = { shake: 30, press: 30, exhale: 120 };
 let liveBuf = [];
 
 // Route each stream to the task's metric: shake reads the fast, fixed-rate
@@ -55,7 +64,8 @@ function feedLive(stream, sample) {
 	const wantsMotion = spec.metric === "shake";
 	if (wantsMotion !== (stream === "shake")) return;
 	liveBuf.push(sample);
-	if (liveBuf.length > JUDGE_WINDOW) liveBuf.shift();
+	const win = JUDGE_WINDOW[spec.metric] ?? 30;
+	if (liveBuf.length > win) liveBuf.shift();
 	renderLiveJudge(judge(spec.metric, liveBuf));
 }
 
@@ -203,7 +213,33 @@ async function recordCurrentTask() {
 
 	$("btn-next").textContent =
 		taskIndex === TASKS.length - 1 ? "完成，產生檔案" : "下一項 →";
+	// Fast-fail: check the capture is usable before the pharmacist moves on. This
+	// reads the recorder's live buffers directly (the session is still running).
+	renderReview(captureHealth(task.id, recorder.frames, recorder.motionSamples));
 	show("screen-review");
+}
+
+/**
+ * Steer the review screen from the capture-health check. A bad CAPTURE (setup
+ * problem) makes redo the loud, primary action and explains what to fix. A good
+ * capture keeps the quiet "recorded" state — including when the detector merely
+ * disagreed with ground truth, which is valid data to keep, not a failure to fix
+ * (see captureHealth). The pharmacist can still redo either way.
+ */
+function renderReview({ ok, reason }) {
+	$("review-emoji").textContent = ok ? "👍" : "⚠️";
+	$("review-title").textContent = ok ? "這一項錄好了" : "這一項可能沒錄好";
+	$("review-note").textContent = ok
+		? "如果剛剛做錯了、或被打斷，可以重錄這一項。"
+		: reason;
+
+	// When the capture looks broken, make redo the primary action and demote next.
+	$("btn-redo").className = ok
+		? "flex-1 rounded-xl bg-surface-light text-text py-4"
+		: "flex-1 rounded-xl bg-warning text-black font-bold py-4";
+	$("btn-next").className = ok
+		? "flex-1 rounded-xl bg-success text-black font-bold py-4"
+		: "flex-1 rounded-xl bg-surface-light text-text py-4";
 }
 
 function redoTask() {

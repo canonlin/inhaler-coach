@@ -4,6 +4,7 @@ import { DeviceTracker } from "../detection/device-tracker.js";
 import { InhalerDetector } from "../detection/inhaler-detector.js";
 import { handROI, MotionEnergy } from "../detection/motion-energy.js";
 import { extractPoseFeatures } from "../detection/pose-features.js";
+import { RespirationSampler } from "../detection/respiration-sampler.js";
 
 /**
  * Records one session: raw video+audio, plus the derived signals, plus the
@@ -66,6 +67,11 @@ export class SessionRecorder {
 		// previous one it saw — mixing two rates corrupts both).
 		this.shakeMotion = new MotionEnergy();
 		this.deviceTracker = new DeviceTracker();
+		// Breathing: chest vertical motion (the real exhale channel) + forehead
+		// green (rPPG, telemetry only — it is motion here, not blood volume; see
+		// respiration-analyzer.js). One sampler for the whole session; the chest
+		// series is cumulative, and the per-task judge band-passes away the offset.
+		this.respiration = new RespirationSampler();
 		// The real inhaler object detector (replaces the colour filter for the
 		// presence gate). Runs on its own async, throttled loop; the latest result
 		// is held here and stamped onto each logged frame.
@@ -170,6 +176,7 @@ export class SessionRecorder {
 		this.chunks = [];
 		this.running = true;
 		this.startedAt = performance.now();
+		this.respiration.reset();
 
 		this.mimeType = pickMimeType();
 		this.mediaRecorder = new MediaRecorder(this.stream, {
@@ -316,6 +323,15 @@ export class SessionRecorder {
 			// actuation; the step decides which from context. See device-tracker.js.
 			const device = this.deviceTracker.sample(this.canvas, roi, now);
 
+			// Breathing sample from the RAW video (like the coaching app), not the
+			// downscaled canvas — the sampler does its own downscale and anchors the
+			// chest ROI on the surgical mask. Runs every frame so `still` doubles as a
+			// quiet baseline; the exhale/speak windows are what the judge scores.
+			const breath =
+				this.video.readyState >= 2
+					? this.respiration.sample(this.video, now)
+					: null;
+
 			const pose = extractPoseFeatures(results.pose);
 
 			const frame = {
@@ -366,6 +382,12 @@ export class SessionRecorder {
 							+this.lastInhaler.center.y.toFixed(4),
 							+this.lastInhaler.score.toFixed(3),
 						]
+					: null,
+				// Respiration: [cumulative chest vertical displacement, forehead green].
+				// Chest is the real exhale channel (band-passed per task); green is
+				// rPPG telemetry only. null when no chest ROI (no mask in frame).
+				resp: breath
+					? [+breath.chest.toFixed(3), +breath.green.toFixed(2)]
 					: null,
 			};
 			this.frames.push(frame);
