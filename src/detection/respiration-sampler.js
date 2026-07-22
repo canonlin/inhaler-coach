@@ -37,7 +37,11 @@ export class RespirationSampler {
 		this.fps = 15; // nominal; the analyzer only needs it for the band edges
 	}
 
-	/** @param {CanvasImageSource} source - raw camera frame @param {number} t */
+	/** @param {CanvasImageSource} source - raw camera frame @param {number} t
+	 * @returns {{t:number, chest:number, green:number}|null} the sample just
+	 *   buffered, or null when no chest ROI was available this frame (no mask, or
+	 *   the first frame with nothing to difference against). The collector stamps
+	 *   the return onto each logged frame; the coaching app ignores it. */
 	sample(source, t) {
 		this.ctx.drawImage(source, 0, 0, GRID_W, GRID_H);
 		const { data } = this.ctx.getImageData(0, 0, GRID_W, GRID_H);
@@ -81,12 +85,15 @@ export class RespirationSampler {
 				: c;
 		}
 
+		let sample = null;
 		if (this.center && this.prevGray) {
 			const { chestVel, fore } = this.measure(gray, green, red);
 			this.chest += chestVel;
-			this.buffer.push({ t, chest: this.chest, green: fore });
+			sample = { t, chest: this.chest, green: fore };
+			this.buffer.push(sample);
 		}
 		this.prevGray = gray;
+		return sample;
 	}
 
 	/** Global vertical Lucas-Kanade velocity in the chest ROI, plus forehead green. */
