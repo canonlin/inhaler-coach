@@ -10,27 +10,43 @@
  * which is exactly what the 0519 seed set (a different person and framing) lacks.
  *
  * The thresholds mirror the shipped detectors (step1-shake / step2-exhale /
- * step3-press-inhale). Two differences from the coaching app, both because the
- * collector runs without the face mesh (for speed): exhale and press judge the
- * canister's ABSOLUTE height instead of its distance to the mouth. That raw-Y
- * signal is the one validated on 0519; distance-to-mouth (stronger, person-
- * invariant) is what the coaching app uses when the face mesh is on.
+ * step3-press-inhale):
+ *   - shake / press run the same motion-ratio and canister-height tests the
+ *     coaching app uses. Press judges the canister's ABSOLUTE height rather than
+ *     its distance to the mouth, because the collector runs without the face mesh
+ *     (for speed); that raw-Y signal is the one validated on 0519.
+ *   - exhale runs the SHIPPED respiration detector (analyzeRespiration) over the
+ *     chest-motion series the recorder now logs per frame (`resp`), not a canister
+ *     proxy. This is the point of capturing the respiration channel in the
+ *     collector: it turns each exhale/speak clip into in-domain validation of the
+ *     detector the coaching app actually ships. rPPG (forehead green) rides along
+ *     as telemetry but does not decide — it is motion here, not blood volume.
  */
+
+import { analyzeRespiration } from "../detection/respiration-analyzer.js";
 
 /** Shake: hand-region motion this many times the background counts as shaking
  * (step1-shake.js RATIO_SHAKE). */
 const RATIO_SHAKE = 8;
 /** Press: canister above this normalized height (0=top) is "up at the mouth". */
 const PRESS_Y_UP = 0.5;
-/** Exhale: canister at or below this height — or mostly absent — is "lowered
- * away" (the correct pre-actuation posture; mirror of step2). */
-const EXHALE_Y_AWAY = 0.6;
 /** How much of the window must contain a detection to count as "inhaler present".
  * Low, and matched to the recorder's own presence smoothing, so the per-task
  * verdict agrees with the always-on read-out instead of lagging half a window
  * behind it (they were desyncing). Detection false positives are ~0, so a small
  * fraction is safe. */
 const PRESENT_FRAC = 0.25;
+
+/** Fast-fail capture thresholds. Deliberately "basically never" levels, so the
+ * gate only fires on a clearly broken capture (nothing recorded, inhaler never
+ * seen, mask never found) — not on borderline ones. A false alarm wastes the
+ * pharmacist's time and erodes trust; missing a systematic setup problem wastes
+ * the whole session. These are tuned to catch the latter without the former. */
+const MIN_FRAMES = 10;
+/** Exhale: minimum frames that produced a chest signal (mask ROI found). Below
+ * this the respiration detector has nothing to band-pass, so the clip can't
+ * validate anything — almost always "no blue mask / torso out of frame". */
+const MIN_RESP_FRAMES = 20;
 
 /** Which detector to run for each task, and what it should conclude. A metric
  * of null is not judged (e.g. spray counting is audio-only). `expect` null means
@@ -67,10 +83,37 @@ export function judge(metric, frames) {
 	if (frames.length < 2)
 		return { pass: false, label: "偵測中…", detail: "", ready: false };
 
-	// Every step first requires a REAL inhaler in frame (the object detector, not
-	// the old colour filter). No inhaler → nothing can pass, whatever the motion.
-	// shake reads the presence flag stamped on the motion sample; press/exhale
-	// read the detection box `det` = [present, cx, cy, score].
+	// Exhale is judged from breathing, not the inhaler — the person exhales with
+	// the device lowered, so there is no inhaler gate here. Run the shipped
+	// respiration detector over the logged chest-motion series (`resp[0]`).
+	if (metric === "exhale") {
+		const series = frames.filter((f) => f.resp);
+		if (series.length < 2)
+			return {
+				pass: false,
+				label: "偵測中…",
+				detail: "沒有胸口訊號",
+				ready: false,
+			};
+		const r = analyzeRespiration(
+			series.map((f) => f.resp[0]),
+			series.map((f) => f.resp[1]),
+			estimateFps(series),
+		);
+		return {
+			pass: r.detected,
+			label: r.detected ? "偵測到吐氣" : "沒偵測到呼吸",
+			detail: r.detected
+				? `呼吸 ${r.rateBpm.toFixed(0)} 次/分（胸口振幅 ${r.chest.amplitude.toFixed(1)}）`
+				: `胸口振幅 ${r.chest.amplitude.toFixed(1)}、週期性 ${r.chest.periodicity.toFixed(2)}（不足）`,
+			ready: true,
+		};
+	}
+
+	// Shake and press both require a REAL inhaler in frame (the object detector,
+	// not the old colour filter). No inhaler → nothing can pass. shake reads the
+	// presence flag stamped on the motion sample; press reads the detection box
+	// `det` = [present, cx, cy, score].
 	const inhalerFrac =
 		metric === "shake"
 			? frames.filter((f) => f.inhaler).length / frames.length
@@ -83,7 +126,12 @@ export function judge(metric, frames) {
 			.map((f) => f.motionHand / f.motionBg);
 		const r = ratios.length ? median(ratios) : 0;
 		if (!hasInhaler)
-			return { pass: false, label: "沒看到吸入器", detail: "把吸入器拿進畫面再搖", ready: true };
+			return {
+				pass: false,
+				label: "沒看到吸入器",
+				detail: "把吸入器拿進畫面再搖",
+				ready: true,
+			};
 		return {
 			pass: r >= RATIO_SHAKE,
 			label: r >= RATIO_SHAKE ? "搖晃中" : "沒在搖",
@@ -92,13 +140,16 @@ export function judge(metric, frames) {
 		};
 	}
 
-	if (!hasInhaler)
-		return { pass: false, label: "沒看到吸入器", detail: "把吸入器拿進畫面", ready: true };
-
-	// Canister vertical position from the real detection box.
-	const y = median(frames.filter((f) => f.det).map((f) => f.det[2]));
-
 	if (metric === "press") {
+		if (!hasInhaler)
+			return {
+				pass: false,
+				label: "沒看到吸入器",
+				detail: "把吸入器拿進畫面",
+				ready: true,
+			};
+		// Canister vertical position from the real detection box.
+		const y = median(frames.filter((f) => f.det).map((f) => f.det[2]));
 		const up = y < PRESS_Y_UP;
 		return {
 			pass: up,
@@ -108,17 +159,16 @@ export function judge(metric, frames) {
 		};
 	}
 
-	if (metric === "exhale") {
-		const away = y >= EXHALE_Y_AWAY;
-		return {
-			pass: away,
-			label: away ? "吸入器已移開" : "吸入器還在嘴邊",
-			detail: `吸入器高度 ${y.toFixed(2)}（移開需 ≥${EXHALE_Y_AWAY}）`,
-			ready: true,
-		};
-	}
-
 	return { pass: false, label: "—", detail: "", ready: false };
+}
+
+/** Sampling rate from the window's frame timestamps (ms) — the inference loop
+ * runs at a variable few-fps rate, and analyzeRespiration needs it for the
+ * breathing band edges. */
+function estimateFps(frames) {
+	if (frames.length < 2) return 15;
+	const span = (frames.at(-1).t - frames[0].t) / (frames.length - 1);
+	return span > 0 ? 1000 / span : 15;
 }
 
 /**
@@ -148,4 +198,64 @@ export function judgeSession(frames, motion = []) {
 		});
 	}
 	return out;
+}
+
+/**
+ * Fast-fail check for the task that was just recorded: did the capture even give
+ * the detector something usable to judge?
+ *
+ * This is the "validator" half of the collector. Without it, a systematic setup
+ * problem — camera too far so the inhaler is never detected, no blue surgical
+ * mask so the chest ROI is never found, torso out of frame — is invisible until
+ * the whole session is analysed offline, by which point all ten clips are wasted.
+ * Surfacing it at the review step lets the pharmacist fix the setup and redo the
+ * ONE task, before recording nine more useless ones.
+ *
+ * Crucially this judges CAPTURE VALIDITY, not model correctness. It must never
+ * fire just because the detector disagreed with ground truth: that disagreement,
+ * on a valid capture, is the single most valuable thing the collector produces —
+ * an in-domain sample the shipped model gets wrong. Forcing a redo there would
+ * quietly filter the dataset down to cases the model already handles, which is
+ * the exact opposite of what this collection is for.
+ *
+ * @param {string} taskId
+ * @param {Array} frames - the recorder's inference-rate frames so far
+ * @param {Array} motion - the recorder's fast shake-motion samples so far
+ * @returns {{ok:boolean, reason:string}}
+ */
+export function captureHealth(taskId, frames, motion = []) {
+	const spec = TASK_JUDGE[taskId];
+	if (!spec?.metric) return { ok: true, reason: "" };
+
+	const src = spec.metric === "shake" ? motion : frames;
+	const f = src.filter((x) => x.label === taskId);
+	if (f.length < MIN_FRAMES)
+		return {
+			ok: false,
+			reason: "這一項幾乎沒錄到畫面，確認相機有開、再錄一次",
+		};
+
+	if (spec.metric === "shake" || spec.metric === "press") {
+		const present =
+			spec.metric === "shake"
+				? f.filter((x) => x.inhaler).length
+				: f.filter((x) => x.det).length;
+		if (present / f.length < PRESENT_FRAC)
+			return {
+				ok: false,
+				reason:
+					"整段幾乎沒偵測到吸入器 — 把吸入器拿進畫面、離鏡頭近一點再錄一次",
+			};
+	}
+
+	if (spec.metric === "exhale") {
+		const withChest = f.filter((x) => x.resp).length;
+		if (withChest < MIN_RESP_FRAMES)
+			return {
+				ok: false,
+				reason: "沒抓到胸口起伏 — 確認有戴藍色口罩、上半身在畫面裡再錄一次",
+			};
+	}
+
+	return { ok: true, reason: "" };
 }
