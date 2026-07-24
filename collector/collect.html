@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>吸入器動作資料收集</title>
     <link rel="icon" type="image/svg+xml" href="/inhaler-coach/collector/favicon.svg" />
-    <script type="module" crossorigin src="/inhaler-coach/collector/assets/collect-DyYtUpO_.js"></script>
-    <link rel="modulepreload" crossorigin href="/inhaler-coach/collector/assets/pose-features-9rkHpGoP.js">
-    <link rel="stylesheet" crossorigin href="/inhaler-coach/collector/assets/pose-features-s048b9Yv.css">
+    <script type="module" crossorigin src="/inhaler-coach/collector/assets/collect-C455Yfo7.js"></script>
+    <link rel="modulepreload" crossorigin href="/inhaler-coach/collector/assets/respiration-sampler-DLnEZTwJ.js">
+    <link rel="stylesheet" crossorigin href="/inhaler-coach/collector/assets/respiration-sampler-CQEmKJ5o.css">
   </head>
   <body class="bg-bg text-text font-sans">
     <main class="min-h-screen flex items-center justify-center p-6">
@@ -97,8 +97,24 @@
                 你的瀏覽器不支援 canvas，無法顯示攝影機畫面。請改用 Chrome 或 Edge。
               </canvas>
             </div>
-            <!-- The demo keeps playing while they record, so they can copy it. -->
-            <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
+            <!-- Right column: the demo to copy, and the live detector read-out. -->
+            <div class="space-y-3">
+              <div id="demo-live" class="rounded-xl bg-surface border border-border"></div>
+              <!-- What the current detector thinks, live. Informational only —
+                   the pharmacist records the task regardless; this just shows how
+                   the shipped model reacts, and the same verdict is saved. -->
+              <div id="live-judge" class="rounded-xl bg-surface border border-border p-4 hidden">
+                <div class="text-xs text-text-secondary mb-1">目前模型判讀</div>
+                <div id="judge-label" class="text-2xl font-bold tabular-nums">—</div>
+                <div id="judge-detail" class="text-sm text-text-secondary mt-1"></div>
+              </div>
+              <!-- Always-on: does the real object detector see an inhaler right now?
+                   Lets the pharmacist confirm detection works before/between tasks. -->
+              <div id="inhaler-presence" class="rounded-xl bg-surface border border-border p-3 text-sm">
+                <span class="text-text-secondary">吸入器偵測：</span>
+                <span id="inhaler-state" class="font-bold">載入模型中…</span>
+              </div>
+            </div>
           </div>
 
           <div class="flex items-center gap-3">
@@ -111,8 +127,8 @@
 
         <!-- Between tasks: keep it, or redo it -->
         <section id="screen-review" class="hidden space-y-6 text-center">
-          <div class="text-5xl">👍</div>
-          <h2 class="text-2xl font-bold">這一項錄好了</h2>
+          <div id="review-emoji" class="text-5xl">👍</div>
+          <h2 id="review-title" class="text-2xl font-bold">這一項錄好了</h2>
           <p id="review-note" class="text-text-secondary">
             如果剛剛做錯了、或被打斷，可以重錄這一項。
           </p>
