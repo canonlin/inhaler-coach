@@ -16,10 +16,11 @@
  *   incorrect         0.51  (up at the mouth — exhaling INTO the device)
  *
  * Clinically this is precisely the instruction: exhale fully AWAY from the
- * inhaler before you raise it and press. So a correct exhale is the inhaler NOT
- * at the mouth — lowered, or out of the mouth region entirely. Scoring canister
- * distance-from-mouth this way recovered 100% of correct exhales while catching
- * 80% of incorrect ones (windowed), versus 22% for the old motion approach.
+ * inhaler before you raise it and press. So a correct exhale is the inhaler
+ * visibly lowered away from the mouth. A missing face/device is kept as
+ * uncertainty rather than treated as proof of a correct exhale. Scoring
+ * distance-from-mouth recovered 100% of correct exhales while catching 80% of
+ * incorrect ones (windowed), versus 22% for the old motion approach.
  *
  * The chest-motion respiration sampler stays as telemetry (it needs a frontal,
  * chest-visible framing the 0519 close-ups don't have); the device posture is
@@ -39,18 +40,28 @@ export class ExhaleDetector {
 	 */
 	detect({ device, mouthPoint }) {
 		const present = !!device?.present;
+		// Missing inputs are uncertainty, never evidence of a correct exhale.  The
+		// previous implementation treated a lost face or missed inhaler as a perfect
+		// pass, so covering the camera could complete the step.
+		if (!mouthPoint || !present || !device.center) {
+			return {
+				exhaling: false,
+				away: false,
+				atMouth: false,
+				ready: false,
+				confidence: 0,
+			};
+		}
 		// Away = the inhaler is not up at the mouth: either not detected near the
-		// face at all, or clearly separated from the mouth. Both mean the person
-		// has lowered it to breathe out, which is the correct technique.
-		const away =
-			!present ||
-			mouthPoint == null ||
-			dist(device.center, mouthPoint) >= AWAY_FROM_MOUTH_DIST;
+		// face or clearly separated from the mouth.  The device must remain visible
+		// so the app can distinguish a correct posture from a failed detector.
+		const away = dist(device.center, mouthPoint) >= AWAY_FROM_MOUTH_DIST;
 
 		return {
 			exhaling: away,
 			away,
 			atMouth: present && !away,
+			ready: true,
 			confidence: away ? 1 : 0,
 		};
 	}

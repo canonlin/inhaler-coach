@@ -17,8 +17,9 @@ worked on the 0519 close-ups where the inhaler was the sole saturated red.
 - **Source videos:** the 5–6 pharmacist collector recordings (`*.webm`), from
   林藥師's Google Drive ("teachable machine 專案 / collector"). That Drive is the
   durable home of the raw footage.
-- **GPU box:** `desktop-cudbf36-1` on Tailscale (RTX 4080, torch 2.5.1+cu121,
-  ultralytics 8.4, transformers 4.57). Working dir `~/inhaler-detector/`
+- **GPU box:** `desktop-cudbf36-1` on Tailscale (RTX 4080; exact package versions
+  are written into each run's provenance). Original working dir
+  `~/Workspace/inhaler-detector/`
   (`frames/`, `dataset/`, `runs/`) — the frames and trained weights live there.
   Reachable via Tailscale SSH (one-time browser auth).
 
@@ -57,3 +58,26 @@ only on masked pharmacists). The collector logs its own detections per session;
 feeding those frames back through steps 2–4 — especially footage of *other*
 inhalers and *other* rooms — is how it gets better. To add a new cohort: sample
 its frames, run `autolabel.py`, rebuild, retrain.
+
+### Incremental collector workflow
+
+Do not sample an entire collector WebM. A session can remain open for 7--30
+minutes while the pharmacist reads or retries, so whole-video sampling assigns
+task labels to waiting frames. The reproducible update path is:
+
+1. `extract_collector.py` pairs JSON/WebM members even when split across ZIPs,
+   decodes once at 1 fps, and keeps only exact protocol task timestamps.
+2. `autolabel.py` runs GroundingDINO. Its raw boxes are not training labels:
+   clinic background objects produce plausible false boxes.
+3. `filter_pseudolabels.py` keeps only a DINO box near the independently logged
+   production-YOLO or red-canister centre. Uncertain frames are excluded instead
+   of becoming false negatives.
+4. `build_yolo.py` holds out one complete new session. Then
+   `merge_yolo_dataset.py` combines the original train+val corpus into training,
+   the other new sessions into training, and preserves that new-person holdout.
+5. Fine-tune from the previous `best.pt`, not from a generic checkpoint, and run
+   `evaluate_yolo.py` on the holdout. A candidate must improve positive-frame
+   recall without increasing no-inhaler false fires before ONNX export.
+
+All scripts accept `INHALER_ROOT`; training additionally records explicit seed,
+checkpoint, batch, epoch, dependency versions, dataset hashes, and export hash.

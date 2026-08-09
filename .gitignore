@@ -29,3 +29,7 @@ dist-ssr
 
 # onnxruntime-web wasm backend (copied from node_modules by scripts/copy-ort.mjs)
 public/ort/
+
+# Python test/training bytecode
+__pycache__/
+*.py[cod]

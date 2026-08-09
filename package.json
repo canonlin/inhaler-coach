@@ -8,6 +8,7 @@
     "build": "node scripts/copy-ort.mjs && vite build",
     "postinstall": "node scripts/copy-ort.mjs",
     "preview": "vite preview",
+    "test": "node --test && python3 -m unittest discover -s test -p '*_test.py'",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/"

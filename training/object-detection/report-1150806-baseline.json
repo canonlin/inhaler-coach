@@ -1,0 +1,898 @@
+{
+  "schema": 1,
+  "persistence_ms": 1200,
+  "session_count": 5,
+  "pooled": {
+    "exhale": {
+      "frames": 232,
+      "raw_detection_pct": 92.6,
+      "smoothed_detection_pct": 100.0,
+      "judge_matches": 0,
+      "judge_total": 5
+    },
+    "handle": {
+      "frames": 235,
+      "raw_detection_pct": 48.1,
+      "smoothed_detection_pct": 71.1,
+      "judge_matches": 4,
+      "judge_total": 5
+    },
+    "move": {
+      "frames": 152,
+      "raw_detection_pct": 88.8,
+      "smoothed_detection_pct": 96.0,
+      "judge_matches": 0,
+      "judge_total": 5
+    },
+    "press_air_steady": {
+      "frames": 306,
+      "raw_detection_pct": 85.3,
+      "smoothed_detection_pct": 87.3,
+      "judge_matches": 0,
+      "judge_total": 0
+    },
+    "press_mouth_steady": {
+      "frames": 299,
+      "raw_detection_pct": 62.2,
+      "smoothed_detection_pct": 77.2,
+      "judge_matches": 4,
+      "judge_total": 5
+    },
+    "shake_gentle": {
+      "frames": 158,
+      "raw_detection_pct": 82.3,
+      "smoothed_detection_pct": 95.6,
+      "judge_matches": 4,
+      "judge_total": 5
+    },
+    "shake_hard": {
+      "frames": 151,
+      "raw_detection_pct": 47.7,
+      "smoothed_detection_pct": 68.2,
+      "judge_matches": 5,
+      "judge_total": 5
+    },
+    "shake_limited": {
+      "frames": 154,
+      "raw_detection_pct": 82.5,
+      "smoothed_detection_pct": 92.2,
+      "judge_matches": 5,
+      "judge_total": 5
+    },
+    "shake_normal": {
+      "frames": 147,
+      "raw_detection_pct": 80.3,
+      "smoothed_detection_pct": 88.4,
+      "judge_matches": 5,
+      "judge_total": 5
+    },
+    "speak": {
+      "frames": 202,
+      "raw_detection_pct": 49.0,
+      "smoothed_detection_pct": 54.9,
+      "judge_matches": 5,
+      "judge_total": 5
+    },
+    "spray_x2": {
+      "frames": 426,
+      "raw_detection_pct": 61.7,
+      "smoothed_detection_pct": 82.9,
+      "judge_matches": 5,
+      "judge_total": 5
+    },
+    "still": {
+      "frames": 172,
+      "raw_detection_pct": 91.3,
+      "smoothed_detection_pct": 93.6,
+      "judge_matches": 2,
+      "judge_total": 5
+    }
+  },
+  "sessions": [
+    {
+      "session": "52db4e16",
+      "tasks": {
+        "exhale": {
+          "frames": 47,
+          "raw_detection_pct": 95.7,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.602,
+          "score_min": 0.396,
+          "score_max": 0.76,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "handle": {
+          "frames": 48,
+          "raw_detection_pct": 43.8,
+          "smoothed_detection_pct": 62.5,
+          "score_median": 0.843,
+          "score_min": 0.435,
+          "score_max": 0.875,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "move": {
+          "frames": 32,
+          "raw_detection_pct": 81.2,
+          "smoothed_detection_pct": 90.6,
+          "score_median": 0.585,
+          "score_min": 0.455,
+          "score_max": 0.819,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "press_air_steady": {
+          "frames": 63,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.566,
+          "score_min": 0.353,
+          "score_max": 0.849,
+          "collector_judge": {
+            "expected": null,
+            "predicted": false,
+            "match": null
+          }
+        },
+        "press_mouth_steady": {
+          "frames": 63,
+          "raw_detection_pct": 55.6,
+          "smoothed_detection_pct": 74.6,
+          "score_median": 0.412,
+          "score_min": 0.302,
+          "score_max": 0.47,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "shake_gentle": {
+          "frames": 33,
+          "raw_detection_pct": 54.5,
+          "smoothed_detection_pct": 81.8,
+          "score_median": 0.587,
+          "score_min": 0.519,
+          "score_max": 0.72,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_hard": {
+          "frames": 30,
+          "raw_detection_pct": 50.0,
+          "smoothed_detection_pct": 80.0,
+          "score_median": 0.692,
+          "score_min": 0.377,
+          "score_max": 0.717,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_limited": {
+          "frames": 33,
+          "raw_detection_pct": 72.7,
+          "smoothed_detection_pct": 90.9,
+          "score_median": 0.685,
+          "score_min": 0.396,
+          "score_max": 0.808,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_normal": {
+          "frames": 32,
+          "raw_detection_pct": 75.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.626,
+          "score_min": 0.322,
+          "score_max": 0.858,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "speak": {
+          "frames": 42,
+          "raw_detection_pct": 64.3,
+          "smoothed_detection_pct": 71.4,
+          "score_median": 0.823,
+          "score_min": 0.407,
+          "score_max": 0.879,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "spray_x2": {
+          "frames": 87,
+          "raw_detection_pct": 75.9,
+          "smoothed_detection_pct": 89.7,
+          "score_median": 0.718,
+          "score_min": 0.309,
+          "score_max": 0.869,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "still": {
+          "frames": 36,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.875,
+          "score_min": 0.862,
+          "score_max": 0.908,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        }
+      }
+    },
+    {
+      "session": "6c0ee61b",
+      "tasks": {
+        "exhale": {
+          "frames": 46,
+          "raw_detection_pct": 80.4,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.629,
+          "score_min": 0.373,
+          "score_max": 0.761,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "handle": {
+          "frames": 44,
+          "raw_detection_pct": 40.9,
+          "smoothed_detection_pct": 63.6,
+          "score_median": 0.481,
+          "score_min": 0.418,
+          "score_max": 0.716,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "move": {
+          "frames": 33,
+          "raw_detection_pct": 75.8,
+          "smoothed_detection_pct": 90.9,
+          "score_median": 0.333,
+          "score_min": 0.304,
+          "score_max": 0.364,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "press_air_steady": {
+          "frames": 62,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.582,
+          "score_min": 0.408,
+          "score_max": 0.839,
+          "collector_judge": {
+            "expected": null,
+            "predicted": false,
+            "match": null
+          }
+        },
+        "press_mouth_steady": {
+          "frames": 57,
+          "raw_detection_pct": 68.4,
+          "smoothed_detection_pct": 78.9,
+          "score_median": 0.602,
+          "score_min": 0.32,
+          "score_max": 0.755,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_gentle": {
+          "frames": 33,
+          "raw_detection_pct": 69.7,
+          "smoothed_detection_pct": 97.0,
+          "score_median": 0.423,
+          "score_min": 0.343,
+          "score_max": 0.762,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "shake_hard": {
+          "frames": 31,
+          "raw_detection_pct": 58.1,
+          "smoothed_detection_pct": 80.6,
+          "score_median": 0.499,
+          "score_min": 0.324,
+          "score_max": 0.864,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_limited": {
+          "frames": 30,
+          "raw_detection_pct": 50.0,
+          "smoothed_detection_pct": 70.0,
+          "score_median": 0.319,
+          "score_min": 0.305,
+          "score_max": 0.47,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_normal": {
+          "frames": 30,
+          "raw_detection_pct": 63.3,
+          "smoothed_detection_pct": 63.3,
+          "score_median": 0.76,
+          "score_min": 0.303,
+          "score_max": 0.849,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "speak": {
+          "frames": 41,
+          "raw_detection_pct": 85.4,
+          "smoothed_detection_pct": 92.7,
+          "score_median": 0.866,
+          "score_min": 0.361,
+          "score_max": 0.898,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "spray_x2": {
+          "frames": 90,
+          "raw_detection_pct": 63.3,
+          "smoothed_detection_pct": 90.0,
+          "score_median": 0.536,
+          "score_min": 0.303,
+          "score_max": 0.897,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "still": {
+          "frames": 38,
+          "raw_detection_pct": 60.5,
+          "smoothed_detection_pct": 71.1,
+          "score_median": 0.461,
+          "score_min": 0.33,
+          "score_max": 0.625,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        }
+      }
+    },
+    {
+      "session": "80918593",
+      "tasks": {
+        "exhale": {
+          "frames": 47,
+          "raw_detection_pct": 87.2,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.533,
+          "score_min": 0.392,
+          "score_max": 0.68,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "handle": {
+          "frames": 48,
+          "raw_detection_pct": 54.2,
+          "smoothed_detection_pct": 79.2,
+          "score_median": 0.902,
+          "score_min": 0.814,
+          "score_max": 0.966,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "move": {
+          "frames": 29,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.93,
+          "score_min": 0.912,
+          "score_max": 0.95,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "press_air_steady": {
+          "frames": 61,
+          "raw_detection_pct": 31.1,
+          "smoothed_detection_pct": 36.1,
+          "score_median": 0.667,
+          "score_min": 0.362,
+          "score_max": 0.73,
+          "collector_judge": {
+            "expected": null,
+            "predicted": true,
+            "match": null
+          }
+        },
+        "press_mouth_steady": {
+          "frames": 63,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.628,
+          "score_min": 0.313,
+          "score_max": 0.783,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_gentle": {
+          "frames": 29,
+          "raw_detection_pct": 89.7,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.923,
+          "score_min": 0.414,
+          "score_max": 0.94,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_hard": {
+          "frames": 29,
+          "raw_detection_pct": 44.8,
+          "smoothed_detection_pct": 55.2,
+          "score_median": 0.882,
+          "score_min": 0.414,
+          "score_max": 0.937,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_limited": {
+          "frames": 31,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.903,
+          "score_min": 0.804,
+          "score_max": 0.969,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_normal": {
+          "frames": 29,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.889,
+          "score_min": 0.865,
+          "score_max": 0.935,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "speak": {
+          "frames": 40,
+          "raw_detection_pct": 0.0,
+          "smoothed_detection_pct": 0.0,
+          "score_median": null,
+          "score_min": null,
+          "score_max": null,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "spray_x2": {
+          "frames": 83,
+          "raw_detection_pct": 54.2,
+          "smoothed_detection_pct": 72.3,
+          "score_median": 0.705,
+          "score_min": 0.336,
+          "score_max": 0.834,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "still": {
+          "frames": 30,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.796,
+          "score_min": 0.677,
+          "score_max": 0.904,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        }
+      }
+    },
+    {
+      "session": "ab1ccc94",
+      "tasks": {
+        "exhale": {
+          "frames": 47,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.795,
+          "score_min": 0.435,
+          "score_max": 0.893,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "handle": {
+          "frames": 49,
+          "raw_detection_pct": 51.0,
+          "smoothed_detection_pct": 75.5,
+          "score_median": 0.795,
+          "score_min": 0.432,
+          "score_max": 0.895,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "move": {
+          "frames": 29,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.897,
+          "score_min": 0.858,
+          "score_max": 0.949,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "press_air_steady": {
+          "frames": 63,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.753,
+          "score_min": 0.408,
+          "score_max": 0.899,
+          "collector_judge": {
+            "expected": null,
+            "predicted": false,
+            "match": null
+          }
+        },
+        "press_mouth_steady": {
+          "frames": 58,
+          "raw_detection_pct": 41.4,
+          "smoothed_detection_pct": 67.2,
+          "score_median": 0.427,
+          "score_min": 0.312,
+          "score_max": 0.555,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_gentle": {
+          "frames": 31,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.896,
+          "score_min": 0.842,
+          "score_max": 0.912,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_hard": {
+          "frames": 31,
+          "raw_detection_pct": 38.7,
+          "smoothed_detection_pct": 58.1,
+          "score_median": 0.885,
+          "score_min": 0.522,
+          "score_max": 0.9,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_limited": {
+          "frames": 31,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.876,
+          "score_min": 0.348,
+          "score_max": 0.935,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_normal": {
+          "frames": 28,
+          "raw_detection_pct": 89.3,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.786,
+          "score_min": 0.614,
+          "score_max": 0.918,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "speak": {
+          "frames": 39,
+          "raw_detection_pct": 89.7,
+          "smoothed_detection_pct": 97.4,
+          "score_median": 0.828,
+          "score_min": 0.428,
+          "score_max": 0.838,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "spray_x2": {
+          "frames": 84,
+          "raw_detection_pct": 65.5,
+          "smoothed_detection_pct": 90.5,
+          "score_median": 0.704,
+          "score_min": 0.333,
+          "score_max": 0.904,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "still": {
+          "frames": 34,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.908,
+          "score_min": 0.899,
+          "score_max": 0.929,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        }
+      }
+    },
+    {
+      "session": "eb762b9b",
+      "tasks": {
+        "exhale": {
+          "frames": 45,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.759,
+          "score_min": 0.484,
+          "score_max": 0.834,
+          "collector_judge": {
+            "expected": true,
+            "predicted": false,
+            "match": false
+          }
+        },
+        "handle": {
+          "frames": 46,
+          "raw_detection_pct": 50.0,
+          "smoothed_detection_pct": 73.9,
+          "score_median": 0.802,
+          "score_min": 0.663,
+          "score_max": 0.899,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "move": {
+          "frames": 29,
+          "raw_detection_pct": 89.7,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.825,
+          "score_min": 0.311,
+          "score_max": 0.923,
+          "collector_judge": {
+            "expected": false,
+            "predicted": true,
+            "match": false
+          }
+        },
+        "press_air_steady": {
+          "frames": 57,
+          "raw_detection_pct": 94.7,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.532,
+          "score_min": 0.341,
+          "score_max": 0.799,
+          "collector_judge": {
+            "expected": null,
+            "predicted": true,
+            "match": null
+          }
+        },
+        "press_mouth_steady": {
+          "frames": 58,
+          "raw_detection_pct": 43.1,
+          "smoothed_detection_pct": 63.8,
+          "score_median": 0.575,
+          "score_min": 0.344,
+          "score_max": 0.764,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_gentle": {
+          "frames": 32,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.897,
+          "score_min": 0.848,
+          "score_max": 0.923,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_hard": {
+          "frames": 30,
+          "raw_detection_pct": 46.7,
+          "smoothed_detection_pct": 66.7,
+          "score_median": 0.499,
+          "score_min": 0.314,
+          "score_max": 0.807,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_limited": {
+          "frames": 29,
+          "raw_detection_pct": 89.7,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.871,
+          "score_min": 0.622,
+          "score_max": 0.908,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "shake_normal": {
+          "frames": 28,
+          "raw_detection_pct": 75.0,
+          "smoothed_detection_pct": 78.6,
+          "score_median": 0.809,
+          "score_min": 0.317,
+          "score_max": 0.907,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "speak": {
+          "frames": 40,
+          "raw_detection_pct": 5.0,
+          "smoothed_detection_pct": 12.5,
+          "score_median": 0.342,
+          "score_min": 0.342,
+          "score_max": 0.342,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        },
+        "spray_x2": {
+          "frames": 82,
+          "raw_detection_pct": 48.8,
+          "smoothed_detection_pct": 70.7,
+          "score_median": 0.635,
+          "score_min": 0.407,
+          "score_max": 0.92,
+          "collector_judge": {
+            "expected": true,
+            "predicted": true,
+            "match": true
+          }
+        },
+        "still": {
+          "frames": 34,
+          "raw_detection_pct": 100.0,
+          "smoothed_detection_pct": 100.0,
+          "score_median": 0.921,
+          "score_min": 0.904,
+          "score_max": 0.931,
+          "collector_judge": {
+            "expected": false,
+            "predicted": false,
+            "match": true
+          }
+        }
+      }
+    }
+  ]
+}

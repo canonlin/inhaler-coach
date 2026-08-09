@@ -3,8 +3,8 @@ import torch
 from PIL import Image, ImageDraw
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 
-FRAMES = os.path.expanduser("~/inhaler-detector/frames")
-OUT = os.path.expanduser("~/inhaler-detector")
+OUT = os.path.expanduser(os.environ.get("INHALER_ROOT", "~/inhaler-detector"))
+FRAMES = f"{OUT}/frames"
 MODEL = "IDEA-Research/grounding-dino-base"
 PROMPT = "an inhaler. a red inhaler. a white and red asthma inhaler device."
 BOX_TH, TEXT_TH = 0.30, 0.25
