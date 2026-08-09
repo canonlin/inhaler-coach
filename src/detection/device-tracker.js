@@ -162,8 +162,7 @@ export class DeviceTracker {
 		if (this.history.length < 5) return 0;
 		const ys = this.history.map((s) => s.y);
 		const mean = ys.reduce((a, b) => a + b, 0) / ys.length;
-		const variance =
-			ys.reduce((a, b) => a + (b - mean) ** 2, 0) / ys.length;
+		const variance = ys.reduce((a, b) => a + (b - mean) ** 2, 0) / ys.length;
 		// std in frame units; ~0.02 (2 % of frame height) is steady, ~0.2 is waving.
 		return Math.max(0, 1 - Math.sqrt(variance) / 0.15);
 	}

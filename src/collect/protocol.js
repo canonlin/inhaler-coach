@@ -89,7 +89,13 @@ export const TASKS = [
 			"把吸入器拿在胸前、罐口朝上、離開臉，握穩「完全不要晃」。每隔約 2 秒，用力把紅色罐頂按下去一次，總共 5 下。關鍵：手要穩、按要確實，不要對鏡頭揮動。",
 		why: "上一批大家對鏡頭揮吸入器，按壓的訊號被大動作蓋掉了。拿穩、按確實，系統才學得到「按壓」本身長什麼樣",
 		seconds: 15,
-		demo: { translate: 0, rotate: 0, periodMs: 0, steadyPress: true, presses: 5 },
+		demo: {
+			translate: 0,
+			rotate: 0,
+			periodMs: 0,
+			steadyPress: true,
+			presses: 5,
+		},
 	},
 	{
 		id: "press_mouth_steady",

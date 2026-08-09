@@ -101,8 +101,7 @@ function median(xs) {
 function zscore(xs) {
 	const med = median(xs);
 	const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
-	const variance =
-		xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length;
+	const variance = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length;
 	const std = Math.sqrt(variance) || 1e-9;
 	// Median-centred, std-scaled: median resists the presses themselves dragging
 	// the centre up, std sets the scale from the whole window.
