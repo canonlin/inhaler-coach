@@ -32,7 +32,7 @@ def main() -> None:
 	)
 
 	positive = positive_hit = negative = false_fire = 0
-	scores = []
+	positive_scores = []
 	by_session = {}
 	for image, result in zip(images, results, strict=True):
 		expected = bool((labels / f"{image.stem}.txt").read_text().strip())
@@ -47,14 +47,13 @@ def main() -> None:
 			positive_hit += int(predicted)
 			row["positive"] += 1
 			row["positive_hit"] += int(predicted)
+			if predicted:
+				positive_scores.append(float(result.boxes.conf.max()))
 		else:
 			negative += 1
 			false_fire += int(predicted)
 			row["negative"] += 1
 			row["false_fire"] += int(predicted)
-		if predicted:
-			scores.append(float(result.boxes.conf.max()))
-
 	report = {
 		"weights": str(args.weights),
 		"confidence": args.confidence,
@@ -64,7 +63,7 @@ def main() -> None:
 		"negative_frames": negative,
 		"false_fires": false_fire,
 		"false_fire_rate": round(false_fire / negative, 4) if negative else None,
-		"mean_positive_score": round(sum(scores) / len(scores), 4) if scores else None,
+		"mean_positive_score": round(sum(positive_scores) / len(positive_scores), 4) if positive_scores else None,
 		"by_session": by_session,
 	}
 	text = json.dumps(report, indent=2)
