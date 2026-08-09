@@ -1,17 +1,21 @@
 import { STAGES } from "../config/stages.js";
 import { ActuationDetector } from "../detection/actuation-detector.js";
-import { DeviceTracker } from "../detection/device-tracker.js";
-import { analyzePressWindow } from "../detection/press-analyzer.js";
-import { RespirationSampler } from "../detection/respiration-sampler.js";
 import { AudioFeatures } from "../detection/audio-features.js";
 import { DetectionManager } from "../detection/detection-manager.js";
+import { DeviceTracker } from "../detection/device-tracker.js";
 import { extractFaceFeatures } from "../detection/face-features.js";
 import { extractHandFeatures } from "../detection/hand-features.js";
+import {
+	InhalerDetector,
+	InhalerObservationTracker,
+} from "../detection/inhaler-detector.js";
 import { handROI, MotionEnergy } from "../detection/motion-energy.js";
 import {
 	extractPoseFeatures,
 	resetDominantSide,
 } from "../detection/pose-features.js";
+import { analyzePressWindow } from "../detection/press-analyzer.js";
+import { RespirationSampler } from "../detection/respiration-sampler.js";
 import { ShakeDetector } from "../steps/step1-shake.js";
 import { ExhaleDetector } from "../steps/step2-exhale.js";
 import { PressInhaleDetector } from "../steps/step3-press-inhale.js";
@@ -77,6 +81,8 @@ import { startWebcam, stopWebcam } from "./webcam.js";
 const $ = (id) => document.getElementById(id);
 
 const detection = new DetectionManager();
+const inhalerDetector = new InhalerDetector();
+const inhalerObservation = new InhalerObservationTracker();
 const shakeDetector = new ShakeDetector();
 const rinseDetector = new RinseDetector();
 const pressInhale = new PressInhaleDetector();
@@ -236,12 +242,16 @@ async function loadStage(idx) {
 }
 
 async function initDetection() {
-	if (detection.isInitialized) return;
 	setModelLabel("⏳ 載入偵測模型...");
 	try {
-		await detection.initialize();
+		await Promise.all([
+			detection.isInitialized ? Promise.resolve() : detection.initialize(),
+			inhalerDetector.load(),
+		]);
 		const name = detection.getBackendName();
-		setModelLabel(`✅ ${name === "mediapipe" ? "MediaPipe" : "TF.js"} 就緒`);
+		setModelLabel(
+			`✅ ${name === "mediapipe" ? "MediaPipe" : "TF.js"}＋吸入器 YOLO 就緒`,
+		);
 	} catch (e) {
 		console.error("Detection init error:", e);
 		setModelLabel("❌ 偵測模型載入失敗");
@@ -333,13 +343,14 @@ async function startAIPhase() {
 	showPharmacistBtn();
 	showRetryBtn();
 
-	if (!detection.isInitialized) {
+	if (!detection.isInitialized || !inhalerDetector.ready) {
 		await initDetection();
 	}
 
 	shakeDetector.reset();
 	shakeMotion.reset();
 	deviceTracker.reset();
+	inhalerObservation.reset();
 	respiration.reset();
 	pressAudioBuf = [];
 	pressDeviceBuf = [];
@@ -367,8 +378,39 @@ async function startAIPhase() {
 		});
 		predictionLoop();
 		shakeMotionLoop();
+		startInhalerLoop();
 	} catch (_e) {
 		setStatusFail("❌ 無法啟動攝影機，請確認瀏覽器權限");
+	}
+}
+
+/** Run YOLO independently so object inference never stalls MediaPipe. */
+const INHALER_CONFIDENCE = 0.3;
+const INHALER_INTERVAL_MS = 200;
+let inhalerLoopGeneration = 0;
+
+async function startInhalerLoop() {
+	const generation = ++inhalerLoopGeneration;
+	while (state.isRunning && generation === inhalerLoopGeneration) {
+		const startedAt = performance.now();
+		const video = state.webcamVideo;
+		if (inhalerDetector.ready && video?.readyState >= 2) {
+			try {
+				const result = await inhalerDetector.detect(
+					video,
+					video.videoWidth,
+					video.videoHeight,
+					INHALER_CONFIDENCE,
+				);
+				inhalerObservation.observe(result, performance.now());
+			} catch (error) {
+				console.error("Inhaler YOLO error:", error);
+			}
+		}
+		const elapsed = performance.now() - startedAt;
+		await new Promise((resolve) =>
+			setTimeout(resolve, Math.max(0, INHALER_INTERVAL_MS - elapsed)),
+		);
 	}
 }
 
@@ -462,6 +504,7 @@ async function predictionLoop() {
 			video && video.readyState >= 2
 				? deviceTracker.sample(video, roi, timestamp)
 				: null;
+		const detectedDevice = inhalerObservation.current(timestamp);
 		if (isPressStage() && device) {
 			pressDeviceBuf.push([timestamp, device.present ? device.center.y : null]);
 		}
@@ -479,6 +522,7 @@ async function predictionLoop() {
 			motion,
 			sound,
 			device,
+			detectedDevice,
 		);
 
 		// ?measure=1 — record signals only. No pass/fail evaluation, so nothing
@@ -505,9 +549,9 @@ async function predictionLoop() {
 			// degrades to a few fps on slow hardware. This loop's job for the shake
 			// stage is just to keep the hand ROI fresh (resolveHandROI, above).
 		} else if (stage.id === 2) {
-			evaluateExhaleStep(device, results.face, stage, now);
+			evaluateExhaleStep(detectedDevice, results.face, stage, now);
 		} else if (stage.id === 3) {
-			evaluatePressStep(device, results.face, stage, now);
+			evaluatePressStep(detectedDevice, results.face, stage, now);
 		} else if (stage.id === 4) {
 			evaluateRinseStep(results.face, stage, now);
 		} else {
@@ -556,7 +600,7 @@ function shakeMotionLoop() {
 
 	const roi = lastROI && nowPerf - lastROIAt < ROI_GRACE_MS ? lastROI : null;
 	const motion = shakeMotion.sample(video, roi);
-	evaluateShakeStep(roi, motion, Date.now());
+	evaluateShakeStep(roi, motion, Date.now(), nowPerf);
 }
 
 // Dev-only signal trace, read from the console while testing a stage.
@@ -571,6 +615,7 @@ function recordSignalSample(
 	motion,
 	sound,
 	device,
+	detectedDevice,
 ) {
 	const log = window.__signalLog;
 	if (!log?.enabled) return;
@@ -584,6 +629,18 @@ function recordSignalSample(
 					+device.area.toFixed(4),
 					+device.height.toFixed(4),
 				]
+			: null,
+		// Authoritative YOLO observation used by the coaching decision.
+		det: detectedDevice?.present
+			? [
+					1,
+					+detectedDevice.center.x.toFixed(4),
+					+detectedDevice.center.y.toFixed(4),
+					+detectedDevice.score.toFixed(3),
+				]
+			: null,
+		detSteady: detectedDevice?.present
+			? +detectedDevice.steadiness.toFixed(3)
 			: null,
 		dip: device ? +device.dip.toFixed(4) : null,
 		steady: device ? +device.steadiness.toFixed(3) : null,
@@ -650,10 +707,19 @@ function updateFeatureDisplay(poseFeatures, faceFeatures, handFeatures) {
 		`<div class="text-sm text-text-secondary font-mono leading-relaxed">${items.join("  ·  ")}</div>`;
 }
 
-function evaluateShakeStep(roi, motion, now) {
+function evaluateShakeStep(roi, motion, now, nowPerf) {
 	if (!roi) {
 		setOverlay("none");
 		setStatusDetecting("🤖 請把拿著吸入器的手抬到鏡頭前...");
+		shakeDetector.reset();
+		return;
+	}
+	// Motion alone can be produced by an empty hand.  Require at least one recent
+	// high-precision YOLO hit, but tolerate a longer gap during vigorous shaking
+	// because motion blur is worst precisely when the action is correct.
+	if (!inhalerObservation.seenRecently(nowPerf, 2500)) {
+		setOverlay("none");
+		setStatusDetecting("🤖 請讓鏡頭先看到手上的吸入器，再開始上下搖...");
 		shakeDetector.reset();
 		return;
 	}
@@ -710,7 +776,11 @@ function evaluateExhaleStep(device, faceLandmarks, stage, now) {
 	});
 	state.lastAIConfidence = Math.round(result.confidence * 100);
 
-	if (result.exhaling) {
+	if (!result.ready) {
+		state.passTimestamp = 0;
+		setOverlay("none");
+		setStatusDetecting("🤖 請讓鏡頭同時看到臉部與吸入器...");
+	} else if (result.exhaling) {
 		if (state.passTimestamp === 0) state.passTimestamp = now;
 		const elapsed = (now - state.passTimestamp) / 1000;
 		const remaining = Math.max(0, stage.passSeconds - elapsed).toFixed(1);
@@ -913,6 +983,7 @@ function retryStage() {
 
 	stopWebcam();
 	shakeDetector.reset();
+	inhalerObservation.reset();
 	rinseDetector.reset();
 	rinseMotion.reset();
 	resetDominantSide();
@@ -921,6 +992,8 @@ function retryStage() {
 		try {
 			await startWebcam();
 			predictionLoop();
+			shakeMotionLoop();
+			startInhalerLoop();
 		} catch (_e) {
 			setStatusFail("❌ 無法啟動攝影機，請確認瀏覽器權限");
 		}

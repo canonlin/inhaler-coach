@@ -15,7 +15,7 @@
  * A half-frame separation in position — because a correct actuation means the
  * inhaler is AT THE MOUTH and HELD STEADY while you press and breathe in, and a
  * wrong one has it down at your waist or wandering. So this scores exactly that:
- * the red canister present, close to the mouth, and steady. The windowed spray
+ * the YOLO-detected inhaler present, close to the mouth, and steady. The windowed spray
  * analysis (press-analyzer.js) is a bonus confirmation on the rare audible spray,
  * not the gate; the device posture is.
  *
@@ -39,6 +39,7 @@ export class PressInhaleDetector {
 	 */
 	detect({ device, mouthPoint }) {
 		const present = !!device?.present;
+		const ready = present && mouthPoint != null;
 		const atMouth =
 			present &&
 			mouthPoint != null &&
@@ -48,6 +49,7 @@ export class PressInhaleDetector {
 		const correct = present && atMouth && steady;
 		return {
 			present,
+			ready,
 			atMouth,
 			steady,
 			pressing: correct,
