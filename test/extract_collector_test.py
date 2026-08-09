@@ -17,6 +17,12 @@ FILTER = importlib.util.module_from_spec(FILTER_SPEC)
 assert FILTER_SPEC.loader is not None
 FILTER_SPEC.loader.exec_module(FILTER)
 
+ACCEPT_PATH = MODULE_PATH.with_name("accept_candidate.py")
+ACCEPT_SPEC = importlib.util.spec_from_file_location("accept_candidate", ACCEPT_PATH)
+ACCEPT = importlib.util.module_from_spec(ACCEPT_SPEC)
+assert ACCEPT_SPEC.loader is not None
+ACCEPT_SPEC.loader.exec_module(ACCEPT)
+
 
 class LabelledSecondsTest(unittest.TestCase):
 	def test_inventory_pairs_json_and_video_across_split_archives(self):
@@ -72,6 +78,27 @@ class LabelledSecondsTest(unittest.TestCase):
 		)
 		self.assertFalse(result["usable"])
 		self.assertEqual(result["label_source"], "excluded")
+
+	def test_candidate_requires_recall_gain_without_new_false_fires(self):
+		baseline = {"frame_recall": 0.76, "false_fires": 0}
+		improved = ACCEPT.compare_reports(
+			baseline,
+			{"frame_recall": 0.79, "false_fires": 0},
+			0.02,
+		)
+		regressed_safety = ACCEPT.compare_reports(
+			baseline,
+			{"frame_recall": 0.90, "false_fires": 1},
+			0.02,
+		)
+		insufficient_gain = ACCEPT.compare_reports(
+			baseline,
+			{"frame_recall": 0.77, "false_fires": 0},
+			0.02,
+		)
+		self.assertTrue(improved["accepted"])
+		self.assertFalse(regressed_safety["accepted"])
+		self.assertFalse(insufficient_gain["accepted"])
 
 
 if __name__ == "__main__":
