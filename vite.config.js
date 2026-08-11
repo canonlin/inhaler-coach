@@ -73,6 +73,7 @@ export default defineConfig(({ command }) => ({
         // The coaching app, and the data collector the pharmacists run.
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         collect: fileURLToPath(new URL('./collect.html', import.meta.url)),
+        negative: fileURLToPath(new URL('./negative.html', import.meta.url)),
       },
     },
   },
