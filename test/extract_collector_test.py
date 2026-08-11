@@ -79,6 +79,16 @@ class LabelledSecondsTest(unittest.TestCase):
 		self.assertFalse(result["usable"])
 		self.assertEqual(result["label_source"], "excluded")
 
+	def test_quick_collector_frame_is_an_explicit_negative(self):
+		result = FILTER.choose_box(
+			{"w": 640, "h": 360, "boxes": [[20, 20, 60, 60, 0.8]]},
+			{"seed_x": "", "seed_y": "", "task": "negative_no_inhaler"},
+			0.18,
+		)
+		self.assertTrue(result["usable"])
+		self.assertEqual(result["boxes"], [])
+		self.assertEqual(result["label_source"], "negative")
+
 	def test_candidate_requires_recall_gain_without_new_false_fires(self):
 		baseline = {"frame_recall": 0.76, "false_fires": 0}
 		improved = ACCEPT.compare_reports(
