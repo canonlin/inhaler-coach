@@ -19,7 +19,8 @@ from pathlib import Path
 
 def choose_box(detection: dict, row: dict, max_distance: float) -> dict:
 	seeded = row.get("seed_x") not in {None, ""} and row.get("seed_y") not in {None, ""}
-	negative = row.get("task") == "speak" and not seeded
+	negative_tasks = {"speak", "negative_no_inhaler"}
+	negative = row.get("task") in negative_tasks and not seeded
 	if not seeded:
 		return {**detection, "boxes": [], "best": None, "usable": negative, "label_source": "negative" if negative else "excluded"}
 

@@ -12,6 +12,20 @@
 
 > 請用 **Chrome 或 Edge**（Safari 的錄影支援不完整）。
 
+## 無吸入器快速收集（另一個獨立頁面）
+
+`negative.html` 不會改動或加長上面的藥師流程。參與者只需確認畫面內
+沒有吸入器，錄製 45 秒日常活動，再確認一次並下載兩個檔案。頁面不載入
+姿勢或物件模型，也不要求照一串題目演示。
+
+建議邀請不同人、在不同房間各錄一次。錄影時可以自然說話、把手靠近
+臉部、移動手部或拿起一般物品；唯一限制是任何吸入器都不能入鏡。
+
+網址：`https://canonlin.github.io/inhaler-coach/collector/negative.html`
+
+輸出的 task id 是 `negative_no_inhaler`，現有 `extract_collector.py` 與
+`filter_pseudolabels.py` 會將它保留為明確負樣本。
+
 ---
 
 ## 給專案主持人
