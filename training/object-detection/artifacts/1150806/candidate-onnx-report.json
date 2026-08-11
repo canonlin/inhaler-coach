@@ -1,0 +1,19 @@
+{
+  "weights": "candidate-inhaler.onnx",
+  "confidence": 0.3,
+  "positive_frames": 140,
+  "positive_hits": 120,
+  "frame_recall": 0.8571,
+  "negative_frames": 15,
+  "false_fires": 0,
+  "false_fire_rate": 0.0,
+  "mean_positive_score": 0.7646,
+  "by_session": {
+    "80918593": {
+      "positive": 140,
+      "positive_hit": 120,
+      "negative": 15,
+      "false_fire": 0
+    }
+  }
+}
