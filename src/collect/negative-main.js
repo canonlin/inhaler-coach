@@ -19,6 +19,7 @@ function makeSessionId() {
 }
 
 function pickMimeType() {
+	if (typeof window.MediaRecorder?.isTypeSupported !== "function") return "";
 	const candidates = [
 		"video/webm;codecs=vp9",
 		"video/webm;codecs=vp8",
@@ -41,10 +42,18 @@ function show(screen) {
 }
 
 function updateStartButton() {
-	$("btn-start").disabled = !cameraReady || !$("confirm-empty").checked;
+	const recordingSupported = typeof window.MediaRecorder === "function";
+	$("btn-start").disabled =
+		!recordingSupported || !cameraReady || !$("confirm-empty").checked;
 }
 
 async function initCamera() {
+	if (typeof window.MediaRecorder !== "function") {
+		$("setup-status").textContent =
+			"❌ 這個瀏覽器不支援錄影，請改用最新版 Chrome、Edge 或 Safari";
+		updateStartButton();
+		return;
+	}
 	try {
 		stream = await navigator.mediaDevices.getUserMedia({
 			video: {
