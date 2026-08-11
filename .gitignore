@@ -29,6 +29,7 @@ dist-ssr
 
 # onnxruntime-web wasm backend (copied from node_modules by scripts/copy-ort.mjs)
 public/ort/
+.playwright-cli/
 
 # Python test/training bytecode
 __pycache__/

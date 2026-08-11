@@ -81,3 +81,15 @@ task labels to waiting frames. The reproducible update path is:
 
 All scripts accept `INHALER_ROOT`; training additionally records explicit seed,
 checkpoint, batch, epoch, dependency versions, dataset hashes, and export hash.
+
+### 1150806 pharmacist cohort (2026-08-10)
+
+The five newly collected pharmacist sessions were cut only at their exact
+protocol timestamps, then filtered through two independent device signals before
+they became training labels.  Fine-tuning YOLO11n from the prior model improved
+the entirely held-out session's frame recall from **76.43% (107/140)** to
+**85.71% (120/140)** at the production confidence threshold of 0.30, while
+preserving **0/15** false fires on explicit no-inhaler frames.  The fixed-batch
+ONNX export reproduced the same 120/140 result and was promoted to
+`public/models/inhaler.onnx` only after both checks passed.  The machine-readable
+reports and provenance are in `artifacts/1150806/`.

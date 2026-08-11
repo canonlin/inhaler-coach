@@ -1,0 +1,99 @@
+{
+  "created_at": "2026-08-11T04:03:57.675529+00:00",
+  "dataset": {
+    "id": "1150806-20260809",
+    "purpose": "internal inhaler object detection model improvement",
+    "source": "user-provided pharmacist collector exports",
+    "authorization": "user explicitly requested YOLO training for this coaching application",
+    "use_restriction": "internal inhaler coaching model development and validation only",
+    "source_archive_sha256": [
+      "711f3814a7ff361dfe67663f8f5eebec196e067b13e52cf2073bf2b9987ddd80",
+      "9674b8aece07ae1eef75ff70490aa8f4424fbf903742bf31232b09f3cb88204b"
+    ],
+    "source_commit": "eb5af2e99f9fa97482d36b864dc751d968cc2a0c",
+    "manifest": {
+      "path": "manifest.csv",
+      "bytes": 148659,
+      "sha256": "b4699d01a39ce381bfd837913053292a5aeb8ef8a5077386bda11c82afe1db98"
+    },
+    "filtered_labels": {
+      "path": "detections-filtered.json",
+      "bytes": 193518,
+      "sha256": "51d7ce409e274a2a50a67bfbbb64bd8a302bc483199cd2d8f5b3ac331a33a9a9"
+    }
+  },
+  "training": {
+    "architecture": "YOLO11n",
+    "seed": 42,
+    "epochs": 100,
+    "image_size": 640,
+    "batch": 32,
+    "base_weights": {
+      "path": "/home/gloomcheng/Workspace/inhaler-detector/runs/inhaler/weights/best.pt",
+      "bytes": 5454163,
+      "sha256": "d3e5d7c6864d6c87cfef8d2d4847c87e501c170bbc0cdebd42a8e192437c1a13"
+    },
+    "candidate_weights": {
+      "path": "runs/inhaler-1150806/weights/best.pt",
+      "bytes": 5453978,
+      "sha256": "3e786ba037794b477dec6419b7de34c2628db4ca0e3d20e001ff55023a9c836d"
+    }
+  },
+  "evaluation": {
+    "holdout_session": "80918593",
+    "baseline": {
+      "weights": "/home/gloomcheng/Workspace/inhaler-detector/runs/inhaler/weights/best.pt",
+      "confidence": 0.3,
+      "positive_frames": 140,
+      "positive_hits": 107,
+      "frame_recall": 0.7643,
+      "negative_frames": 15,
+      "false_fires": 0,
+      "false_fire_rate": 0.0,
+      "mean_positive_score": 0.7085,
+      "by_session": {
+        "80918593": {
+          "positive": 140,
+          "positive_hit": 107,
+          "negative": 15,
+          "false_fire": 0
+        }
+      }
+    },
+    "candidate": {
+      "weights": "candidate-inhaler.onnx",
+      "confidence": 0.3,
+      "positive_frames": 140,
+      "positive_hits": 120,
+      "frame_recall": 0.8571,
+      "negative_frames": 15,
+      "false_fires": 0,
+      "false_fire_rate": 0.0,
+      "mean_positive_score": 0.7646,
+      "by_session": {
+        "80918593": {
+          "positive": 140,
+          "positive_hit": 120,
+          "negative": 15,
+          "false_fire": 0
+        }
+      }
+    }
+  },
+  "export": {
+    "format": "ONNX",
+    "opset": 12,
+    "nms": true,
+    "path": "candidate-inhaler.onnx",
+    "bytes": 10635464,
+    "sha256": "f3efd6e825f9118656c9226b9ea4c71ccaba0dad265532ac94f46889fd867369"
+  },
+  "environment": {
+    "python": "3.10.12",
+    "torch": "2.13.0+cu130",
+    "cuda": "13.0",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "ultralytics": "8.4.100",
+    "transformers": "4.57.1"
+  }
+}
