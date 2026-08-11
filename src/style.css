@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Noto Sans TC', sans-serif;
+  --color-primary: #3b82f6;
+  --color-primary-dark: #1d4ed8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-bg: #111827;
+  --color-surface: #1f2937;
+  --color-surface-light: #374151;
+  --color-border: #4b5563;
+  --color-text: #f9fafb;
+  --color-text-secondary: #9ca3af;
+
+  --animate-fade-in: fade-in 0.4s ease both;
+  --animate-slide-up: slide-up 0.4s ease both;
+  --animate-countdown-pulse: countdown-pulse 1s infinite;
+}
+
+@keyframes fade-in {
+	0% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes slide-up {
+	0% {
+		transform: translateY(12px);
+		opacity: 0;
+	}
+	100% {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes countdown-pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.05);
+	}
+}
+
+/* --- Task demonstrations (collector) ---------------------------------- */
+/* Amplitude and tempo come from each task's `demo` spec, so what the
+   pharmacist sees is the movement we're actually asking them to record. */
+
+.demo-stage {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 200px;
+}
+
+.demo-inhaler {
+	transform-origin: 50% 90%; /* pivot at the wrist, not the middle */
+}
+
+@keyframes demo-shake {
+	0%,
+	100% {
+		transform: translateY(calc(var(--demo-travel) * -0.5))
+			rotate(calc(var(--demo-spin) * -1));
+	}
+	50% {
+		transform: translateY(calc(var(--demo-travel) * 0.5)) rotate(var(--demo-spin));
+	}
+}
+
+@keyframes demo-drift {
+	0%,
+	100% {
+		transform: translateX(-30px) rotate(calc(var(--demo-spin) * -1));
+	}
+	50% {
+		transform: translateX(30px) rotate(var(--demo-spin));
+	}
+}
+
+@keyframes demo-putdown {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	40%,
+	60% {
+		transform: translateY(60px);
+	}
+}
+
+/* Arrows mark the axis of travel — the movement is easier to read when you know
+   which way to look before it starts. */
+.demo-arrow {
+	position: absolute;
+	color: var(--color-success);
+	font-size: 18px;
+	opacity: 0.75;
+}
+.demo-arrow-up {
+	top: 12px;
+}
+.demo-arrow-down {
+	bottom: 12px;
+}
+
+.demo-caption {
+	text-align: center;
+	padding: 0 12px 14px;
+	font-size: 14px;
+	color: var(--color-text-secondary);
+}
+
+.demo-puff,
+.demo-breath,
+.demo-speak {
+	position: absolute;
+	font-size: 40px;
+	animation: demo-fade 1.6s ease-in-out infinite;
+}
+
+.demo-puff {
+	top: 10px;
+	right: 30%;
+}
+.demo-breath,
+.demo-speak {
+	top: 40px;
+}
+
+@keyframes demo-fade {
+	0%,
+	100% {
+		opacity: 0;
+		transform: scale(0.8);
+	}
+	40% {
+		opacity: 1;
+		transform: scale(1.1);
+	}
+}
+
+/* NOT disabled under prefers-reduced-motion.
+ *
+ * The reduced-motion rule exists to remove gratuitous movement. Here the
+ * movement IS the instruction — it's the only thing telling the pharmacist how
+ * far and how fast to shake. Suppressing it doesn't make the page more
+ * accessible, it deletes the content: with reduce-motion on (which it was, on
+ * the machine this was tested on), all ten demonstrations rendered as the same
+ * motionless inhaler and none of the tasks could be told apart.
+ *
+ * A pause control is offered instead, so anyone who needs the motion stopped can
+ * stop it deliberately.
+ */
+.demo-paused .demo-inhaler,
+.demo-paused .demo-puff,
+.demo-paused .demo-breath,
+.demo-paused .demo-speak {
+	animation-play-state: paused;
+}
+
+/* Decorative animation, however, does respect the preference. */
+@media (prefers-reduced-motion: reduce) {
+	.animate-fade-in,
+	.animate-slide-up,
+	.animate-countdown-pulse {
+		animation: none !important;
+	}
+}

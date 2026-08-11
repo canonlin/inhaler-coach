@@ -1,0 +1,9 @@
+{
+  "accepted": true,
+  "baseline_recall": 0.7643,
+  "candidate_recall": 0.8571,
+  "recall_gain": 0.0928,
+  "baseline_false_fires": 0,
+  "candidate_false_fires": 0,
+  "minimum_recall_gain": 0.02
+}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>無吸入器快速資料收集</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-bg text-text font-sans">
+    <main class="min-h-screen flex items-center justify-center p-6">
+      <div class="w-full max-w-2xl">
+        <section id="screen-setup" class="space-y-6">
+          <header class="space-y-3">
+            <div class="text-sm font-bold text-success">45 秒快速收集</div>
+            <h1 class="text-3xl font-bold">無吸入器日常畫面</h1>
+            <p class="text-text-secondary leading-relaxed">
+              錄影期間自然說話、移動手部，或拿起桌上的一般物品即可。不用照題目做，也不用演完整衛教流程。
+            </p>
+          </header>
+
+          <div class="rounded-xl overflow-hidden bg-black">
+            <video id="preview" class="w-full aspect-video object-cover" muted playsinline autoplay></video>
+          </div>
+
+          <label class="flex gap-3 items-start rounded-xl bg-surface border border-border p-4 cursor-pointer">
+            <input id="confirm-empty" type="checkbox" class="mt-1 size-5 accent-green-500" />
+            <span>
+              <strong class="block">我確認鏡頭範圍內沒有任何吸入器</strong>
+              <span class="text-sm text-text-secondary">其他日常物品可以出現。</span>
+            </span>
+          </label>
+
+          <p id="setup-status" class="text-sm text-text-secondary">正在開啟攝影機…</p>
+          <button id="btn-start" disabled class="w-full rounded-xl bg-success text-black font-bold text-lg py-4 disabled:bg-surface-light disabled:text-text-secondary disabled:cursor-not-allowed">
+            開始錄製 45 秒
+          </button>
+        </section>
+
+        <section id="screen-record" class="hidden space-y-5 text-center">
+          <div id="countdown" class="text-7xl font-black tabular-nums text-success">45</div>
+          <h2 class="text-2xl font-bold">自然活動就好</h2>
+          <p class="text-text-secondary">可以說話、把手靠近臉部、移動手部，或拿一般物品。</p>
+          <div class="rounded-xl overflow-hidden bg-black">
+            <video id="record-preview" class="w-full aspect-video object-cover" muted playsinline autoplay></video>
+          </div>
+          <div class="h-2 rounded-full bg-surface-light overflow-hidden">
+            <div id="progress" class="h-full bg-success" style="width: 0%"></div>
+          </div>
+        </section>
+
+        <section id="screen-review" class="hidden space-y-6 text-center">
+          <div class="text-5xl" aria-hidden="true">✅</div>
+          <h2 class="text-2xl font-bold">錄製完成</h2>
+          <p class="text-text-secondary">最後確認：剛才 45 秒內是否完全沒有吸入器入鏡？</p>
+          <div class="flex gap-3">
+            <button id="btn-retry" class="flex-1 rounded-xl bg-surface-light py-4">否，重新錄</button>
+            <button id="btn-save" class="flex-1 rounded-xl bg-success text-black font-bold py-4">是，下載檔案</button>
+          </div>
+        </section>
+
+        <section id="screen-done" class="hidden space-y-5 text-center">
+          <div class="text-5xl" aria-hidden="true">🎉</div>
+          <h2 class="text-2xl font-bold">完成，謝謝！</h2>
+          <p class="text-text-secondary">請把剛下載的影片與 JSON 一起放進研究負責人提供的資料夾。</p>
+          <p id="file-names" class="font-mono text-sm break-all"></p>
+          <button id="btn-resave" class="w-full rounded-xl bg-surface-light py-3">沒看到檔案？再下載一次</button>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/src/collect/negative-main.js"></script>
+  </body>
+</html>
