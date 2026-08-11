@@ -5,6 +5,8 @@
 
 網址：https://canonlin.github.io/inhaler-coach/collector/collect.html
 
+無吸入器快速收集：https://canonlin.github.io/inhaler-coach/collector/negative.html
+
 **根目錄的 index.html（現行 v1 系統）完全不受影響。**
 
 ## 沒有任何設定步驟
