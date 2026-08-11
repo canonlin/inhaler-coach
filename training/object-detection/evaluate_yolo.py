@@ -23,18 +23,19 @@ def main() -> None:
 	images = sorted((args.dataset / "images" / args.split).glob("*"))
 	labels = args.dataset / "labels" / args.split
 	model = YOLO(str(args.weights))
-	results = model.predict(
-		source=[str(image) for image in images],
-		conf=args.confidence,
-		device=args.device,
-		verbose=False,
-		stream=True,
-	)
-
 	positive = positive_hit = negative = false_fire = 0
 	positive_scores = []
 	by_session = {}
-	for image, result in zip(images, results, strict=True):
+	# The browser export is deliberately fixed to batch=1.  Predict one frame at a
+	# time so this regression check exercises that actual ONNX contract instead of
+	# accidentally asking ONNX Runtime for a batch containing the whole holdout.
+	for image in images:
+		result = model.predict(
+			source=str(image),
+			conf=args.confidence,
+			device=args.device,
+			verbose=False,
+		)[0]
 		expected = bool((labels / f"{image.stem}.txt").read_text().strip())
 		predicted = len(result.boxes) > 0
 		session = image.name.split("_", 1)[0]
