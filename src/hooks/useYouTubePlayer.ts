@@ -12,7 +12,7 @@ export function useYouTubePlayer({
 	onVideoEnd,
 }: UseYouTubePlayerProps) {
 	const videoContainerRef = useRef<HTMLDivElement | null>(null);
-	const ytRef = useRef<any>(null);
+	const ytRef = useRef<unknown>(null);
 
 	useEffect(() => {
 		if (!showVideo) return;
@@ -21,7 +21,9 @@ export function useYouTubePlayer({
 		if (!container) return;
 
 		const iframe = container.querySelector("iframe");
-		const loadingEl = container.querySelector("#video-loading") as HTMLElement | null;
+		const loadingEl = container.querySelector(
+			"#video-loading",
+		) as HTMLElement | null;
 
 		if (loadingEl) {
 			loadingEl.style.opacity = "1";
@@ -48,7 +50,8 @@ export function useYouTubePlayer({
 	useEffect(() => {
 		function handleMessage(evt: MessageEvent) {
 			try {
-				const data = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+				const data =
+					typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
 				if (data.event === "onStateChange" && data.info === 0) {
 					onVideoEnd();
 				}

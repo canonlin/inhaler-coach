@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { STAGES } from "../config/stages";
 
 export function getInitialStageIdx(): number {

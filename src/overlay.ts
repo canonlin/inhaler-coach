@@ -11,7 +11,10 @@ type PoseResult = {
 	score?: number;
 };
 
-export function drawOverlay(ctx: CanvasRenderingContext2D, result: PoseResult | null) {
+export function drawOverlay(
+	ctx: CanvasRenderingContext2D,
+	result: PoseResult | null,
+) {
 	if (!ctx) return;
 
 	const { width, height } = ctx.canvas;

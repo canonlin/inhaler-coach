@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getStageConfig } from "../services/detection-singletons";
 import { useDetectionLoop } from "./useDetectionLoop";
 import { useStageNavigation } from "./useStageNavigation";
@@ -20,7 +20,7 @@ export function useCoaching() {
 			setStatusText(newStatusText);
 			setOverlay(newOverlay);
 		},
-		[]
+		[],
 	);
 
 	const detLoop = useDetectionLoop({
@@ -72,7 +72,8 @@ export function useCoaching() {
 
 	const showPharmacist = nav.phase === "video" && nav.stageIdx > 0;
 	const showRetry = nav.stagePassed && nav.phase === "ai";
-	const showNext = (nav.stagePassed || nav.phase === "video") && nav.stageIdx === 0;
+	const showNext =
+		(nav.stagePassed || nav.phase === "video") && nav.stageIdx === 0;
 	const nextBtnText = nav.stageIdx === 0 ? "開始闖關" : "進入下一關";
 
 	useEffect(() => {
