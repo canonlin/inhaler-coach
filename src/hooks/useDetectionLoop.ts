@@ -36,30 +36,68 @@ export function useDetectionLoop({
 				if (canvas) {
 					const ctx = canvas.getContext("2d");
 					if (ctx) {
-						// Perform ML detection frame
-						const poseResult = singletons.detection.detect(canvas);
-						drawOverlay(ctx, poseResult);
+						let poseResult: any = null;
+						try {
+							if (typeof singletons.detection?.processFrame === "function") {
+								poseResult = await singletons.detection.processFrame(
+									canvas,
+									now,
+									{ pose: true, face: true, hands: true } as any,
+								);
+							}
+						} catch {}
 
-						// Evaluate stage logic periodically
+						drawOverlay(ctx, poseResult?.pose ?? poseResult);
+
 						if (!isEvaluating && now - loopRef.current.lastFrameTime > 200) {
 							loopRef.current.lastFrameTime = now;
 							isEvaluating = true;
 
 							try {
-								let stepResult = { ok: false, msg: "" };
+								let stepResult: any = { ok: false, msg: "" };
 
 								switch (stageIdx) {
 									case 1:
-										stepResult = singletons.step1.evaluate(poseResult);
+										if (typeof singletons.step1?.detect === "function") {
+											const res = singletons.step1.detect(now);
+											stepResult = {
+												ok: res?.passed ?? false,
+												msg: res?.passed ? "動作正確！" : "請持續均勻搖動...",
+											};
+										}
 										break;
 									case 2:
-										stepResult = singletons.step2.evaluate(poseResult);
+										if (typeof singletons.step2?.detect === "function") {
+											const res = (singletons.step2 as any).detect({
+												device: null,
+												mouthPoint: null,
+											});
+											stepResult = {
+												ok: res?.exhaling ?? false,
+												msg: res?.exhaling ? "吐氣完全！" : "請深吐氣...",
+											};
+										}
 										break;
 									case 3:
-										stepResult = singletons.step3.evaluate(poseResult);
+										if (typeof singletons.step3?.detect === "function") {
+											const res = (singletons.step3 as any).detect({
+												device: null,
+												mouthPoint: null,
+											});
+											stepResult = {
+												ok: res?.pressing ?? false,
+												msg: res?.pressing ? "按壓吸氣正確！" : "請配合按壓...",
+											};
+										}
 										break;
 									case 4:
-										stepResult = singletons.step4.evaluate(poseResult);
+										if (typeof singletons.step4?.detect === "function") {
+											const res = singletons.step4.detect();
+											stepResult = {
+												ok: res?.rinsing ?? false,
+												msg: res?.rinsing ? "漱口完成！" : "請進行漱口...",
+											};
+										}
 										break;
 									default:
 										stepResult = { ok: true, msg: "檢測完成" };

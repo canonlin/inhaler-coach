@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 
 type UseYouTubePlayerProps = {
-	videoUrl: string;
+	videoURL: string;
 	showVideo: boolean;
 	onVideoEnd: () => void;
 };
 
 export function useYouTubePlayer({
-	videoUrl,
+	videoURL,
 	showVideo,
 	onVideoEnd,
 }: UseYouTubePlayerProps) {
@@ -30,10 +30,10 @@ export function useYouTubePlayer({
 			loadingEl.style.pointerEvents = "auto";
 		}
 
-		if (iframe && videoUrl) {
-			const embedUrl = videoUrl.includes("?")
-				? `${videoUrl}&enablejsapi=1&autoplay=1`
-				: `${videoUrl}?enablejsapi=1&autoplay=1`;
+		if (iframe && videoURL) {
+			const embedUrl = videoURL.includes("?")
+				? `${videoURL}&enablejsapi=1&autoplay=1`
+				: `${videoURL}?enablejsapi=1&autoplay=1`;
 			iframe.src = embedUrl;
 
 			const timer = setTimeout(() => {
@@ -45,7 +45,7 @@ export function useYouTubePlayer({
 
 			return () => clearTimeout(timer);
 		}
-	}, [videoUrl, showVideo]);
+	}, [videoURL, showVideo]);
 
 	useEffect(() => {
 		function handleMessage(evt: MessageEvent) {
