@@ -11,11 +11,10 @@ export function useWebcamStream() {
 	}, []);
 
 	const startStream = useCallback(async () => {
-		if (!canvasRef.current) return false;
 		try {
-			const stream = await startWebcam(canvasRef.current);
-			if (stream) {
-				singletons.audio.initialize(stream);
+			const res = await startWebcam();
+			if (res?.stream) {
+				singletons.audio.initialize(res.stream);
 				singletons.audio.startSampling();
 				return true;
 			}
