@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
-import { LoadingWave } from "../LoadingWave";
 import { IconArrowRight } from "../icons";
+import { LoadingWave } from "../LoadingWave";
 import { ActionButtons } from "./ActionButtons";
 import { StatusBanner } from "./StatusBanner";
 
@@ -49,6 +49,7 @@ export function VideoSection({
 		<div className="relative w-full h-full" ref={videoContainerRef}>
 			<div className="absolute inset-0 flex items-center justify-center">
 				<iframe
+					title="衛教影片"
 					aria-label="衛教影片"
 					className="w-full h-full border-none"
 					style={{

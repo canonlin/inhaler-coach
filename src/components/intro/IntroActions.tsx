@@ -7,11 +7,7 @@ type IntroActionsProps = {
 export function IntroActions({ onStart }: IntroActionsProps) {
 	return (
 		<footer className="grid gap-3 pt-2">
-			<Button
-				id="btn-start"
-				onClick={onStart}
-				className="w-full sm:w-fit"
-			>
+			<Button id="btn-start" onClick={onStart} className="w-full sm:w-fit">
 				開始導覽
 			</Button>
 

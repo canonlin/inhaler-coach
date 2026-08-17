@@ -11,10 +11,24 @@ import { ExhaleDetector } from "../steps/step2-exhale";
 import { PressInhaleDetector } from "../steps/step3-press-inhale";
 import { RinseDetector } from "../steps/step4-rinse";
 
-let _singletons: any = null;
+export type SingletonServices = {
+	detection: DetectionManager;
+	inhalerDetector: InhalerDetector;
+	deviceTracker: DeviceTracker;
+	actuationDet: ActuationDetector;
+	respSampler: RespirationSampler;
+	audio: AudioFeatures;
+	step0: PrimingDetector;
+	step1: ShakeDetector;
+	step2: ExhaleDetector;
+	step3: PressInhaleDetector;
+	step4: RinseDetector;
+};
 
-export const singletons = new Proxy({} as any, {
-	get(_target, prop) {
+let _singletons: SingletonServices | null = null;
+
+export const singletons = new Proxy({} as SingletonServices, {
+	get(_target, prop: keyof SingletonServices) {
 		if (!_singletons && typeof window !== "undefined") {
 			_singletons = {
 				detection: new DetectionManager(),

@@ -1,5 +1,5 @@
-import { Button } from "../ui/button";
 import { IconArrowRight, IconCheck, IconRefresh } from "../icons";
+import { Button } from "../ui/button";
 
 type ActionButtonsProps = {
 	showPharmacist: boolean;
