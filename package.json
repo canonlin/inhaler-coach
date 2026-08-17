@@ -23,16 +23,21 @@
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@tensorflow/tfjs-converter": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.31.0",
     "motion": "^13.1.0",
     "onnxruntime-web": "^1.27.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
     "@tailwindcss/vite": "^4.3.2",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4.3.2",
     "vite": "^5.4.14"
   }

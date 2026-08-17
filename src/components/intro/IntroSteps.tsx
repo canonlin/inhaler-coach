@@ -1,7 +1,9 @@
+import React, { type ReactNode } from "react";
+
 type StepItem = {
 	label: string;
 	desc: string;
-	icon: React.ReactNode;
+	icon: ReactNode;
 };
 
 const steps: StepItem[] = [
