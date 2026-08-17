@@ -36,7 +36,7 @@ export function StageScreen(props: StageScreenProps) {
 				? "🎉 恭喜！您已完成吸入器正確操作的所有階段！"
 				: stageIdx === 0
 					? ""
-					: `第 ${stageIdx} / 4 關：${cfg.title}`;
+					: `第 ${stageIdx} / 4 關：${cfg.name}`;
 
 		const headerVisible = stageIdx === 0 || cfg.badge === "BONUS";
 		const badgeClass =
@@ -56,7 +56,7 @@ export function StageScreen(props: StageScreenProps) {
 			badgeClass,
 			titleClass,
 			badge: cfg.badge,
-			title: cfg.title,
+			title: cfg.name,
 			hint: cfg.hint ?? "",
 			videoLabel: cfg.badge === "BONUS" ? "" : "📺 衛教展示影片",
 		};

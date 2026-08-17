@@ -33,7 +33,7 @@ export function useCoaching() {
 	}, [nav]);
 
 	const yt = useYouTubePlayer({
-		videoUrl: stageConfig.videoUrl,
+		videoURL: stageConfig.videoURL,
 		showVideo,
 		onVideoEnd: handleVideoEnd,
 	});
