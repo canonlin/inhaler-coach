@@ -13,12 +13,12 @@ const steps: StepItem[] = [
 		icon: (
 			<svg
 				aria-hidden="true"
-				width="24"
-				height="24"
+				width="22"
+				height="22"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="1.5"
+				strokeWidth="2"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
@@ -37,12 +37,12 @@ const steps: StepItem[] = [
 		icon: (
 			<svg
 				aria-hidden="true"
-				width="24"
-				height="24"
+				width="22"
+				height="22"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="1.5"
+				strokeWidth="2"
 				strokeLinecap="round"
 			>
 				<circle cx="12" cy="12" r="9" />
@@ -60,12 +60,12 @@ const steps: StepItem[] = [
 		icon: (
 			<svg
 				aria-hidden="true"
-				width="24"
-				height="24"
+				width="22"
+				height="22"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="1.5"
+				strokeWidth="2"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
@@ -81,12 +81,12 @@ const steps: StepItem[] = [
 		icon: (
 			<svg
 				aria-hidden="true"
-				width="24"
-				height="24"
+				width="22"
+				height="22"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="1.5"
+				strokeWidth="2"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
@@ -99,26 +99,31 @@ const steps: StepItem[] = [
 
 export function IntroSteps() {
 	return (
-		<section aria-label="使用流程" className="grid gap-3 sm:gap-4">
-			<div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+		<section aria-label="使用流程" className="grid gap-4">
+			<div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4">
 				{steps.map((step, i) => (
 					<div
 						key={step.label}
-						className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-4 transition-all hover:scale-[1.02] hover:border-primary/50"
+						className="group relative flex items-start gap-4 rounded-2xl border border-teal-500/20 bg-slate-900/60 p-4 sm:p-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-teal-400/60 hover:bg-slate-900/80 hover:shadow-2xl hover:shadow-teal-500/10"
 					>
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-light text-primary">
+						{/* Icon Box */}
+						<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-950/40 text-teal-400 shadow-inner transition-colors duration-300 group-hover:border-teal-400 group-hover:bg-teal-500 group-hover:text-slate-950">
 							{step.icon}
 						</div>
-						<div className="grid gap-0.5 text-left">
+
+						{/* Text & Step Num */}
+						<div className="grid gap-1 text-left">
 							<div className="flex items-baseline gap-2">
-								<span className="font-mono text-xs tabular-nums text-text-secondary">
+								<span className="font-mono text-xs font-semibold tabular-nums text-teal-400/80">
 									0{i + 1}
 								</span>
-								<span className="text-base font-bold text-text">
+								<span className="text-base font-bold text-slate-100 transition-colors group-hover:text-white">
 									{step.label}
 								</span>
 							</div>
-							<p className="text-sm text-text-secondary">{step.desc}</p>
+							<p className="text-sm leading-relaxed text-slate-400">
+								{step.desc}
+							</p>
 						</div>
 					</div>
 				))}
