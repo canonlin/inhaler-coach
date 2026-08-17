@@ -11,19 +11,28 @@ import { ExhaleDetector } from "../steps/step2-exhale";
 import { PressInhaleDetector } from "../steps/step3-press-inhale";
 import { RinseDetector } from "../steps/step4-rinse";
 
-export const singletons = {
-	detection: new DetectionManager(),
-	inhalerDetector: new InhalerDetector(),
-	deviceTracker: new DeviceTracker(),
-	actuationDet: new ActuationDetector(),
-	respSampler: new RespirationSampler(),
-	audio: new AudioFeatures(),
-	step0: new PrimingDetector(),
-	step1: new ShakeDetector(),
-	step2: new ExhaleDetector(),
-	step3: new PressInhaleDetector(),
-	step4: new RinseDetector(),
-};
+let _singletons: any = null;
+
+export const singletons = new Proxy({} as any, {
+	get(_target, prop) {
+		if (!_singletons && typeof window !== "undefined") {
+			_singletons = {
+				detection: new DetectionManager(),
+				inhalerDetector: new InhalerDetector(),
+				deviceTracker: new DeviceTracker(),
+				actuationDet: new ActuationDetector(),
+				respSampler: new RespirationSampler(),
+				audio: new AudioFeatures(),
+				step0: new PrimingDetector(),
+				step1: new ShakeDetector(),
+				step2: new ExhaleDetector(),
+				step3: new PressInhaleDetector(),
+				step4: new RinseDetector(),
+			};
+		}
+		return _singletons ? _singletons[prop] : undefined;
+	},
+});
 
 export function getStageConfig(idx: number) {
 	return STAGES[idx] ?? STAGES[0];
