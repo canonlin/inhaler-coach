@@ -1,5 +1,3 @@
-import { motion } from "motion/react";
-
 type StepItem = {
 	label: string;
 	desc: string;
@@ -97,37 +95,14 @@ const steps: StepItem[] = [
 	},
 ];
 
-const container = {
-	hidden: {},
-	show: {
-		transition: { staggerChildren: 0.08, delayChildren: 0.15 },
-	},
-};
-
-const card = {
-	hidden: { opacity: 0, y: 16 },
-	show: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
-	},
-};
-
 export function IntroSteps() {
 	return (
 		<section aria-label="使用流程" className="grid gap-3 sm:gap-4">
-			<motion.div
-				className="grid gap-3 sm:grid-cols-2 sm:gap-4"
-				variants={container}
-				initial="hidden"
-				animate="show"
-			>
+			<div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
 				{steps.map((step, i) => (
-					<motion.div
+					<div
 						key={step.label}
-						variants={card}
-						whileHover={{ scale: 1.02 }}
-						className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary/50"
+						className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-4 transition-all hover:scale-[1.02] hover:border-primary/50"
 					>
 						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-light text-primary">
 							{step.icon}
@@ -143,9 +118,9 @@ export function IntroSteps() {
 							</div>
 							<p className="text-sm text-text-secondary">{step.desc}</p>
 						</div>
-					</motion.div>
+					</div>
 				))}
-			</motion.div>
+			</div>
 		</section>
 	);
 }
