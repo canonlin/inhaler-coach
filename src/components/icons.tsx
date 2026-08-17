@@ -1,6 +1,8 @@
-import React from "react";
-
-export function IconArrowRight({ className = "w-5 h-5" }: { className?: string }) {
+export function IconArrowRight({
+	className = "w-5 h-5",
+}: {
+	className?: string;
+}) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -18,7 +20,11 @@ export function IconArrowRight({ className = "w-5 h-5" }: { className?: string }
 	);
 }
 
-export function IconArrowLeft({ className = "w-4 h-4" }: { className?: string }) {
+export function IconArrowLeft({
+	className = "w-4 h-4",
+}: {
+	className?: string;
+}) {
 	return (
 		<svg
 			aria-hidden="true"

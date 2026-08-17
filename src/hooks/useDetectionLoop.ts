@@ -1,10 +1,13 @@
-import { useRef, useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { drawOverlay } from "../overlay";
 import { singletons } from "../services/detection-singletons";
 
 type UseDetectionLoopProps = {
 	canvasRef: React.RefObject<HTMLCanvasElement | null>;
-	onStatusChange: (statusText: string, overlay: "none" | "correct" | "wrong") => void;
+	onStatusChange: (
+		statusText: string,
+		overlay: "none" | "correct" | "wrong",
+	) => void;
 };
 
 export function useDetectionLoop({
@@ -86,7 +89,7 @@ export function useDetectionLoop({
 
 			requestAnimationFrame(frame);
 		},
-		[canvasRef, onStatusChange]
+		[canvasRef, onStatusChange],
 	);
 
 	return {

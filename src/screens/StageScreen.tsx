@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { AISection } from "../components/stage/AISection";
 import { StageTopBar } from "../components/stage/StageTopBar";
 import { VideoSection } from "../components/stage/VideoSection";
-import { getStageConfig } from "../services/detection-singletons";
 import type { CoachingReturn } from "../hooks/useCoaching";
+import { getStageConfig } from "../services/detection-singletons";
 
 type StageScreenProps = CoachingReturn;
 
@@ -12,7 +12,6 @@ export function StageScreen(props: StageScreenProps) {
 		stageIdx,
 		overlay,
 		showVideo,
-		aiLabel,
 		tryBtnText,
 		showPharmacist,
 		showRetry,
@@ -93,7 +92,7 @@ export function StageScreen(props: StageScreenProps) {
 					<AISection
 						canvasRef={canvasRef}
 						overlay={overlay}
-						aiLabel={aiLabel}
+						aiLabel={s.badge}
 						statusText={statusText}
 						onBackToVideo={backToVideo}
 					/>

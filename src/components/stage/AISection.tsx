@@ -49,7 +49,10 @@ export function AISection({
 						<div className={OVERLAY_CLASSES[overlay] ?? "hidden"} />
 					</div>
 
-					<div className="flex-1 min-w-[180px] flex flex-col gap-3" id="ai-results">
+					<div
+						className="flex-1 min-w-[180px] flex flex-col gap-3"
+						id="ai-results"
+					>
 						<div className="text-sm text-text-secondary text-center p-5">
 							{statusText ? (
 								<StatusBanner text={statusText} />
