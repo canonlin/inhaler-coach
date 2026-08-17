@@ -15,7 +15,12 @@ export function useWebcamStream() {
 			const res = await startWebcam();
 			if (res?.stream) {
 				singletons.audio.initialize(res.stream);
-				singletons.audio.startSampling();
+				singletons.audio.startSampling((sound: object, timestamp: number) => {
+					const det = singletons.actuationDet as unknown as {
+						update: (sound: object, timestamp: number) => void;
+					};
+					det?.update?.(sound, timestamp);
+				});
 				return true;
 			}
 		} catch (err) {

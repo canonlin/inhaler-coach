@@ -10,6 +10,17 @@ type UseDetectionLoopProps = {
 	) => void;
 };
 
+type FrameNeeds = {
+	pose: boolean;
+	face: boolean;
+	hands: boolean;
+};
+
+type StepEvalResult = {
+	ok: boolean;
+	msg: string;
+};
+
 export function useDetectionLoop({
 	canvasRef,
 	onStatusChange,
@@ -36,25 +47,36 @@ export function useDetectionLoop({
 				if (canvas) {
 					const ctx = canvas.getContext("2d");
 					if (ctx) {
-						let poseResult: any = null;
+						let poseResult: unknown = null;
 						try {
 							if (typeof singletons.detection?.processFrame === "function") {
+								const needs: FrameNeeds = {
+									pose: true,
+									face: true,
+									hands: true,
+								};
 								poseResult = await singletons.detection.processFrame(
 									canvas,
 									now,
-									{ pose: true, face: true, hands: true } as any,
+									needs,
 								);
 							}
 						} catch {}
 
-						drawOverlay(ctx, poseResult?.pose ?? poseResult);
+						const poseData =
+							poseResult &&
+							typeof poseResult === "object" &&
+							"pose" in poseResult
+								? (poseResult as { pose: unknown }).pose
+								: poseResult;
+						drawOverlay(ctx, poseData as Parameters<typeof drawOverlay>[1]);
 
 						if (!isEvaluating && now - loopRef.current.lastFrameTime > 200) {
 							loopRef.current.lastFrameTime = now;
 							isEvaluating = true;
 
 							try {
-								let stepResult: any = { ok: false, msg: "" };
+								let stepResult: StepEvalResult = { ok: false, msg: "" };
 
 								switch (stageIdx) {
 									case 1:
@@ -68,7 +90,15 @@ export function useDetectionLoop({
 										break;
 									case 2:
 										if (typeof singletons.step2?.detect === "function") {
-											const res = (singletons.step2 as any).detect({
+											const step = singletons.step2 as unknown as {
+												detect: (arg: {
+													device: unknown;
+													mouthPoint: unknown;
+												}) => {
+													exhaling?: boolean;
+												};
+											};
+											const res = step.detect({
 												device: null,
 												mouthPoint: null,
 											});
@@ -80,7 +110,15 @@ export function useDetectionLoop({
 										break;
 									case 3:
 										if (typeof singletons.step3?.detect === "function") {
-											const res = (singletons.step3 as any).detect({
+											const step = singletons.step3 as unknown as {
+												detect: (arg: {
+													device: unknown;
+													mouthPoint: unknown;
+												}) => {
+													pressing?: boolean;
+												};
+											};
+											const res = step.detect({
 												device: null,
 												mouthPoint: null,
 											});
