@@ -1,4 +1,3 @@
-import type { RefObject } from "react";
 import {
 	IconArrowRight,
 	IconBrain,
@@ -10,11 +9,9 @@ import { LoadingWave } from "../LoadingWave";
 import { StatusBanner } from "./StatusBanner";
 
 type VideoSectionProps = {
-	videoContainerRef: RefObject<HTMLDivElement | null>;
-	videoEmbedUrl?: string;
+	setContainerRef: (node: HTMLDivElement | null) => void;
 	isVideoLoading?: boolean;
 	isVideoEnded?: boolean;
-	onIframeLoad?: () => void;
 	badge: string;
 	badgeClass: string;
 	title: string;
@@ -33,11 +30,9 @@ type VideoSectionProps = {
 };
 
 export function VideoSection({
-	videoContainerRef,
-	videoEmbedUrl,
+	setContainerRef,
 	isVideoLoading = false,
 	isVideoEnded = false,
-	onIframeLoad,
 	badge,
 	badgeClass,
 	title,
@@ -57,39 +52,28 @@ export function VideoSection({
 	const isEnded = stagePassed || isVideoEnded;
 
 	return (
-		<div className="relative w-full h-full" ref={videoContainerRef}>
-			{/* YouTube embed iframe with JS API enabled */}
-			<div className="absolute inset-0 flex items-center justify-center">
-				<iframe
-					title="衛教影片"
-					aria-label="衛教影片"
-					className="w-full h-full border-none z-0"
-					style={{
-						maxWidth: "100vw",
-						maxHeight: "100vh",
-						aspectRatio: "16/9",
-					}}
-					src={videoEmbedUrl || undefined}
-					onLoad={onIframeLoad}
-					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-					allowFullScreen
-				/>
+		<div className="relative w-full h-full">
+			{/* YT.Player mounts here — fills the container */}
+			<div
+				ref={setContainerRef}
+				id="yt-player"
+				className="absolute inset-0 z-0"
+			/>
 
-				{/* Loading Wave Overlay: ONLY appears during loading state with smooth fadeout! */}
-				<div
-					id="video-loading"
-					className={`absolute inset-0 flex flex-col items-center justify-center bg-[#060a10] z-20 transition-opacity duration-500 pointer-events-none ${
-						isVideoLoading && !isEnded ? "opacity-100" : "opacity-0"
-					}`}
-				>
-					<div className="inline-block px-4 py-1 rounded text-sm font-bold text-cyan-400 mb-1 border border-cyan-500/30 bg-cyan-950/40">
-						{badge}
-					</div>
-					<div className="text-[clamp(28px,5vw,44px)] font-black text-white mb-2 tracking-tight">
-						{title}
-					</div>
-					<LoadingWave />
+			{/* Loading Wave Overlay: ONLY appears during loading state with smooth fadeout! */}
+			<div
+				id="video-loading"
+				className={`absolute inset-0 flex flex-col items-center justify-center bg-[#060a10] z-20 transition-opacity duration-500 pointer-events-none ${
+					isVideoLoading && !isEnded ? "opacity-100" : "opacity-0"
+				}`}
+			>
+				<div className="inline-block px-4 py-1 rounded text-sm font-bold text-cyan-400 mb-1 border border-cyan-500/30 bg-cyan-950/40">
+					{badge}
 				</div>
+				<div className="text-[clamp(28px,5vw,44px)] font-black text-white mb-2 tracking-tight">
+					{title}
+				</div>
+				<LoadingWave />
 			</div>
 
 			{headerVisible && (
@@ -124,11 +108,6 @@ export function VideoSection({
 				</div>
 			)}
 
-			{/* 
-				DEAD CENTER END-OF-VIDEO OVERLAY:
-				ONLY appears AFTER video finishes playing (isEnded === true)!
-				Positioned in the EXACT DEAD CENTER of the screen with ZERO buttons during video playback!
-			*/}
 			{isEnded && (
 				<div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md transition-all duration-300 animate-fadeIn p-6 text-center">
 					<div className="text-2xl sm:text-3xl font-black text-white mb-8 flex items-center gap-3">
@@ -138,7 +117,6 @@ export function VideoSection({
 						<span>衛教影片播放完畢</span>
 					</div>
 
-					{/* PROMINENT BUTTONS IN THE DEAD CENTER */}
 					<div className="flex items-center gap-5 flex-wrap justify-center">
 						{onReplayVideo && (
 							<button
