@@ -20,11 +20,9 @@ export function StageScreen(props: StageScreenProps) {
 		nextBtnText,
 		statusText,
 		canvasRef,
-		videoContainerRef,
-		videoEmbedUrl,
+		setContainerRef,
 		isVideoLoading,
 		isVideoEnded,
-		finishLoading,
 		replayVideo,
 		startAIPhase,
 		retryStage,
@@ -75,11 +73,9 @@ export function StageScreen(props: StageScreenProps) {
 			<div className="relative w-full h-screen bg-black flex items-center justify-center overflow-hidden">
 				{showVideo ? (
 					<VideoSection
-						videoContainerRef={videoContainerRef}
-						videoEmbedUrl={videoEmbedUrl}
+						setContainerRef={setContainerRef}
 						isVideoLoading={isVideoLoading}
 						isVideoEnded={isVideoEnded}
-						onIframeLoad={finishLoading}
 						badge={s.badge}
 						badgeClass={s.badgeClass}
 						title={s.title}

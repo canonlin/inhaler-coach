@@ -34,7 +34,6 @@ export function useCoaching() {
 
 	const yt = useYouTubePlayer({
 		videoURL: stageConfig.videoURL,
-		stageIdx: nav.stageIdx,
 		showVideo,
 		onVideoEnd: handleVideoEnd,
 	});
@@ -78,8 +77,7 @@ export function useCoaching() {
 
 	const showPharmacist = nav.stageIdx > 0;
 	const showRetry = nav.stagePassed && nav.phase === "ai";
-	const showNext =
-		(nav.stagePassed || nav.phase === "video") && nav.stageIdx === 0;
+	const showNext = nav.stagePassed && nav.stageIdx === 0;
 	const nextBtnText = nav.stageIdx === 0 ? "開始闖關" : "進入下一關";
 
 	useEffect(() => {
@@ -104,11 +102,9 @@ export function useCoaching() {
 		showNext,
 		nextBtnText,
 		canvasRef: webcam.canvasRef,
-		videoContainerRef: yt.videoContainerRef,
-		videoEmbedUrl: yt.videoEmbedUrl,
+		setContainerRef: yt.setContainerRef,
 		isVideoLoading: yt.isVideoLoading,
 		isVideoEnded: yt.isVideoEnded,
-		finishLoading: yt.finishLoading,
 		replayVideo: handleReplayVideo,
 		finishIntro: nav.finishIntro,
 		loadStage: nav.loadStage,
