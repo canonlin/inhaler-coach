@@ -58,7 +58,8 @@ export default defineConfig(({ command }) => ({
   server: {
     host: 'localhost',
     port: 3000,
-    open: true,
+    strictPort: true,
+    open: false,
   },
   // GitHub Pages serves a project site from /<repo>/, so built assets need that
   // prefix — but the dev server is at the root, and applying it there just makes
