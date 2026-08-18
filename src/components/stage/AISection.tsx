@@ -22,9 +22,9 @@ type AISectionProps = {
 const OVERLAY_CLASSES: Record<string, string> = {
 	none: "hidden",
 	correct:
-		"absolute inset-0 border-4 border-emerald-500 bg-emerald-500/10 rounded-lg pointer-events-none transition-all duration-300",
+		"absolute inset-0 border-4 border-emerald-500 bg-emerald-500/10 pointer-events-none transition-all duration-300",
 	wrong:
-		"absolute inset-0 border-4 border-rose-500 bg-rose-500/10 rounded-lg pointer-events-none transition-all duration-300",
+		"absolute inset-0 border-4 border-rose-500 bg-rose-500/10 pointer-events-none transition-all duration-300",
 };
 
 export function AISection({
@@ -43,50 +43,46 @@ export function AISection({
 	onNext,
 }: AISectionProps) {
 	return (
-		<div className="absolute inset-0 bg-slate-950 flex items-center justify-center z-20 p-4">
-			<div className="w-full max-w-[840px] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-				<div className="px-5 py-3 text-sm font-bold text-slate-300 border-b border-slate-800 flex items-center gap-2">
-					<span className="flex items-center gap-2 text-white">
-						<IconBrain className="w-5 h-5 text-cyan-400" />
-						<span>AI 即時辨識練習</span>
-					</span>
+		<div className="relative w-full h-full bg-black">
+			{/* Camera feed — fills entire area */}
+			<canvas
+				id="webcam-canvas"
+				ref={canvasRef}
+				className="absolute inset-0 w-full h-full object-cover block"
+				width="480"
+				height="360"
+			/>
+			<div className={OVERLAY_CLASSES[overlay] ?? "hidden"} />
+
+			{/* Top bar — label */}
+			<div className="absolute top-0 left-0 right-0 z-10 px-4 pt-3 pb-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+				<div className="flex items-center gap-2 text-white">
+					<IconBrain className="w-5 h-5 text-cyan-400" />
+					<span className="text-sm font-bold">AI 即時辨識練習</span>
 					<span className="ml-auto text-xs font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
 						{aiLabel}
 					</span>
 				</div>
+			</div>
 
-				<div className="p-5 flex gap-5 items-start flex-wrap max-md:flex-col">
-					<div className="relative w-[clamp(280px,40vw,480px)] min-w-[260px] flex-shrink-0 mx-auto">
-						<canvas
-							ref={canvasRef}
-							className="w-full h-auto rounded-xl bg-black block border border-slate-700 min-h-[220px]"
-							width="480"
-							height="360"
-						/>
-						<div className={OVERLAY_CLASSES[overlay] ?? "hidden"} />
+			{/* Center status */}
+			<div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center pointer-events-none px-4">
+				{statusText ? (
+					<StatusBanner text={statusText} />
+				) : (
+					<div className="text-slate-400 text-sm bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm">
+						AI 模型運算中，請依照提示操作...
 					</div>
+				)}
+			</div>
 
-					<div
-						className="flex-1 min-w-[220px] flex flex-col gap-3 justify-center self-center w-full"
-						id="ai-results"
-					>
-						<div className="text-sm text-slate-300 text-center p-4">
-							{statusText ? (
-								<StatusBanner text={statusText} />
-							) : (
-								<div className="text-slate-400">
-									AI 模型運算中，請依照提示操作...
-								</div>
-							)}
-						</div>
-					</div>
-				</div>
-
-				<div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between gap-3 flex-wrap bg-slate-950/50">
+			{/* Bottom bar — buttons */}
+			<div className="absolute bottom-0 left-0 right-0 z-10 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
+				<div className="flex items-center justify-between gap-3 flex-wrap">
 					<button
 						type="button"
 						onClick={onBackToVideo}
-						className="bg-transparent border-none text-slate-400 text-sm cursor-pointer font-sans hover:text-white flex items-center gap-1.5 transition-colors"
+						className="bg-transparent border-none text-slate-300 text-sm cursor-pointer font-sans hover:text-white flex items-center gap-1.5 transition-colors"
 					>
 						<IconArrowLeft className="w-4 h-4" />
 						<span>重新觀看影片</span>
