@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getStageConfig } from "../services/detection-singletons";
+import { getStageConfig, singletons } from "../services/detection-singletons";
 import { useDetectionLoop } from "./useDetectionLoop";
 import { useStageNavigation } from "./useStageNavigation";
 import { useWebcamStream } from "./useWebcamStream";
@@ -11,6 +11,7 @@ export function useCoaching() {
 
 	const [statusText, setStatusText] = useState("");
 	const [overlay, setOverlay] = useState<"none" | "correct" | "wrong">("none");
+	const [modelReady, setModelReady] = useState(false);
 
 	const stageConfig = getStageConfig(nav.stageIdx);
 	const showVideo = nav.phase === "video";
@@ -45,11 +46,21 @@ export function useCoaching() {
 
 	const startAIPhase = useCallback(async () => {
 		nav.startAIPhase();
-		setStatusText("即時 AI 辨識中...");
+		setModelReady(false);
+		setStatusText("AI 模型載入中...");
 		setOverlay("none");
 
 		const ok = await webcam.startStream();
 		if (ok) {
+			try {
+				await singletons.detection.initialize();
+			} catch (err) {
+				console.error("Detection init failed:", err);
+				setStatusText("AI 模型載入失敗，請重新整理頁面");
+				return;
+			}
+			setModelReady(true);
+			setStatusText("即時 AI 辨識中...");
 			detLoop.startLoop(nav.stageIdx, () => nav.setStagePassed(true));
 		} else {
 			setStatusText("無法存取攝影機，請檢查硬體與授權！");
@@ -60,6 +71,7 @@ export function useCoaching() {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.backToVideo();
+		setModelReady(false);
 		setStatusText("");
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
@@ -68,6 +80,7 @@ export function useCoaching() {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.nextStage();
+		setModelReady(false);
 		setStatusText("");
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
@@ -96,6 +109,7 @@ export function useCoaching() {
 		statusText,
 		overlay,
 		showVideo,
+		modelReady,
 		tryBtnText,
 		showPharmacist,
 		showRetry,

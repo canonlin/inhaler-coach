@@ -17,8 +17,10 @@ export class DetectionManager {
 	 * Initialize detection with automatic fallback
 	 */
 	async initialize() {
+		console.log("[DetectionManager] initialize() called");
 		// Try MediaPipe first
 		try {
+			console.log("[DetectionManager] trying MediaPipe...");
 			const { MediaPipeBackend } = await import(
 				"./backends/mediapipe-backend.js"
 			);
@@ -27,16 +29,17 @@ export class DetectionManager {
 			this.backend = backend;
 			this.activeBackend = "mediapipe";
 			this.isInitialized = true;
-			console.log("Detection: MediaPipe backend initialized (WebGL)");
+			console.log("[DetectionManager] MediaPipe backend initialized (WebGL)");
 			return;
 		} catch (e) {
-			console.warn("MediaPipe initialization failed, trying TF.js:", e.message);
+			console.warn("[DetectionManager] MediaPipe failed:", e.message);
 		}
 
 		// Fallback to TF.js, off the main thread. WASM inference is synchronous,
 		// so running it inline would freeze the UI for the length of every
 		// forward pass.
 		try {
+			console.log("[DetectionManager] trying TF.js...");
 			const { TFJSWorkerBackend } = await import(
 				"./backends/tfjs-worker-backend.js"
 			);
@@ -45,10 +48,10 @@ export class DetectionManager {
 			this.backend = backend;
 			this.activeBackend = "tfjs";
 			this.isInitialized = true;
-			console.log("Detection: TF.js backend initialized (WASM, in worker)");
+			console.log("[DetectionManager] TF.js backend initialized (WASM, in worker)");
 			return;
 		} catch (e) {
-			console.error("TF.js initialization also failed:", e.message);
+			console.error("[DetectionManager] TF.js also failed:", e.message);
 			throw new Error(`No detection backend available: ${e.message}`);
 		}
 	}
