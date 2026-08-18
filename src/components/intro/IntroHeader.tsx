@@ -1,23 +1,30 @@
 export function IntroHeader() {
 	return (
-		<header className="grid gap-5 text-left relative">
-			{/* Tag & Status Indicator */}
+		<header className="grid gap-2.5 text-left">
+			{/* Tag Badge */}
 			<div className="flex items-center gap-2.5">
-				<span className="relative flex h-2.5 w-2.5">
-					<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
-					<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500" />
-				</span>
-				<p className="font-mono text-xs font-semibold tracking-[0.3em] text-teal-400 uppercase">
+				<span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-1 text-sm lg:text-sm font-black tracking-wider text-rose-900 uppercase shadow-xs">
+					<span
+						className="h-2 w-2 rounded-full bg-rose-600 animate-pulse"
+						aria-hidden="true"
+					/>
 					INHALER COACH
-				</p>
+				</span>
+				<span className="font-mono text-sm text-slate-400 font-bold">/</span>
+				<span className="font-mono text-sm lg:text-sm text-slate-500 font-bold tracking-wider">
+					RESPIRATORY CARE
+				</span>
 			</div>
 
-			{/* Main Title & Subtitle */}
-			<div className="grid gap-3">
-				<h1 className="text-4xl font-black leading-[1.1] tracking-tight sm:text-5xl md:text-6xl bg-gradient-to-r from-white via-slate-100 to-teal-200 bg-clip-text text-transparent drop-shadow-sm">
-					吸必擴智慧教學平台
+			{/* Main Title */}
+			<div className="grid gap-2">
+				<h1 className="text-3xl font-black leading-tight tracking-tight text-slate-900 lg:text-5xl">
+					吸必擴{" "}
+					<span className="inline-block bg-rose-600 text-white px-3.5 py-0.5 rounded-xl shadow-md">
+						智慧教學平台
+					</span>
 				</h1>
-				<p className="max-w-[42ch] text-base leading-relaxed text-slate-400 md:text-lg font-normal">
+				<p className="text-base font-black leading-relaxed text-slate-800 lg:text-lg max-w-[42ch]">
 					四步流程：看影片、調姿勢、AI 糾正、看結果。一次導覽，直接上手。
 				</p>
 			</div>

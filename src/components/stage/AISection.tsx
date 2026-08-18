@@ -33,7 +33,7 @@ export function AISection({
 						<IconBrain />
 						AI 即時辨識
 					</span>
-					<span className="ml-auto text-xs text-text-secondary/60">
+					<span className="ml-auto text-sm text-text-secondary/60">
 						{aiLabel}
 					</span>
 				</div>
@@ -67,7 +67,7 @@ export function AISection({
 					<button
 						type="button"
 						onClick={onBackToVideo}
-						className="bg-none border-none text-text-secondary text-xs cursor-pointer font-sans hover:text-text flex items-center gap-1"
+						className="bg-none border-none text-text-secondary text-sm cursor-pointer font-sans hover:text-text flex items-center gap-1"
 					>
 						<IconArrowLeft />
 						重新觀看影片

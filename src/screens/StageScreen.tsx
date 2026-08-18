@@ -41,8 +41,8 @@ export function StageScreen(props: StageScreenProps) {
 		const headerVisible = stageIdx === 0 || cfg.badge === "BONUS";
 		const badgeClass =
 			cfg.badge === "BONUS"
-				? "bg-amber-400 text-black font-mono font-bold px-2 py-0.5 rounded text-xs inline-block"
-				: "text-text-secondary/60 text-xs font-mono inline-block";
+				? "bg-amber-400 text-black font-mono font-bold px-2 py-0.5 rounded text-sm inline-block"
+				: "text-text-secondary/60 text-sm font-mono inline-block";
 
 		const titleClass =
 			cfg.badge === "BONUS"
