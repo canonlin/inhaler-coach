@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { state } from "../core/state";
 import { drawOverlay } from "../overlay";
 import { singletons } from "../services/detection-singletons";
 
@@ -47,6 +48,17 @@ export function useDetectionLoop({
 				if (canvas) {
 					const ctx = canvas.getContext("2d");
 					if (ctx) {
+						// Redraw the live webcam feed each frame
+						if (state.webcamVideo) {
+							ctx.drawImage(
+								state.webcamVideo,
+								0,
+								0,
+								canvas.width,
+								canvas.height,
+							);
+						}
+
 						let poseResult: unknown = null;
 						try {
 							if (typeof singletons.detection?.processFrame === "function") {
