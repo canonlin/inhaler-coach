@@ -8,6 +8,7 @@ type AISectionProps = {
 	overlay: "none" | "correct" | "wrong";
 	aiLabel: string;
 	statusText: string;
+	modelReady: boolean;
 	stagePassed?: boolean;
 	showPharmacist?: boolean;
 	showRetry?: boolean;
@@ -32,6 +33,7 @@ export function AISection({
 	overlay,
 	aiLabel,
 	statusText,
+	modelReady,
 	stagePassed,
 	showPharmacist = true,
 	showRetry,
@@ -44,11 +46,19 @@ export function AISection({
 }: AISectionProps) {
 	return (
 		<div className="relative w-full h-full bg-black">
+			{/* Loading state — no camera, just loading indicator */}
+			{!modelReady && (
+				<div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-20">
+					<div className="w-10 h-10 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+					<div className="text-slate-300 text-sm">AI 模型載入中...</div>
+				</div>
+			)}
+
 			{/* Camera feed — fills entire area */}
 			<canvas
 				id="webcam-canvas"
 				ref={canvasRef}
-				className="absolute inset-0 w-full h-full object-cover block"
+				className={`absolute inset-0 w-full h-full object-cover block ${modelReady ? "opacity-100" : "opacity-0"}`}
 				width="480"
 				height="360"
 			/>

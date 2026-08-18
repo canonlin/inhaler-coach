@@ -12,6 +12,7 @@ export function StageScreen(props: StageScreenProps) {
 		stageIdx,
 		overlay,
 		showVideo,
+		modelReady,
 		tryBtnText,
 		stagePassed,
 		showPharmacist,
@@ -98,6 +99,7 @@ export function StageScreen(props: StageScreenProps) {
 						overlay={overlay}
 						aiLabel={s.badge}
 						statusText={statusText}
+						modelReady={modelReady}
 						stagePassed={stagePassed}
 						showPharmacist={showPharmacist}
 						showRetry={showRetry}

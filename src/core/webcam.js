@@ -19,6 +19,7 @@ export function stopWebcam() {
 }
 
 export async function startWebcam() {
+	console.log("[webcam] startWebcam called");
 	const video = document.createElement("video");
 	video.setAttribute("playsinline", "");
 	video.setAttribute("autoplay", "");
@@ -36,10 +37,17 @@ export async function startWebcam() {
 			autoGainControl: false,
 		},
 	});
+	console.log("[webcam] stream acquired:", stream.getTracks().map((t) => t.kind).join(", "));
 	video.srcObject = stream;
 	await video.play();
+	console.log("[webcam] video.play() resolved, readyState:", video.readyState);
 
 	const canvas = document.getElementById("webcam-canvas");
+	if (!canvas) {
+		console.error("[webcam] canvas#webcam-canvas not found in DOM!");
+		return null;
+	}
+	console.log("[webcam] canvas found:", canvas.width, "x", canvas.height);
 	canvas.width = 480;
 	canvas.height = 360;
 	// The detection backends read this canvas back every frame.
@@ -50,6 +58,7 @@ export async function startWebcam() {
 	state.webcamVideo = video;
 	state.webcamCanvas = canvas;
 	state.isRunning = true;
+	console.log("[webcam] state.webcamVideo set:", !!state.webcamVideo);
 
 	return { video, canvas, stream };
 }

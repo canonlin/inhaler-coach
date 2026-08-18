@@ -4,6 +4,7 @@ import { AudioFeatures } from "../detection/audio-features";
 import { DetectionManager } from "../detection/detection-manager";
 import { DeviceTracker } from "../detection/device-tracker";
 import { InhalerDetector } from "../detection/inhaler-detector";
+import { MotionEnergy } from "../detection/motion-energy";
 import { RespirationSampler } from "../detection/respiration-sampler";
 import { PrimingDetector } from "../steps/step0-priming";
 import { ShakeDetector } from "../steps/step1-shake";
@@ -15,6 +16,7 @@ export type SingletonServices = {
 	detection: DetectionManager;
 	inhalerDetector: InhalerDetector;
 	deviceTracker: DeviceTracker;
+	motionEnergy: MotionEnergy;
 	actuationDet: ActuationDetector;
 	respSampler: RespirationSampler;
 	audio: AudioFeatures;
@@ -34,6 +36,7 @@ export const singletons = new Proxy({} as SingletonServices, {
 				detection: new DetectionManager(),
 				inhalerDetector: new InhalerDetector(),
 				deviceTracker: new DeviceTracker(),
+				motionEnergy: new MotionEnergy(),
 				actuationDet: new ActuationDetector(),
 				respSampler: new RespirationSampler(),
 				audio: new AudioFeatures(),
