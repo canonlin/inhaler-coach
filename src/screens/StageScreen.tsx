@@ -13,6 +13,7 @@ export function StageScreen(props: StageScreenProps) {
 		overlay,
 		showVideo,
 		tryBtnText,
+		stagePassed,
 		showPharmacist,
 		showRetry,
 		showNext,
@@ -20,6 +21,11 @@ export function StageScreen(props: StageScreenProps) {
 		statusText,
 		canvasRef,
 		videoContainerRef,
+		videoEmbedUrl,
+		isVideoLoading,
+		isVideoEnded,
+		finishLoading,
+		replayVideo,
 		startAIPhase,
 		retryStage,
 		pharmacistConfirm,
@@ -33,7 +39,7 @@ export function StageScreen(props: StageScreenProps) {
 		const topbarLeft = cfg.badge === "BONUS" ? "0" : "left-[120px]";
 		const topbarText =
 			cfg.badge === "BONUS"
-				? "🎉 恭喜！您已完成吸入器正確操作的所有階段！"
+				? "恭喜！您已完成吸入器正確操作的所有階段！"
 				: stageIdx === 0
 					? ""
 					: `第 ${stageIdx} / 4 關：${cfg.name}`;
@@ -58,7 +64,7 @@ export function StageScreen(props: StageScreenProps) {
 			badge: cfg.badge,
 			title: cfg.name,
 			hint: cfg.hint ?? "",
-			videoLabel: cfg.badge === "BONUS" ? "" : "📺 衛教展示影片",
+			videoLabel: cfg.badge === "BONUS" ? "" : "衛教展示影片",
 		};
 	}, [stageIdx]);
 
@@ -70,6 +76,10 @@ export function StageScreen(props: StageScreenProps) {
 				{showVideo ? (
 					<VideoSection
 						videoContainerRef={videoContainerRef}
+						videoEmbedUrl={videoEmbedUrl}
+						isVideoLoading={isVideoLoading}
+						isVideoEnded={isVideoEnded}
+						onIframeLoad={finishLoading}
 						badge={s.badge}
 						badgeClass={s.badgeClass}
 						title={s.title}
@@ -79,13 +89,11 @@ export function StageScreen(props: StageScreenProps) {
 						videoLabel={s.videoLabel}
 						tryBtnText={tryBtnText}
 						statusText={statusText}
-						showPharmacist={showPharmacist}
-						showRetry={showRetry}
+						stagePassed={stagePassed}
 						showNext={showNext}
 						nextBtnText={nextBtnText}
 						onStartAI={startAIPhase}
-						onPharmacist={pharmacistConfirm}
-						onRetry={retryStage}
+						onReplayVideo={replayVideo}
 						onNext={nextStage}
 					/>
 				) : (
@@ -94,7 +102,15 @@ export function StageScreen(props: StageScreenProps) {
 						overlay={overlay}
 						aiLabel={s.badge}
 						statusText={statusText}
+						stagePassed={stagePassed}
+						showPharmacist={showPharmacist}
+						showRetry={showRetry}
+						showNext={showNext}
+						nextBtnText={nextBtnText}
 						onBackToVideo={backToVideo}
+						onPharmacist={pharmacistConfirm}
+						onRetry={retryStage}
+						onNext={nextStage}
 					/>
 				)}
 			</div>

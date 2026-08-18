@@ -78,6 +78,60 @@ export function IconRefresh({ className = "w-4 h-4" }: { className?: string }) {
 	);
 }
 
+export function IconRotateCcw({
+	className = "w-4 h-4",
+}: {
+	className?: string;
+}) {
+	return (
+		<svg
+			aria-hidden="true"
+			className={className}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M1 4v6h6" />
+			<path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+		</svg>
+	);
+}
+
+export function IconPlay({ className = "w-4 h-4" }: { className?: string }) {
+	return (
+		<svg
+			aria-hidden="true"
+			className={className}
+			viewBox="0 0 24 24"
+			fill="currentColor"
+			stroke="none"
+		>
+			<polygon points="5,3 19,12 5,21" />
+		</svg>
+	);
+}
+
+export function IconVideo({ className = "w-4 h-4" }: { className?: string }) {
+	return (
+		<svg
+			aria-hidden="true"
+			className={className}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<polygon points="23,7 16,12 23,17" />
+			<rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+		</svg>
+	);
+}
+
 export function IconBrain({ className = "w-4 h-4" }: { className?: string }) {
 	return (
 		<svg

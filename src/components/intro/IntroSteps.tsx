@@ -25,7 +25,11 @@ const steps: StepItem[] = [
 				strokeLinejoin="round"
 			>
 				<rect x="2" y="4" width="20" height="16" rx="3" />
-				<polygon points="10,8.5 16,12 10,15.5" fill="currentColor" stroke="none" />
+				<polygon
+					points="10,8.5 16,12 10,15.5"
+					fill="currentColor"
+					stroke="none"
+				/>
 			</svg>
 		),
 	},
@@ -101,8 +105,8 @@ const steps: StepItem[] = [
 export function IntroSteps() {
 	return (
 		<section aria-label="吸必擴智慧教學四步流程" className="w-full">
-			{/* Mobile (< 640px): ONLY Mobile has 4 Flush Rows in Single Unified Container */}
-			<div className="steps-mobile-flush bg-white/95 backdrop-blur-md border-2 border-slate-200 rounded-2xl shadow-lg overflow-hidden divide-y divide-slate-100">
+			{/* Mobile (< 640px): ONLY Mobile has 4 Flush Rows using Tailwind 'block sm:hidden' */}
+			<div className="block sm:hidden bg-white/95 backdrop-blur-md border-2 border-slate-200 rounded-2xl shadow-lg overflow-hidden divide-y divide-slate-100">
 				{steps.map((step, i) => (
 					<div
 						key={step.label}
@@ -118,9 +122,7 @@ export function IntroSteps() {
 								<h2 className="text-base font-black tracking-tight text-slate-900">
 									{step.label}
 								</h2>
-								<p className="text-sm font-bold text-slate-600">
-									{step.desc}
-								</p>
+								<p className="text-sm font-bold text-slate-600">{step.desc}</p>
 							</div>
 						</div>
 						<div className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-700">
@@ -130,12 +132,12 @@ export function IntroSteps() {
 				))}
 			</div>
 
-			{/* Tablet & Desktop (>= 640px): Beautiful Separate 2x2 Cards Grid */}
-			<div className="steps-desktop-grid">
+			{/* Tablet & Desktop (>= 640px): 2x2 Grid using Tailwind 'hidden sm:grid grid-cols-2 gap-4' */}
+			<div className="hidden sm:grid grid-cols-2 gap-4 w-full">
 				{steps.map((step, i) => (
 					<div
 						key={step.label}
-						className="medical-card group relative flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-slate-900 cursor-default"
+						className="group relative flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-slate-900 cursor-default bg-white/92 backdrop-blur-md border-[1.5px] border-slate-200/90 shadow-lg shadow-slate-900/5 hover:-translate-y-0.5 hover:border-rose-600 hover:shadow-xl hover:shadow-rose-600/15 focus-visible:outline-3 focus-visible:outline-blue-600 focus-visible:outline-offset-2 transition-all duration-200"
 					>
 						{/* Top Row: Numeric Badge + Icon */}
 						<div className="flex items-center justify-between z-10">

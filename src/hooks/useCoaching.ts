@@ -34,9 +34,15 @@ export function useCoaching() {
 
 	const yt = useYouTubePlayer({
 		videoURL: stageConfig.videoURL,
+		stageIdx: nav.stageIdx,
 		showVideo,
 		onVideoEnd: handleVideoEnd,
 	});
+
+	const handleReplayVideo = useCallback(() => {
+		nav.setStagePassed(false);
+		yt.replayVideo();
+	}, [nav, yt]);
 
 	const startAIPhase = useCallback(async () => {
 		nav.startAIPhase();
@@ -70,7 +76,7 @@ export function useCoaching() {
 	const tryBtnText =
 		nav.phase === "video" && nav.stageIdx > 0 ? "開始 AI 辨識練習" : "";
 
-	const showPharmacist = nav.phase === "video" && nav.stageIdx > 0;
+	const showPharmacist = nav.stageIdx > 0;
 	const showRetry = nav.stagePassed && nav.phase === "ai";
 	const showNext =
 		(nav.stagePassed || nav.phase === "video") && nav.stageIdx === 0;
@@ -99,6 +105,11 @@ export function useCoaching() {
 		nextBtnText,
 		canvasRef: webcam.canvasRef,
 		videoContainerRef: yt.videoContainerRef,
+		videoEmbedUrl: yt.videoEmbedUrl,
+		isVideoLoading: yt.isVideoLoading,
+		isVideoEnded: yt.isVideoEnded,
+		finishLoading: yt.finishLoading,
+		replayVideo: handleReplayVideo,
 		finishIntro: nav.finishIntro,
 		loadStage: nav.loadStage,
 		restartGame: nav.restartGame,

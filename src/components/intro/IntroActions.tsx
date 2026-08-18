@@ -10,7 +10,7 @@ export function IntroActions({ onStart }: IntroActionsProps) {
 				id="btn-start"
 				onClick={onStart}
 				aria-label="開始導覽吸必擴智慧教學平台"
-				className="medical-btn group relative inline-flex h-13 w-full lg:w-fit items-center justify-center gap-3 px-8 text-lg font-black tracking-wide rounded-xl active:scale-95 cursor-pointer"
+				className="group relative inline-flex h-13 w-full lg:w-fit items-center justify-center gap-3 px-8 text-lg font-black tracking-wide rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/40 hover:bg-rose-700 hover:shadow-xl hover:shadow-rose-600/50 hover:-translate-y-0.5 focus-visible:outline-3 focus-visible:outline-blue-600 focus-visible:outline-offset-3 active:scale-95 cursor-pointer transition-all duration-200"
 			>
 				<span>開始導覽</span>
 				<svg

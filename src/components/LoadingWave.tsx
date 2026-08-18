@@ -1,50 +1,40 @@
-const BARS = [
-	{ id: "wave-0", offset: 0, delay: "0s" },
-	{ id: "wave-13", offset: 13, delay: "0.15s" },
-	{ id: "wave-26", offset: 26, delay: "0.3s" },
-	{ id: "wave-39", offset: 39, delay: "0.45s" },
-	{ id: "wave-52", offset: 52, delay: "0.6s" },
-	{ id: "wave-65", offset: 65, delay: "0.75s" },
-	{ id: "wave-78", offset: 78, delay: "0.9s" },
-];
-
 export function LoadingWave() {
 	return (
-		<div className="w-full text-center">
-			<svg
-				aria-label="載入中"
-				width="84"
-				height="32"
-				viewBox="0 0 84 32"
-				className="inline-block text-primary/70 mx-auto"
-			>
-				{BARS.map((bar) => (
-					<rect
-						key={bar.id}
-						x={bar.offset}
-						y="12"
-						width="6"
-						height="8"
-						rx="3"
-						fill="currentColor"
-					>
-						<animate
-							attributeName="height"
-							values="8;20;8"
-							dur="1s"
-							repeatCount="indefinite"
-							begin={bar.delay}
-						/>
-						<animate
-							attributeName="y"
-							values="12;6;12"
-							dur="1s"
-							repeatCount="indefinite"
-							begin={bar.delay}
-						/>
-					</rect>
-				))}
-			</svg>
+		<div className="flex flex-col items-center justify-center gap-3 py-4 select-none">
+			{/* Dynamic Glowing Wave Bars using CSS Keyframes */}
+			<div className="flex items-center gap-2 h-9 px-2">
+				<div
+					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					style={{ animationDelay: "0ms" }}
+				/>
+				<div
+					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					style={{ animationDelay: "150ms" }}
+				/>
+				<div
+					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					style={{ animationDelay: "300ms" }}
+				/>
+				<div
+					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					style={{ animationDelay: "450ms" }}
+				/>
+				<div
+					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					style={{ animationDelay: "600ms" }}
+				/>
+			</div>
+
+			<span className="text-base font-black text-cyan-300 tracking-widest animate-pulse drop-shadow-md">
+				影片載入中...
+			</span>
+
+			<style>{`
+				@keyframes wave {
+					0%, 100% { height: 10px; opacity: 0.4; }
+					50% { height: 32px; opacity: 1; }
+				}
+			`}</style>
 		</div>
 	);
 }

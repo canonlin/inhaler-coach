@@ -1,16 +1,6 @@
 @import "tailwindcss";
 
-/**
- * Clean Professional Medical Theme
- * Background: /inhaler_bg.jpg
- */
-
 :root {
-  --font-sans: 'Noto Sans TC', sans-serif;
-  --font-mono: 'DM Mono', monospace;
-}
-
-@theme {
   --font-sans: 'Noto Sans TC', sans-serif;
   --font-mono: 'DM Mono', monospace;
 }
@@ -20,63 +10,4 @@ body {
   color: #0f172a;
   font-family: 'Noto Sans TC', sans-serif;
   overflow: hidden;
-}
-
-/* Glass Cards for High Contrast Readability */
-.medical-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1.5px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.medical-card:hover {
-  transform: translateY(-2px);
-  border-color: #e11d48;
-  box-shadow: 0 15px 35px -5px rgba(225, 29, 72, 0.15);
-}
-
-.medical-card:focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 2px;
-}
-
-.medical-btn {
-  background-color: #e11d48;
-  color: #ffffff;
-  box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.4);
-  transition: all 0.2s ease-in-out;
-}
-
-.medical-btn:hover {
-  background-color: #be123c;
-  box-shadow: 0 15px 30px -5px rgba(225, 29, 72, 0.5);
-  transform: translateY(-1px);
-}
-
-.medical-btn:focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 3px;
-}
-
-/* Mobile Flush Steps (< 640px) vs Desktop 2x2 Grid (>= 640px) */
-.steps-mobile-flush {
-  display: block;
-}
-
-.steps-desktop-grid {
-  display: none;
-}
-
-@media (min-width: 640px) {
-  .steps-mobile-flush {
-    display: none;
-  }
-
-  .steps-desktop-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
 }
