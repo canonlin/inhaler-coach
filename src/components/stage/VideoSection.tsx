@@ -66,7 +66,7 @@ export function VideoSection({
 					id="video-loading"
 					className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] z-[1] transition-opacity duration-500"
 				>
-					<div className="inline-block px-4 py-1 rounded text-xs font-bold text-text-secondary/60 mb-3">
+					<div className="inline-block px-4 py-1 rounded text-sm font-bold text-text-secondary/60 mb-3">
 						{badge || "開場介紹"}
 					</div>
 					<div className="text-[clamp(28px,5vw,44px)] font-black text-white/90 mb-6">
@@ -79,7 +79,7 @@ export function VideoSection({
 			{headerVisible && (
 				<div className="absolute top-0 left-0 right-0 z-10 text-center pt-4 pb-5 bg-gradient-to-b from-black/60 to-transparent">
 					<div
-						className={`inline-block px-4 py-1 rounded text-xs font-bold text-text-secondary mb-1 ${badgeClass}`}
+						className={`inline-block px-4 py-1 rounded text-sm font-bold text-text-secondary mb-1 ${badgeClass}`}
 					>
 						{badge}
 					</div>
@@ -100,7 +100,7 @@ export function VideoSection({
 			)}
 
 			{videoLabel && (
-				<div className="absolute top-3 left-3 z-10 px-3 py-1 rounded bg-black/60 text-xs font-bold text-white/80 flex items-center gap-1.5">
+				<div className="absolute top-3 left-3 z-10 px-3 py-1 rounded bg-black/60 text-sm font-bold text-white/80 flex items-center gap-1.5">
 					{videoLabel}
 				</div>
 			)}
