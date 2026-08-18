@@ -95,6 +95,8 @@ export function useYouTubePlayer({
 
 			const player = new window.YT.Player(container, {
 				videoId,
+				width: "100%",
+				height: "100%",
 				playerVars: {
 					autoplay: 1,
 					mute: 1,
@@ -105,7 +107,8 @@ export function useYouTubePlayer({
 				},
 				events: {
 					onReady: () => {
-						if (!destroyed) setIsVideoLoading(false);
+						if (destroyed) return;
+						setIsVideoLoading(false);
 					},
 					onStateChange: (event: YT.OnStateChangeEvent) => {
 						if (!destroyed && event.data === window.YT.PlayerState.ENDED) {
