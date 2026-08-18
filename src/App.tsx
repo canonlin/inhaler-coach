@@ -8,15 +8,25 @@ export function App() {
 
 	if (c.screen === "intro") {
 		return (
-			<main className="relative mx-auto flex h-[100dvh] w-full max-w-[840px] flex-col justify-center px-6 sm:px-10 md:px-12 bg-[#090d12] text-slate-100 overflow-y-auto bg-grid-pattern">
-				{/* Ambient Glow Orbs */}
-				<div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-teal-500/15 blur-[120px]" />
-				<div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-emerald-500/10 blur-[120px]" />
+			<main className="fixed inset-0 flex h-[100dvh] w-full flex-col justify-center overflow-hidden bg-slate-950 text-slate-900 px-4 md:px-12 lg:px-16">
+				{/* 8K AI Commercial 3D Render of Authentic Symbicort RAPihaler */}
+				<img
+					src="/inhaler_bg.jpg?v=20260818_left_nozzle_final"
+					alt="吸必擴 Symbicort RAPihaler 8K 3D 商業攝影實景"
+					decoding="async"
+					fetchPriority="high"
+					className="absolute inset-0 h-full w-full object-cover object-[78%_center] lg:object-[82%_center] select-none pointer-events-none transition-all duration-300"
+					style={{ imageRendering: "-webkit-optimize-contrast" }}
+				/>
 
-				<IntroScreen onStart={c.finishIntro} />
+				{/* Soft backdrop vignette */}
+				<div className="absolute inset-0 bg-slate-950/5 pointer-events-none" />
 
-				{/* Bottom Neon Accent */}
-				<div className="fixed bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-transparent via-teal-500 to-transparent opacity-80" />
+				<div className="relative z-10 w-full h-full flex flex-col justify-center">
+					<IntroScreen onStart={c.finishIntro} />
+				</div>
+
+				<div className="fixed bottom-0 left-0 h-1.5 w-full bg-rose-600 opacity-90 z-20" />
 			</main>
 		);
 	}

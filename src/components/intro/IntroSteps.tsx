@@ -4,12 +4,14 @@ type StepItem = {
 	label: string;
 	desc: string;
 	icon: ReactNode;
+	badgeBg: string;
 };
 
 const steps: StepItem[] = [
 	{
 		label: "看影片",
 		desc: "藥師示範正確操作",
+		badgeBg: "bg-rose-600 text-white",
 		icon: (
 			<svg
 				aria-hidden="true"
@@ -18,22 +20,19 @@ const steps: StepItem[] = [
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="2"
+				strokeWidth="2.5"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
 				<rect x="2" y="4" width="20" height="16" rx="3" />
-				<polygon
-					points="10,8.5 16,12 10,15.5"
-					fill="currentColor"
-					stroke="none"
-				/>
+				<polygon points="10,8.5 16,12 10,15.5" fill="currentColor" stroke="none" />
 			</svg>
 		),
 	},
 	{
 		label: "調姿勢",
 		desc: "調整含嘴角度與站姿",
+		badgeBg: "bg-slate-900 text-white",
 		icon: (
 			<svg
 				aria-hidden="true"
@@ -42,7 +41,7 @@ const steps: StepItem[] = [
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="2"
+				strokeWidth="2.5"
 				strokeLinecap="round"
 			>
 				<circle cx="12" cy="12" r="9" />
@@ -57,6 +56,7 @@ const steps: StepItem[] = [
 	{
 		label: "AI 糾正",
 		desc: "即時辨識並修正動作",
+		badgeBg: "bg-teal-700 text-white",
 		icon: (
 			<svg
 				aria-hidden="true"
@@ -65,7 +65,7 @@ const steps: StepItem[] = [
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="2"
+				strokeWidth="2.5"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
@@ -78,6 +78,7 @@ const steps: StepItem[] = [
 	{
 		label: "看結果",
 		desc: "查看評分與改進建議",
+		badgeBg: "bg-sky-700 text-white",
 		icon: (
 			<svg
 				aria-hidden="true"
@@ -86,7 +87,7 @@ const steps: StepItem[] = [
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
-				strokeWidth="2"
+				strokeWidth="2.5"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
@@ -99,29 +100,64 @@ const steps: StepItem[] = [
 
 export function IntroSteps() {
 	return (
-		<section aria-label="使用流程" className="grid gap-4">
-			<div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4">
+		<section aria-label="吸必擴智慧教學四步流程" className="w-full">
+			{/* Mobile (< 640px): ONLY Mobile has 4 Flush Rows in Single Unified Container */}
+			<div className="steps-mobile-flush bg-white/95 backdrop-blur-md border-2 border-slate-200 rounded-2xl shadow-lg overflow-hidden divide-y divide-slate-100">
 				{steps.map((step, i) => (
 					<div
 						key={step.label}
-						className="group relative flex items-start gap-4 rounded-2xl border border-teal-500/20 bg-slate-900/60 p-4 sm:p-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-teal-400/60 hover:bg-slate-900/80 hover:shadow-2xl hover:shadow-teal-500/10"
+						className="flex items-center justify-between gap-3 px-3.5 py-2 hover:bg-slate-50 transition-colors"
 					>
-						{/* Icon Box */}
-						<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-950/40 text-teal-400 shadow-inner transition-colors duration-300 group-hover:border-teal-400 group-hover:bg-teal-500 group-hover:text-slate-950">
+						<div className="flex items-center gap-3 min-w-0">
+							<span
+								className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md font-mono text-sm font-black ${step.badgeBg}`}
+							>
+								0{i + 1}
+							</span>
+							<div className="grid leading-tight text-left">
+								<h2 className="text-base font-black tracking-tight text-slate-900">
+									{step.label}
+								</h2>
+								<p className="text-sm font-bold text-slate-600">
+									{step.desc}
+								</p>
+							</div>
+						</div>
+						<div className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-700">
 							{step.icon}
 						</div>
+					</div>
+				))}
+			</div>
 
-						{/* Text & Step Num */}
-						<div className="grid gap-1 text-left">
-							<div className="flex items-baseline gap-2">
-								<span className="font-mono text-xs font-semibold tabular-nums text-teal-400/80">
-									0{i + 1}
-								</span>
-								<span className="text-base font-bold text-slate-100 transition-colors group-hover:text-white">
-									{step.label}
-								</span>
+			{/* Tablet & Desktop (>= 640px): Beautiful Separate 2x2 Cards Grid */}
+			<div className="steps-desktop-grid">
+				{steps.map((step, i) => (
+					<div
+						key={step.label}
+						className="medical-card group relative flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-slate-900 cursor-default"
+					>
+						{/* Top Row: Numeric Badge + Icon */}
+						<div className="flex items-center justify-between z-10">
+							<span
+								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl font-mono text-sm font-black shadow-xs ${step.badgeBg}`}
+							>
+								0{i + 1}
+							</span>
+							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition-colors duration-200 group-hover:bg-rose-600 group-hover:text-white">
+								{step.icon}
 							</div>
-							<p className="text-sm leading-relaxed text-slate-400">
+						</div>
+
+						{/* Content */}
+						<div className="grid gap-1 text-left pt-3 z-10">
+							<h2 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+								<span className="font-mono text-sm font-bold text-rose-600">
+									/
+								</span>
+								{step.label}
+							</h2>
+							<p className="text-base font-medium leading-relaxed text-slate-600">
 								{step.desc}
 							</p>
 						</div>
