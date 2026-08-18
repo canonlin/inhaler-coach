@@ -17,9 +17,6 @@ export function drawOverlay(
 ) {
 	if (!ctx) return;
 
-	const { width, height } = ctx.canvas;
-	ctx.clearRect(0, 0, width, height);
-
 	if (!result) return;
 
 	if (result.box) {
