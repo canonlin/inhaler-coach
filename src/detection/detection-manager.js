@@ -17,6 +17,10 @@ export class DetectionManager {
 	 * Initialize detection with automatic fallback
 	 */
 	async initialize() {
+		if (this.isInitialized) {
+			console.log("[DetectionManager] already initialized, skipping");
+			return;
+		}
 		console.log("[DetectionManager] initialize() called");
 		// Try MediaPipe first
 		try {

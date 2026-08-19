@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getStageConfig, singletons } from "../services/detection-singletons";
 import { useDetectionLoop } from "./useDetectionLoop";
 import { useStageNavigation } from "./useStageNavigation";
@@ -39,6 +39,24 @@ export function useCoaching() {
 		onVideoEnd: handleVideoEnd,
 	});
 
+	// Preload detection models while video is playing
+	const preloaded = useRef(false);
+	useEffect(() => {
+		if (nav.phase === "video" && !preloaded.current) {
+			preloaded.current = true;
+			console.log("[preload] Starting model preload during video...");
+			Promise.all([
+				singletons.detection.initialize(),
+				singletons.inhalerDetector.load(),
+			]).then(() => {
+				console.log("[preload] Models ready");
+			}).catch((err) => {
+				console.warn("[preload] Preload failed:", err);
+				preloaded.current = false;
+			});
+		}
+	}, [nav.phase]);
+
 	const handleReplayVideo = useCallback(() => {
 		nav.setStagePassed(false);
 		yt.replayVideo();
@@ -46,14 +64,21 @@ export function useCoaching() {
 
 	const startAIPhase = useCallback(async () => {
 		nav.startAIPhase();
-		setModelReady(false);
-		setStatusText("AI 模型載入中...");
 		setOverlay("none");
 
 		const ok = await webcam.startStream();
 		if (ok) {
+			// Only show loading message if models aren't already loaded
+			if (!singletons.detection.isInitialized || !singletons.inhalerDetector.ready) {
+				setModelReady(false);
+				setStatusText("AI 模型載入中...");
+			}
+
 			try {
-				await singletons.detection.initialize();
+				await Promise.all([
+					singletons.detection.initialize(),
+					singletons.inhalerDetector.load(),
+				]);
 			} catch (err) {
 				console.error("Detection init failed:", err);
 				setStatusText("AI 模型載入失敗，請重新整理頁面");
@@ -77,6 +102,15 @@ export function useCoaching() {
 	}, [detLoop, webcam, nav]);
 
 	const pharmacistConfirm = useCallback(() => {
+		detLoop.stopLoop();
+		webcam.stopTracks();
+		nav.nextStage();
+		setModelReady(false);
+		setStatusText("");
+		setOverlay("none");
+	}, [detLoop, webcam, nav]);
+
+	const nextStage = useCallback(() => {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.nextStage();
@@ -123,7 +157,7 @@ export function useCoaching() {
 		finishIntro: nav.finishIntro,
 		loadStage: nav.loadStage,
 		restartGame: nav.restartGame,
-		nextStage: nav.nextStage,
+		nextStage,
 		backToVideo,
 		startAIPhase,
 		retryStage: startAIPhase,

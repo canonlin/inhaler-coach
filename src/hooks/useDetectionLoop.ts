@@ -100,7 +100,28 @@ export function useDetectionLoop({
 						const hand = hands?.[0] ?? null;
 						const roi = handROI(hand);
 
-						const motion = singletons.motionEnergy.sample(canvas, roi);
+						// Use inhaler ONNX detection as ROI for motion energy when hand not detected
+						// This measures motion specifically where the inhaler is
+						let motionRoi = roi;
+						if (!motionRoi && stageIdx === 1) {
+							const canvas = canvasRef.current;
+							if (canvas) {
+								const inhaler = await singletons.inhalerDetector.detect(canvas, canvas.width, canvas.height, 0.35);
+								if (inhaler?.present && inhaler.box) {
+									motionRoi = {
+										x: inhaler.box.x,
+										y: inhaler.box.y,
+										w: inhaler.box.w,
+										h: inhaler.box.h,
+									};
+								}
+								if (frameCount % 30 === 0) {
+									console.log("  inhaler:", `present:${inhaler?.present} score:${inhaler?.score} box:${inhaler?.box ? `x:${inhaler.box.x.toFixed(2)} y:${inhaler.box.y.toFixed(2)} w:${inhaler.box.w.toFixed(2)} h:${inhaler.box.h.toFixed(2)}` : "null"}`);
+								}
+							}
+						}
+
+						const motion = singletons.motionEnergy.sample(canvas, motionRoi);
 
 						frameCount++;
 						if (frameCount % 30 === 0) {
@@ -114,6 +135,30 @@ export function useDetectionLoop({
 
 						if (stageIdx === 1) {
 							singletons.step1.update(motion, now);
+						}
+
+						// Extract mouth point from face landmarks (MediaPipe face mesh)
+						// Landmarks 13 (top lip) and 14 (bottom lip) center
+						const face = pr?.face;
+						let mouthPoint: { x: number; y: number } | null = null;
+						if (face && face.length >= 15) {
+							const topLip = face[13];
+							const bottomLip = face[14];
+							if (topLip && bottomLip) {
+								mouthPoint = {
+									x: (topLip.x + bottomLip.x) / 2,
+									y: (topLip.y + bottomLip.y) / 2,
+								};
+							}
+						}
+
+						// Detect inhaler with ONNX model (async, non-blocking)
+						let device: { present: boolean; center: { x: number; y: number } | null; box: { x: number; y: number; w: number; h: number } | null } | null = null;
+						if (stageIdx === 2 || stageIdx === 3) {
+							const canvas = canvasRef.current;
+							if (canvas) {
+								device = await singletons.inhalerDetector.detect(canvas, canvas.width, canvas.height, 0.35);
+							}
 						}
 
 						if (!isEvaluating && now - loopRef.current.lastFrameTime > 200) {
@@ -150,16 +195,22 @@ export function useDetectionLoop({
 													mouthPoint: unknown;
 												}) => {
 													exhaling?: boolean;
+													ready?: boolean;
 												};
 											};
 											const res = step.detect({
 												device: null,
-												mouthPoint: null,
+												mouthPoint,
 											});
 											stepResult = {
 												ok: res?.exhaling ?? false,
-												msg: res?.exhaling ? "吐氣完全！" : "請深吐氣...",
+												msg: res?.exhaling
+													? "吐氣完全！"
+													: "請深吐氣...",
 											};
+											if (frameCount % 30 === 0) {
+												console.log("  step2:", `mouth:${mouthPoint ? `(${mouthPoint.x.toFixed(2)},${mouthPoint.y.toFixed(2)})` : "null"} exhaling:${res?.exhaling}`);
+											}
 										}
 										break;
 									case 3:
@@ -170,16 +221,24 @@ export function useDetectionLoop({
 													mouthPoint: unknown;
 												}) => {
 													pressing?: boolean;
+													atMouth?: boolean;
 												};
 											};
 											const res = step.detect({
-												device: null,
-												mouthPoint: null,
+												device,
+												mouthPoint,
 											});
 											stepResult = {
 												ok: res?.pressing ?? false,
-												msg: res?.pressing ? "按壓吸氣正確！" : "請配合按壓...",
+												msg: res?.pressing
+													? "按壓吸氣正確！"
+													: res?.atMouth
+														? "請按壓吸入器並深吸氣..."
+														: "請將吸入器放入口中...",
 											};
+											if (frameCount % 30 === 0) {
+												console.log("  step3:", `device:${device?.present ? `(${device.center?.x?.toFixed(2)},${device.center?.y?.toFixed(2)})` : "null"} mouth:${mouthPoint ? `(${mouthPoint.x.toFixed(2)},${mouthPoint.y.toFixed(2)})` : "null"} pressing:${res?.pressing}`);
+											}
 										}
 										break;
 									case 4:
