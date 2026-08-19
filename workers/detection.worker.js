@@ -37,7 +37,7 @@ async function initialize() {
 	);
 	const handPoseDetection = await import("@tensorflow-models/hand-pose-detection");
 
-	[poseDetector, faceDetector, handDetector] = await Promise.all([
+	const [poseResult, faceResult] = await Promise.all([
 		poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {
 			runtime: "tfjs",
 			modelType: "lite",
@@ -46,15 +46,22 @@ async function initialize() {
 			faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
 			{ runtime: "tfjs", maxFaces: 1, refineLandmarks: false },
 		),
-		// 'full' rather than 'lite': the lite model loses a fast-moving hand, and a
-		// fast-moving hand is exactly what shaking is. Measured 2026-07-15 on a
-		// full collection run, it saw the hand in only 13% of frames during a
-		// normal shake — the single most important task in the protocol.
-		handPoseDetection.createDetector(
+	]);
+	poseDetector = poseResult;
+	faceDetector = faceResult;
+
+	// Hand model: try to load, but don't block on failure.
+	// TF.js WASM backend detects hands unreliably (~13% recall on fast motion),
+	// but WebGL/MediaPipe backend works well when available.
+	try {
+		handDetector = await handPoseDetection.createDetector(
 			handPoseDetection.SupportedModels.MediaPipeHands,
 			{ runtime: "tfjs", maxHands: 1, modelType: "full" },
-		),
-	]);
+		);
+	} catch (e) {
+		console.warn("[worker] Hand model load failed:", e.message);
+		handDetector = null;
+	}
 }
 
 function first(results) {

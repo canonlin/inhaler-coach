@@ -76,10 +76,12 @@ export class MotionEnergy {
 			return { hand: 0, background: 0, ratio: 0 };
 		}
 
-		// When roi is null (no hand detected), use the whole frame as the
-		// motion region. This is less precise but still captures shaking motion
-		// when the hand is the main moving object in frame.
-		const useWholeFrame = roi === null;
+		// When roi is null (no hand/inhaler detected), return ratio 0.
+		// We cannot distinguish shaking from background noise without a ROI,
+		// and whole-frame mode gives false positives.
+		if (roi === null) {
+			return { hand: 0, background: 0, ratio: 0 };
+		}
 
 		const handCells = [];
 		const backgroundCells = [];
@@ -89,8 +91,6 @@ export class MotionEnergy {
 				const i = row * GRID + col;
 				const diff = Math.abs(gray[i] - this.previous[i]);
 				const inHand =
-					!useWholeFrame &&
-					roi !== null &&
 					col / GRID >= roi.x &&
 					col / GRID <= roi.x + roi.w &&
 					row / GRID >= roi.y &&
@@ -108,21 +108,6 @@ export class MotionEnergy {
 		// tracking blinks most exactly when the hand is moving fastest. The harder
 		// someone shook, the more of their shake was recorded as no motion at all.
 		this.previous = gray;
-
-		// When no hand ROI, treat ALL cells as the motion region (whole-frame mode).
-		// This lets us detect shaking even without hand tracking.
-		if (useWholeFrame) {
-			if (backgroundCells.length === 0) {
-				return { hand: 0, background: 0, ratio: 0 };
-			}
-			backgroundCells.sort((a, b) => a - b);
-			const motion = backgroundCells[Math.floor(backgroundCells.length * 0.9)];
-			// In whole-frame mode, ratio compares top-10% motion to median motion
-			// (signal vs noise floor within the same frame)
-			const noiseFloor = backgroundCells[Math.floor(backgroundCells.length / 2)];
-			const ratio = motion / Math.max(noiseFloor, 0.5);
-			return { hand: motion, background: noiseFloor, ratio };
-		}
 
 		if (handCells.length === 0 || backgroundCells.length === 0) {
 			return { hand: 0, background: 0, ratio: 0 };

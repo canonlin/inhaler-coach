@@ -1,15 +1,26 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'jf-openhuninn';
+  src: url('/fonts/jf-openhuninn-2.1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --font-sans: 'Noto Sans TC', sans-serif;
+  --font-sans: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
   --font-mono: 'DM Mono', monospace;
 }
 
 body {
   background-color: #f8fafc;
   color: #0f172a;
-  font-family: 'Noto Sans TC', sans-serif;
+  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #yt-player,
