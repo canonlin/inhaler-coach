@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "1150806-20260809",
+  "purpose": "Lossless audio-only transfer to the controlled A100 workspace",
+  "sourceArchives": [
+    {
+      "filename": "1150806-20260809T145223Z-1-001.zip",
+      "sha256": "711f3814a7ff361dfe67663f8f5eebec196e067b13e52cf2073bf2b9987ddd80"
+    },
+    {
+      "filename": "1150806-20260809T145223Z-1-002.zip",
+      "sha256": "9674b8aece07ae1eef75ff70490aa8f4424fbf903742bf31232b09f3cb88204b"
+    }
+  ],
+  "transform": {
+    "decoder": "FFmpeg 9.0.1 on macOS",
+    "audio": "original WebM audio stream decoded to 16 kHz mono lossless FLAC",
+    "labels": "JSON copied byte-exact from its source archive",
+    "timestampCheck": "Each FLAC duration differed from the largest JSON audio timestamp by no more than 0.05 seconds."
+  },
+  "sessions": [
+    {
+      "id": "52db4e16",
+      "durationSeconds": 601.44,
+      "flacSha256": "a4e8da74bcec05d4fc6d45201b917209c48ef4e8185f94235c3e8c7e311d16b9",
+      "jsonSha256": "847a1266cd65fd6dfa482b73a51f095ee40228074b69bb969776f692403516e0"
+    },
+    {
+      "id": "6c0ee61b",
+      "durationSeconds": 1272.12,
+      "flacSha256": "d4ea30ab5abe5316fbf667cace9a696f73ac28a3fc160e7864a37e353dedcfc9",
+      "jsonSha256": "b1dddf7e39f4d181f6b938617f5b24629bd5b8cca6e6cfb1c1566dd0de8a236f"
+    },
+    {
+      "id": "80918593",
+      "durationSeconds": 1819.62,
+      "flacSha256": "c17752310104ef57706c2a84213c391efe5ef779407973e8306056d2200bebf9",
+      "jsonSha256": "69a839812bbd5e0c93a07710914eed3ad668a3a19b678ce365dced72e00e71c2"
+    },
+    {
+      "id": "ab1ccc94",
+      "durationSeconds": 421.14,
+      "flacSha256": "1622b8f4310f38be4268fb5d52767f023de783d3c5cfedcc8cb6297a9a097e2c",
+      "jsonSha256": "3d2ce3698020286805452ce4a93f82409f7c77ee8b72071cef1b6ebf0352658d"
+    },
+    {
+      "id": "eb762b9b",
+      "durationSeconds": 1809.6,
+      "flacSha256": "de3e4178177f798926bdf46e14c73dde029844f2706571148f60660c78da8e27",
+      "jsonSha256": "65c19b3e5419d7411a3cd4e39c5603f75d061f589640bb33b6f08ee942766873"
+    }
+  ],
+  "remoteRoot": "/mnt/shared/inhaler-coach/data/raw",
+  "classification": "restricted internal research data; raw audio and labels are not committed to Git"
+}
