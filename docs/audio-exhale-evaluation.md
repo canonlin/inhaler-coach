@@ -8,7 +8,7 @@
 
 - `training/dataset-0519.json` 由影像幀建立。
 - `training/train.py` 的 exhale 特徵只有 `canisterY`、`canisterPresent`、`canisterArea`。
-- 收集器另外以約 100 Hz 記錄 `breathBand`、`flatness`、`rms`、`highBand`，並在 WebM 保留 48 kHz Opus 原始音訊。
+- 收集器設計上以約 100 Hz 記錄 `breathBand`、`flatness`、`rms`、`highBand`，並在 WebM 保留 48 kHz Opus 原始音訊。
 - runtime 的 `AudioFeatures` 目前只餵給按壓事件，沒有吐氣音訊分類器。
 
 因此先前第二關實際上是吸入器位置分類，不是錄音吐氣模型。
@@ -61,6 +61,11 @@ leave-one-session-out 訓練。原始 WebM 音軌以 FFmpeg 解碼為 16 kHz mon
 FLAC；五份音軌長度與 JSON 最後 timestamp 的差距均不超過 0.05 秒。原始 ZIP、衍生
 音軌、Python 環境、window cache、checkpoint 與 run 全部留在 `/mnt`。
 
+1150806 的衍生 audio feature 實際約每 400 ms 一筆，未達設計上的 10 ms；本次沒有把
+這些稀疏數值當模型輸入，只用同 label timestamps 還原任務區間，再裁掉區間前後各
+500 ms。原始 Opus 音訊本身是連續的，但任務邊界仍有約一個取樣間隔的不確定性，這是
+解讀失敗結果時保留的限制。
+
 固定條件：
 
 - 模型：40-band log-mel＋22,297 參數 depthwise-separable CNN。
@@ -111,7 +116,7 @@ fallback；不能再以相同資料反覆換模型追逐單一分數。
 8. production promotion 仍需要 model provenance、artifact digest、產品負責人核准與獨立
    使用者驗收。
 
-## 重跑方式
+## 初步線性基線重跑方式
 
 ```bash
 python3 training/evaluate_audio.py \
@@ -121,3 +126,13 @@ python3 training/evaluate_audio.py \
 ```
 
 腳本只需要 NumPy 與 FFmpeg，預設不寫出模型，也不傳輸錄音。
+
+A100 DS-CNN 的固定設定、lossless extraction receipt、訓練器與遠端 launcher 分別在：
+
+- `training/audio-dscnn-1150806-config.json`
+- `training/audio-1150806-extraction.json`
+- `training/train_audio_dscnn.py`
+- `training/run_audio_a100.sh`
+
+launcher 只接受已準備完成的 `/mnt/shared/inhaler-coach/cache/1150806-audio-windows.npz`，
+並拒絕覆寫同名 run、拒絕在 A100 已被占用或 lock 已持有時啟動。
