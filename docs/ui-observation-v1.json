@@ -100,6 +100,14 @@
       "correction": "Throttle synchronous MediaPipe landmark inference to about 10 fps so the motion sampler remains near 30 fps; run initial ONNX acquisition without blocking hand inference; once acquired, stop repeated ONNX calls and retain the target lock until retry/reset. Freeze accumulated shake progress while action tracking is unavailable, display the retained duration, and reset only after a sustained visible non-shake or a bounded ten-second action-tracking outage."
     },
     {
+      "severity": "critical",
+      "dimension": "physiological claim integrity",
+      "locator": "stage 2 exhale completion",
+      "evidence": "The old stage called inhaler-away posture 'exhale detection' and required face plus ONNX detections to remain continuous for three seconds. Physical Brave testing repeatedly stalled despite the user performing the action, then passed only when posture happened to stay visible.",
+      "brokenRelationship": "An unreliable posture proxy was presented as proof of pulmonary airflow, while detector flicker erased valid coaching progress.",
+      "correction": "Use a two-stage visible-posture state machine: acquire face and inhaler, then lock one clearly-away observation from either the device or its holding hand. Stop Face, Hand and ONNX inference after the lock and run a truthful three-second guided exhale timer. The UI now says '吐氣引導完成' and does not claim lung emptying was sensed."
+    },
+    {
       "severity": "high",
       "dimension": "state recovery",
       "locator": "AI camera loading",
@@ -160,9 +168,9 @@
     "preflight": "passed",
     "typecheck": "passed",
     "lint": "passed",
-    "nodeTests": "45 passed",
+    "nodeTests": "46 passed",
     "pythonTests": "6 passed",
-    "logicLineCoverage": "94.18%",
+    "logicLineCoverage": "94.28%",
     "productionBuild": "passed",
     "playwrightE2E": "3 passed",
     "browserScenarios": [
@@ -172,7 +180,8 @@
       "camera permission timeout",
       "static inhaler detected by ONNX but rejected for more than eight seconds",
       "stage-1 normal-speed trajectory, target-lock persistence, vertical, horizontal, one-way, static, no-inhaler, and low-rate behavior through algorithm integration tests",
-      "physical Brave observation improved from about 21 to about 30 motion samples per second and accumulated 2.7 seconds before the final progress-freeze revision",
+      "physical Brave stage-1 target lock and five-second normal-speed completion",
+      "physical Brave stage-2 face acquisition, inhaler acquisition, move-away lock, model shutdown, and truthful three-second guided completion",
       "clinician confirmation and cross-stage isolation",
       "completion desktop and smallest viewport"
     ]
@@ -184,8 +193,8 @@
   "remainingBlockers": [
     {
       "owner": "demo team",
-      "missingInput": "final physical positive control after the two-state target-lock redesign, plus a full human rehearsal; target acquisition was observed in Brave, but the user did not perform the final five-second motion during the last observation window",
-      "nextAction": "Use the existing localhost Brave tab to run stage 1 twice with the real device, then complete the remaining stages on the presentation machine."
+      "missingInput": "a complete start-to-finish human rehearsal after the stage-1 and stage-2 redesigns; individual physical positive controls now pass, but retry plus stages 3 and 4 still need one uninterrupted presentation-machine run",
+      "nextAction": "Run all four stages twice on the presentation machine, including retry once in stages 1 and 2."
     },
     {
       "owner": "authorized product owner",
@@ -196,6 +205,6 @@
   "decision": "revise",
   "readback": {
     "status": "runtime-qa-passed-pending-real-device-and-approval",
-    "statement": "No critical source, build, or automated-test blocker remains. Static-inhaler rejection, the physical-camera performance failure, and successful one-time target acquisition were observed; the final two-state redesign still needs one real-camera five-second positive pass and retry, so full VI verification is intentionally not claimed."
+    "statement": "No critical source, build, or automated-test blocker remains. Static-inhaler rejection, physical stage-1 completion, and physical stage-2 posture acquisition plus guided completion were observed. A complete four-stage rehearsal and retry remain, so full VI verification is intentionally not claimed."
   }
 }

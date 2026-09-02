@@ -33,23 +33,62 @@ test("steadiness uses both axes and rejects deliberate waving", () => {
 	assert.ok(waving.observe(hit(0.8, 0.5), 400).steadiness < 0.1);
 });
 
-test("exhale never passes from a missing face or missed inhaler", () => {
+test("exhale acquires face and inhaler, then keeps an away posture lock", () => {
 	const detector = new ExhaleDetector();
-	assert.equal(
-		detector.detect({ device: null, mouthPoint: { x: 0.5, y: 0.3 } }).exhaling,
-		false,
-	);
-	assert.equal(
-		detector.detect({ device: hit(0.5, 0.7), mouthPoint: null }).exhaling,
-		false,
-	);
+	const faceOnly = detector.detect({
+		device: null,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		timestamp: 0,
+	});
+	assert.equal(faceOnly.faceAcquired, true);
+	assert.equal(faceOnly.exhaling, false);
+
+	const away = detector.detect({
+		device: hit(0.5, 0.7),
+		mouthPoint: null,
+		timestamp: 500,
+	});
+	assert.equal(away.awayLocked, true);
+	assert.equal(away.phase, "guided-exhale");
+
+	const dropout = detector.detect({
+		device: null,
+		mouthPoint: null,
+		timestamp: 1500,
+	});
+	assert.equal(dropout.awayLocked, true);
+	assert.equal(dropout.exhaling, true);
+
+	detector.reset();
 	assert.equal(
 		detector.detect({
 			device: hit(0.5, 0.7),
-			mouthPoint: { x: 0.5, y: 0.3 },
-		}).exhaling,
-		true,
+			mouthPoint: null,
+			timestamp: 2000,
+		}).awayLocked,
+		false,
 	);
+});
+
+test("exhale can confirm move-away from the holding hand after ONNX drops", () => {
+	const detector = new ExhaleDetector();
+	const atMouth = detector.detect({
+		device: hit(0.51, 0.31),
+		mouthPoint: { x: 0.5, y: 0.3 },
+		handPoint: { x: 0.51, y: 0.32 },
+		timestamp: 0,
+	});
+	assert.equal(atMouth.awayLocked, false);
+	assert.equal(atMouth.atMouth, true);
+
+	const lowered = detector.detect({
+		device: null,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		handPoint: { x: 0.5, y: 0.72 },
+		timestamp: 500,
+	});
+	assert.equal(lowered.awayLocked, true);
+	assert.equal(lowered.awayEvidence, "hand");
 });
 
 test("press requires a visible, close, steady YOLO observation", () => {

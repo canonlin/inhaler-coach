@@ -33,7 +33,7 @@ test("exhale requires visible inputs and the full configured duration", () => {
 		stageIdx: 2,
 		passSeconds: 3,
 	});
-	assert.match(evaluator.evaluate({ ready: false }, 0).msg, /保持在畫面中/);
+	assert.match(evaluator.evaluate({ ready: false }, 0).msg, /臉部完整/);
 	assert.match(
 		evaluator.evaluate({ ready: true, atMouth: true }, 100).msg,
 		/移離嘴邊/,
@@ -50,19 +50,31 @@ test("exhale requires visible inputs and the full configured duration", () => {
 		evaluator.evaluate({ ready: true, exhaling: true }, 4000).ok,
 		true,
 	);
+	assert.match(
+		evaluator.evaluate({ ready: true, exhaling: true }, 4000).msg,
+		/吐氣引導完成/,
+	);
 });
 
-test("exhale resets after a real interruption", () => {
+test("exhale posture lock keeps the timed guidance alive through model dropout", () => {
 	const evaluator = new CoachingStageEvaluator({
 		stageIdx: 2,
 		passSeconds: 3,
-		dropoutGraceMs: 600,
 	});
-	evaluator.evaluate({ ready: true, exhaling: true }, 0);
-	evaluator.evaluate({ ready: true, exhaling: false }, 601);
+	evaluator.evaluate(
+		{ faceAcquired: true, targetAcquired: true, awayLocked: true },
+		0,
+	);
+	evaluator.evaluate(
+		{ faceAcquired: true, targetAcquired: true, awayLocked: true },
+		1500,
+	);
 	assert.equal(
-		evaluator.evaluate({ ready: true, exhaling: true }, 3000).ok,
-		false,
+		evaluator.evaluate(
+			{ faceAcquired: true, targetAcquired: true, awayLocked: true },
+			3000,
+		).ok,
+		true,
 	);
 });
 
