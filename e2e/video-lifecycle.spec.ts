@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const VIDEO_END_TIMEOUT = 20_000;
 
@@ -14,7 +14,7 @@ test.describe("Video lifecycle — buttons only after video ends", () => {
 		await expect(page.locator("text=衛教影片播放完畢")).not.toBeVisible();
 		await expect(page.locator("button:has-text('重播影片')")).not.toBeVisible();
 		await expect(
-			page.locator("button:has-text('開始 AI 辨識練習')"),
+			page.locator("button:has-text('開始 AI 動作練習')"),
 		).not.toBeVisible();
 
 		// Still playing at 4s — still hidden
@@ -28,7 +28,7 @@ test.describe("Video lifecycle — buttons only after video ends", () => {
 		});
 		await expect(page.locator("button:has-text('重播影片')")).toBeVisible();
 		await expect(
-			page.locator("button:has-text('開始 AI 辨識練習')"),
+			page.locator("button:has-text('開始 AI 動作練習')"),
 		).toBeVisible();
 	});
 
@@ -71,10 +71,8 @@ test.describe("Video lifecycle — buttons only after video ends", () => {
 
 		// stage 1 shows AI button, NOT 開始闖關
 		await expect(
-			page.locator("button:has-text('開始 AI 辨識練習')"),
+			page.locator("button:has-text('開始 AI 動作練習')"),
 		).toBeVisible();
-		await expect(
-			page.locator("button:has-text('開始闖關')"),
-		).not.toBeVisible();
+		await expect(page.locator("button:has-text('開始闖關')")).not.toBeVisible();
 	});
 });

@@ -62,6 +62,13 @@ export class TFJSWorkerBackend extends DetectionBackend {
 		});
 
 		this.isInitialized = true;
+		this.worker.onerror = (event) => {
+			console.error("TF.js detection worker stopped:", event.message);
+			this.busy = false;
+			for (const resolve of this.pending.values()) resolve(this.lastResult);
+			this.pending.clear();
+			this.isInitialized = false;
+		};
 	}
 
 	async processFrame(canvas, _timestamp, needs = ALL_SIGNALS) {

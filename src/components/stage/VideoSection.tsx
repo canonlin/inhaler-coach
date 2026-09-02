@@ -12,6 +12,7 @@ type VideoSectionProps = {
 	setContainerRef: (node: HTMLDivElement | null) => void;
 	isVideoLoading?: boolean;
 	isVideoEnded?: boolean;
+	videoError?: string | null;
 	badge: string;
 	badgeClass: string;
 	title: string;
@@ -33,6 +34,7 @@ export function VideoSection({
 	setContainerRef,
 	isVideoLoading = false,
 	isVideoEnded = false,
+	videoError = null,
 	badge,
 	badgeClass,
 	title,
@@ -63,18 +65,63 @@ export function VideoSection({
 			{/* Loading Wave Overlay: ONLY appears during loading state with smooth fadeout! */}
 			<div
 				id="video-loading"
-				className={`absolute inset-0 flex flex-col items-center justify-center bg-[#060a10] z-20 transition-opacity duration-500 pointer-events-none ${
+				role="status"
+				aria-live="polite"
+				aria-hidden={!(isVideoLoading && !isEnded)}
+				className={`pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-500 ${
 					isVideoLoading && !isEnded ? "opacity-100" : "opacity-0"
 				}`}
 			>
-				<div className="inline-block px-4 py-1 rounded text-sm font-bold text-cyan-400 mb-1 border border-cyan-500/30 bg-cyan-950/40">
+				<div className="mb-1 inline-block rounded-full border border-rose-400/25 bg-rose-400/10 px-4 py-1 font-mono text-xs font-bold tracking-wider text-rose-200">
 					{badge}
 				</div>
-				<div className="text-[clamp(28px,5vw,44px)] font-black text-white mb-2 tracking-tight">
+				<div className="mb-2 text-[clamp(28px,5vw,44px)] font-black tracking-tight text-white">
 					{title}
 				</div>
 				<LoadingWave />
 			</div>
+
+			{videoError && !isEnded && (
+				<div
+					className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/95 px-6 text-center backdrop-blur-md"
+					role="alert"
+				>
+					<div className="w-full max-w-lg rounded-3xl border border-amber-300/25 bg-slate-900 p-7 shadow-2xl">
+						<div
+							className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-300/10 text-2xl font-black text-amber-300"
+							aria-hidden="true"
+						>
+							!
+						</div>
+						<h2 className="text-2xl font-black text-white">
+							教學影片暫時無法播放
+						</h2>
+						<p className="mt-2 text-sm leading-6 text-slate-300">
+							{videoError}
+						</p>
+						<div className="mt-6 flex flex-wrap justify-center gap-3">
+							{onReplayVideo && (
+								<button
+									type="button"
+									onClick={onReplayVideo}
+									className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-3 font-black text-white transition-colors hover:bg-rose-400"
+								>
+									<IconRotateCcw className="h-4 w-4" />
+									重新載入影片
+								</button>
+							)}
+							<button
+								type="button"
+								onClick={onStartAI}
+								className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-5 py-3 font-bold text-slate-100 transition-colors hover:bg-slate-800"
+							>
+								<IconBrain className="h-4 w-4 text-cyan-300" />
+								先進入 AI 練習
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{headerVisible && (
 				<div className="absolute top-12 left-0 right-0 z-20 text-center pt-3 pb-4 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
@@ -93,17 +140,17 @@ export function VideoSection({
 
 			{/* High-Contrast Crystal-Clear Stage Hint Banner ("請上下搖動吸入器...") */}
 			{hint && (
-				<div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 w-auto max-w-[90vw] px-4 pointer-events-none">
-					<div className="bg-amber-400 text-slate-950 font-black text-sm sm:text-base px-6 py-2.5 rounded-full shadow-2xl shadow-amber-500/30 border-2 border-amber-300 text-center tracking-wide flex items-center justify-center gap-2">
-						<span className="h-2 w-2 rounded-full bg-slate-950 animate-ping" />
+				<div className="pointer-events-none absolute left-1/2 top-18 z-30 w-auto max-w-[94vw] -translate-x-1/2 px-4">
+					<div className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/80 px-5 py-2.5 text-center text-sm font-black leading-5 text-white shadow-2xl backdrop-blur-md sm:text-base">
+						<span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
 						<span>{hint}</span>
 					</div>
 				</div>
 			)}
 
 			{videoLabel && (
-				<div className="absolute top-14 left-4 z-20 px-3 py-1.5 rounded-lg bg-slate-900/90 backdrop-blur-md text-xs font-bold text-white flex items-center gap-2 pointer-events-none border border-slate-700 shadow-md">
-					<IconVideo className="w-4 h-4 text-cyan-400" />
+				<div className="pointer-events-none absolute left-4 top-20 z-20 hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-md sm:flex">
+					<IconVideo className="w-4 h-4 text-rose-300" />
 					<span>{videoLabel}</span>
 				</div>
 			)}
@@ -124,7 +171,7 @@ export function VideoSection({
 								onClick={onReplayVideo}
 								className="px-7 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg border border-slate-600 shadow-2xl flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
 							>
-								<IconRotateCcw className="w-6 h-6 text-cyan-400" />
+								<IconRotateCcw className="w-6 h-6 text-rose-300" />
 								<span>重播影片</span>
 							</button>
 						)}
@@ -142,11 +189,11 @@ export function VideoSection({
 							<button
 								type="button"
 								onClick={onStartAI}
-								className="px-9 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-lg shadow-2xl shadow-emerald-500/50 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+								className="flex min-h-14 items-center gap-3 rounded-2xl bg-rose-600 px-9 py-4 text-lg font-black text-white shadow-2xl shadow-rose-600/35 transition-colors duration-200 hover:bg-rose-500"
 							>
-								<IconBrain className="w-6 h-6 text-slate-950" />
-								<span>{tryBtnText || "開始 AI 辨識練習"}</span>
-								<IconArrowRight className="w-6 h-6 text-slate-950" />
+								<IconBrain className="w-6 h-6 text-white" />
+								<span>{tryBtnText || "開始 AI 動作練習"}</span>
+								<IconArrowRight className="w-6 h-6 text-white" />
 							</button>
 						)}
 					</div>

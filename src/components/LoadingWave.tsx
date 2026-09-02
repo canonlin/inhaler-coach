@@ -4,28 +4,28 @@ export function LoadingWave() {
 			{/* Dynamic Glowing Wave Bars using CSS Keyframes */}
 			<div className="flex items-center gap-2 h-9 px-2">
 				<div
-					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					className="w-2 rounded-full bg-rose-500 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(225,29,72,0.55)]"
 					style={{ animationDelay: "0ms" }}
 				/>
 				<div
-					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					className="w-2 rounded-full bg-rose-500 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(225,29,72,0.55)]"
 					style={{ animationDelay: "150ms" }}
 				/>
 				<div
-					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					className="w-2 rounded-full bg-rose-500 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(225,29,72,0.55)]"
 					style={{ animationDelay: "300ms" }}
 				/>
 				<div
-					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					className="w-2 rounded-full bg-rose-500 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(225,29,72,0.55)]"
 					style={{ animationDelay: "450ms" }}
 				/>
 				<div
-					className="w-2 rounded-full bg-cyan-400 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+					className="w-2 rounded-full bg-rose-500 animate-[wave_1s_ease-in-out_infinite] shadow-[0_0_12px_rgba(225,29,72,0.55)]"
 					style={{ animationDelay: "600ms" }}
 				/>
 			</div>
 
-			<span className="text-base font-black text-cyan-300 tracking-widest animate-pulse drop-shadow-md">
+			<span className="text-sm font-black tracking-wider text-slate-200">
 				影片載入中...
 			</span>
 

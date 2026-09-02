@@ -32,7 +32,6 @@ async function ensure() {
 		executionProviders: ["wasm"],
 		graphOptimizationLevel: "all",
 	});
-	self.postMessage({ ready: true });
 }
 
 const EMPTY = { present: false, score: 0, center: null, box: null };
@@ -59,6 +58,16 @@ function preprocess(bitmap, srcW, srcH) {
 }
 
 self.onmessage = async (e) => {
+	if (e.data.warmup) {
+		try {
+			await ensure();
+			self.postMessage({ ready: true });
+		} catch (err) {
+			self.postMessage({ warmupError: String(err) });
+		}
+		return;
+	}
+
 	const { id, bitmap, srcW, srcH, conf } = e.data;
 	try {
 		await ensure();

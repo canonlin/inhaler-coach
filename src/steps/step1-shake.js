@@ -1,159 +1,339 @@
 /**
- * Shake detection, by how far hand-region motion stands above the background.
+ * Stage 1 is a two-state coaching detector, not a continuous object detector.
  *
- * The history matters, because the obvious answers were each tried and each
- * failed for a specific, measured reason:
+ * 1. ACQUIRE: ONNX must see the inhaler once. That locks the target for this
+ *    attempt; motion blur is expected during mixing, so later ONNX misses never
+ *    revoke the lock. Retry/reset starts a fresh acquisition.
+ * 2. MIX: the primary signal is the hand/device POSITION PATH over three seconds.
+ *    Meaningful vertical range, total travel and complete reversals accept the
+ *    pharmacist's normal deliberate speed without any velocity floor. A 30 fps
+ *    spatially-normalized motion/flow detector remains only as a faster fallback.
  *
- * 1. Track the wrist landmark, look for oscillation. BlazePose's wrist carries
- *    no trace of the shake — measured 2026-07-15, its spectrum while genuinely
- *    shaking was indistinguishable from its spectrum while holding still. A
- *    temporally-smoothed landmark can't resolve a small fast wrist motion.
- *
- * 2. Threshold raw pixel motion in the hand region. Not comparable across
- *    sessions — lighting and camera distance move the absolute scale by 3×, so a
- *    still hand in one room reads higher than a shaking hand in another.
- *
- * 3. Measure periodicity (autocorrelation), on the theory that shaking repeats
- *    and noise doesn't. This is what used to live here — and it was calibrated
- *    against data that, we later found, was sampled at only ~3 fps because
- *    MediaPipe inference bottlenecked the capture loop. A 3–5 Hz shake sampled at
- *    3 fps is below Nyquist: it aliases to noise. On five pharmacists' recordings
- *    (2026-07-18) the periodicity estimate for a motionless hand actually beat
- *    the estimate for a real shake. The signal it depended on was never there.
- *
- * What does survive, on those same five people, is fix #2's scale problem solved
- * the way motion-energy.js already solves it: a SPATIAL baseline. The ratio of
- * hand-region motion to the same frame's background is dimensionless and stable
- * across lighting and distance, because sensor noise lands on both equally.
- * Pooled over five people, the sustained-median ratio was:
- *
- *              still    shaking (normal / hard)
- *   ratio      ~5–13         ~50–130
- *
- * with one catch that only surfaced when the ratio was recomputed frame-by-frame
- * from the 30 fps video instead of the 3 fps signal log: THE THRESHOLD DEPENDS ON
- * THE SAMPLING RATE. At 3 fps, 300 ms passes between frames, so even a slow
- * translation ("move the inhaler without shaking it") displaces the hand far
- * enough to read ratio ~100 — indistinguishable from a shake. At ~28 fps the same
- * translation reads ~10 while a real shake still reads ~50–70, because now the
- * per-frame change reflects instantaneous velocity and a shake is simply faster.
- * Recomputed at 28 fps over five people (motion-energy.js exactly, from video):
- *
- *              still   move   handle/exhale/speak   shake normal/hard
- *   ratio        2    ~10          ~2–8                 ~50–70
- *
- * So this detector is only valid when motion is sampled at a high, fixed rate —
- * see the fixed-interval loop in app.js that feeds it, decoupled from inference
- * for exactly this reason.
- *
- * On the threshold there is a real clinical choice, made deliberately. A high
- * threshold (~32) sits above every negative INCLUDING the collector's "move"
- * stress-test and passes only vigorous shaking — but it misses gentle and
- * wrist-only shakes, and the protocol flags exactly those as most important: a
- * frail or arthritic patient CANNOT shake vigorously, and their genuine weak
- * shake must still count. Failing them and saying "shake harder" is wrong when
- * they physically can't. Measured over five people, still sits at ratio 2
- * (person-invariant) and weak shakes at 6–26, so a threshold of 8 recovers the
- * weak shakes (gentle 4/5, limited 4/5) while keeping a 4× margin over a still
- * hand. The cost: a SUSTAINED non-shaking movement would also pass — but that is
- * the unrealistic "move" case (nobody translates an inhaler for five continuous
- * seconds during a "please shake" prompt), while the real negative here, holding
- * still, is rejected with margin. The 5-second sustained requirement below is the
- * guard against incidental motion.
- *
- * The remaining criterion is a DURATION: 「shaking well for 5 seconds before each
- * spray」 (Symbicort prescribing information). Note this differs from the generic
- * pMDI teaching (「上下搖動 4-5 次」, a count) — the product label wins.
+ * Evidence must accumulate for five seconds. Tracking outages freeze progress;
+ * a visible sustained non-shake resets it. This verifies only the visible proxy
+ * of sustained up-and-down mixing—it cannot prove the formulation is chemically
+ * homogeneous.
  */
 
 /**
- * How far the hand region must stand above the background to count as shaking.
+ * Fast-path fallback: how far the hand region stands above the background.
  * Dimensionless (hand motion ÷ background motion), so it does not inherit the
  * cross-session scale problem. Set to 8 to include the weak (gentle / wrist-only /
  * limited-mobility) shakes the protocol cares most about: a still hand sits at
  * ratio 2 across all five people, weak shakes at 6–26, so 8 keeps a 4× margin
- * over still while catching them. See the header for the clinical trade-off (this
- * also passes a sustained non-shaking "move", which does not occur in a real
- * shake step). Only valid at a high sampling rate — see the fixed-rate loop.
+ * over still while catching them. Slow deliberate movement does not use this
+ * threshold; it is evaluated from the tracked position path below.
  */
 const RATIO_SHAKE = 8;
 
 /**
  * The instantaneous ratio is noisy frame to frame, so the "shaking right now"
  * decision is the MEDIAN ratio over a short trailing window rather than any
- * single sample. 1000 ms is the smallest window that still holds enough samples
- * to take a median when the capture loop is degraded to ~3 fps (which it is when
- * inference bottlenecks the main thread — the whole reason the collected data
- * came out at 3 fps); at a healthy 30 fps it holds thirty, and either way it
- * responds well within the 5 s the sustained clock needs.
+ * single sample. This threshold was calibrated near 28–30 fps and is invalid at
+ * the old inference-bound ~3 fps. Low-rate input therefore fails closed instead
+ * of pretending the same ratio has the same meaning.
  */
 const SMOOTH_MS = 1000;
 
-/** Need at least this many samples in the window before trusting the median.
- * Two is the floor a ~3 fps rig can guarantee inside SMOOTH_MS. */
-const MIN_SAMPLES = 2;
+/** A one-second window must contain enough samples to prove the high-rate
+ * motion sampler is actually running. */
+const MIN_SAMPLES = 20;
+const MIN_SAMPLE_RATE_HZ = 20;
+const MIN_OBSERVED_SAMPLES = 8;
+
+/** Vertical shake must dominate horizontal motion and reverse direction. The
+ * flow grid is fixed at 96×96, so these values are in grid cells per sample. */
+const MIN_DIRECTIONAL_FLOW = 0.05;
+const VERTICAL_DOMINANCE_RATIO = 1.1;
+const MIN_VERTICAL_SHARE = 0.55;
+const MIN_VERTICAL_REVERSALS = 2;
+
+/** Slow, deliberate shaking is better represented by the tracked device/hand
+ * path than by per-frame energy. This path deliberately has no speed floor: it
+ * asks for a meaningful vertical range, total travel and complete reversals. */
+const POSITION_WINDOW_MS = 3000;
+const MIN_POSITION_SAMPLES = 5;
+const MIN_POSITION_DURATION_MS = 1000;
+const POSITION_JITTER = 0.004;
+const MIN_HALF_STROKE = 0.025;
+const MIN_VERTICAL_RANGE = 0.055;
+const MIN_VERTICAL_TRAVEL = 0.16;
+const POSITION_VERTICAL_DOMINANCE = 1.1;
+const MIN_POSITION_REVERSALS = 2;
 
 /** Shaking must persist this long before the step passes (Symbicort label). */
 const REQUIRED_SUSTAINED_MS = 5000;
 
-/** Brief dropouts shouldn't reset the clock — the hand model loses a fast-moving
- * hand routinely, and that is precisely when the user is doing it right. */
-const DROPOUT_GRACE_MS = 1500;
+/** A visible non-shake is contrary evidence and resets progress after this
+ * grace. A tracking outage is not contrary evidence: progress freezes instead
+ * and is retained for a bounded period so model flicker cannot erase real work. */
+const OBSERVED_FAILURE_RESET_MS = 1500;
+const UNOBSERVED_RESET_MS = 10_000;
 
 export class ShakeDetector {
 	constructor() {
 		this.samples = [];
-		this.shakingSince = null;
+		this.positionSamples = { hand: [], inhaler: [] };
+		this.targetAcquired = false;
+		this.targetAcquiredAt = null;
+		this.progressMs = 0;
+		this.lastDetectAt = null;
 		this.lastShakingAt = null;
+		this.observedFailureSince = null;
+		this.unobservedSince = null;
 	}
 
 	/**
-	 * @param {{hand:number, background:number, ratio:number}} motion - from MotionEnergy
+	 * @param {{hand:number, background:number, ratio:number, flowX?:number, flowY?:number, observed?:boolean}} motion - from MotionEnergy
 	 * @param {number} timestamp
 	 */
 	update(motion, timestamp) {
-		this.samples.push({ r: motion.ratio, t: timestamp });
+		this.samples.push({
+			r: motion.ratio,
+			x: motion.flowX ?? 0,
+			y: motion.flowY ?? 0,
+			observed: motion.observed ?? true,
+			t: timestamp,
+		});
 		this.samples = this.samples.filter((s) => s.t > timestamp - SMOOTH_MS);
 	}
 
+	observeInhaler(timestamp) {
+		if (!Number.isFinite(timestamp)) return;
+		this.targetAcquired = true;
+		if (this.targetAcquiredAt === null) this.targetAcquiredAt = timestamp;
+	}
+
+	updatePosition(position, timestamp, source = "hand") {
+		if (
+			!position ||
+			!Number.isFinite(position.x) ||
+			!Number.isFinite(position.y) ||
+			!Number.isFinite(timestamp)
+		) {
+			return;
+		}
+		const key = source === "inhaler" ? "inhaler" : "hand";
+		const samples = this.positionSamples[key];
+		const previous = samples.at(-1);
+		if (previous?.t === timestamp) {
+			previous.x = position.x;
+			previous.y = position.y;
+		} else if (!previous || timestamp > previous.t) {
+			samples.push({ x: position.x, y: position.y, t: timestamp });
+		}
+		this.positionSamples[key] = samples.filter(
+			(sample) => sample.t > timestamp - POSITION_WINDOW_MS,
+		);
+	}
+
 	detect(timestamp) {
-		const analysis = this.analyse();
+		const analysis = this.analyse(timestamp);
+		const elapsedSinceDetect =
+			this.lastDetectAt === null
+				? 0
+				: Math.max(0, Math.min(500, timestamp - this.lastDetectAt));
+		this.lastDetectAt = timestamp;
 
 		if (analysis.shaking) {
-			if (this.shakingSince === null) this.shakingSince = timestamp;
+			this.progressMs += elapsedSinceDetect;
 			this.lastShakingAt = timestamp;
-		} else if (
-			this.lastShakingAt !== null &&
-			timestamp - this.lastShakingAt > DROPOUT_GRACE_MS
-		) {
-			this.shakingSince = null;
-			this.lastShakingAt = null;
+			this.observedFailureSince = null;
+			this.unobservedSince = null;
+		} else if (analysis.observable) {
+			this.unobservedSince = null;
+			if (this.observedFailureSince === null) {
+				this.observedFailureSince = timestamp;
+			}
+			if (timestamp - this.observedFailureSince > OBSERVED_FAILURE_RESET_MS) {
+				this.progressMs = 0;
+				this.lastShakingAt = null;
+			}
+		} else {
+			if (this.unobservedSince === null) this.unobservedSince = timestamp;
+			if (timestamp - this.unobservedSince > UNOBSERVED_RESET_MS) {
+				this.progressMs = 0;
+				this.lastShakingAt = null;
+				this.observedFailureSince = null;
+			}
 		}
 
-		const sustainedMs =
-			this.shakingSince === null ? 0 : timestamp - this.shakingSince;
-
+		const passed = analysis.shaking && this.progressMs >= REQUIRED_SUSTAINED_MS;
 		return {
 			...analysis,
-			sustainedMs,
-			secondsHeld: sustainedMs / 1000,
-			passed: sustainedMs >= REQUIRED_SUSTAINED_MS,
+			sustainedMs: this.progressMs,
+			secondsHeld: this.progressMs / 1000,
+			passed,
+			phase: !analysis.targetAcquired
+				? "acquiring"
+				: passed
+					? "complete"
+					: "mixing",
 			requiredSeconds: REQUIRED_SUSTAINED_MS / 1000,
 		};
 	}
 
-	analyse() {
-		if (this.samples.length < MIN_SAMPLES) {
-			return { shaking: false, ratio: 0 };
+	analyse(timestamp = this.samples.at(-1)?.t ?? 0) {
+		const first = this.samples[0];
+		const last = this.samples.at(-1);
+		const elapsedMs = first && last ? last.t - first.t : 0;
+		const sampleRateHz =
+			elapsedMs > 0 ? ((this.samples.length - 1) * 1000) / elapsedMs : 0;
+
+		const sampleRateValid =
+			this.samples.length >= MIN_SAMPLES && sampleRateHz >= MIN_SAMPLE_RATE_HZ;
+		const observed = sampleRateValid
+			? this.samples.filter((sample) => sample.observed)
+			: [];
+		const motionObservable =
+			sampleRateValid &&
+			!!last?.observed &&
+			observed.length >= MIN_OBSERVED_SAMPLES;
+		const ratio = motionObservable ? median(observed.map((s) => s.r)) : 0;
+		const directional = motionObservable
+			? observed.filter(
+					(sample) => Math.hypot(sample.x, sample.y) >= MIN_DIRECTIONAL_FLOW,
+				)
+			: [];
+		const vertical = directional.filter(
+			(sample) =>
+				Math.abs(sample.y) >= MIN_DIRECTIONAL_FLOW &&
+				Math.abs(sample.y) >= Math.abs(sample.x) * VERTICAL_DOMINANCE_RATIO,
+		);
+		const verticalShare = directional.length
+			? vertical.length / directional.length
+			: 0;
+		const verticalFlow = vertical.length
+			? median(vertical.map((sample) => Math.abs(sample.y)))
+			: 0;
+
+		let verticalReversals = 0;
+		let previousSign = 0;
+		for (const sample of vertical) {
+			const sign = Math.sign(sample.y);
+			if (previousSign !== 0 && sign !== previousSign) verticalReversals++;
+			previousSign = sign;
 		}
-		const ratio = median(this.samples.map((s) => s.r));
-		return { shaking: ratio >= RATIO_SHAKE, ratio };
+
+		const motionShaking =
+			motionObservable &&
+			ratio >= RATIO_SHAKE &&
+			verticalFlow >= MIN_DIRECTIONAL_FLOW &&
+			verticalShare >= MIN_VERTICAL_SHARE &&
+			verticalReversals >= MIN_VERTICAL_REVERSALS;
+		const trajectory = this.analyseTrajectory(timestamp);
+		return {
+			shaking: this.targetAcquired && (motionShaking || trajectory.shaking),
+			observable:
+				this.targetAcquired && (motionObservable || trajectory.observable),
+			targetAcquired: this.targetAcquired,
+			// Kept as a compatibility field for the evaluator and existing logs. It
+			// means "acquired for this attempt", not "redetected this frame".
+			inhalerPresent: this.targetAcquired,
+			ratio,
+			sampleRateHz,
+			verticalFlow,
+			verticalShare,
+			verticalReversals,
+			trajectoryShaking: trajectory.shaking,
+			trajectorySource: trajectory.source,
+			positionVerticalRange: trajectory.verticalRange,
+			positionVerticalTravel: trajectory.verticalTravel,
+			positionVerticalReversals: trajectory.reversals,
+		};
+	}
+
+	analyseTrajectory(timestamp) {
+		let best = {
+			shaking: false,
+			observable: false,
+			source: null,
+			verticalRange: 0,
+			verticalTravel: 0,
+			reversals: 0,
+			score: 0,
+		};
+
+		for (const source of ["inhaler", "hand"]) {
+			const raw = this.positionSamples[source].filter(
+				(sample) => sample.t > timestamp - POSITION_WINDOW_MS,
+			);
+			if (raw.length < MIN_POSITION_SAMPLES) continue;
+			const durationMs = raw.at(-1).t - raw[0].t;
+			if (durationMs < MIN_POSITION_DURATION_MS) continue;
+
+			// Three-point smoothing rejects landmark shimmer without erasing the
+			// slower path we are deliberately trying to admit.
+			const samples = raw.map((sample, index) => {
+				const group = raw.slice(Math.max(0, index - 1), index + 2);
+				return {
+					x: median(group.map((item) => item.x)),
+					y: median(group.map((item) => item.y)),
+					t: sample.t,
+				};
+			});
+			const ys = samples.map((sample) => sample.y);
+			const verticalRange = Math.max(...ys) - Math.min(...ys);
+			let verticalTravel = 0;
+			let horizontalTravel = 0;
+			let reversals = 0;
+			let direction = 0;
+			let halfStroke = 0;
+
+			for (let index = 1; index < samples.length; index++) {
+				const dx = samples[index].x - samples[index - 1].x;
+				const dy = samples[index].y - samples[index - 1].y;
+				if (Math.abs(dx) >= POSITION_JITTER) {
+					horizontalTravel += Math.abs(dx);
+				}
+				if (Math.abs(dy) < POSITION_JITTER) continue;
+				verticalTravel += Math.abs(dy);
+				const sign = Math.sign(dy);
+				if (direction === 0 || sign === direction) {
+					direction = sign;
+					halfStroke += Math.abs(dy);
+				} else {
+					if (halfStroke >= MIN_HALF_STROKE) reversals++;
+					direction = sign;
+					halfStroke = Math.abs(dy);
+				}
+			}
+
+			const verticalDominance =
+				verticalTravel / Math.max(horizontalTravel, POSITION_JITTER);
+			const shaking =
+				verticalRange >= MIN_VERTICAL_RANGE &&
+				verticalTravel >= MIN_VERTICAL_TRAVEL &&
+				verticalDominance >= POSITION_VERTICAL_DOMINANCE &&
+				reversals >= MIN_POSITION_REVERSALS;
+			const score =
+				verticalRange + verticalTravel + reversals * MIN_HALF_STROKE;
+			if (score > best.score) {
+				best = {
+					shaking,
+					observable: true,
+					source,
+					verticalRange,
+					verticalTravel,
+					reversals,
+					score,
+				};
+			}
+		}
+
+		return best;
 	}
 
 	reset() {
 		this.samples = [];
-		this.shakingSince = null;
+		this.positionSamples = { hand: [], inhaler: [] };
+		this.targetAcquired = false;
+		this.targetAcquiredAt = null;
+		this.progressMs = 0;
+		this.lastDetectAt = null;
 		this.lastShakingAt = null;
+		this.observedFailureSince = null;
+		this.unobservedSince = null;
 	}
 }
 

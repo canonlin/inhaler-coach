@@ -9,7 +9,7 @@ type StepItem = {
 
 const steps: StepItem[] = [
 	{
-		label: "看影片",
+		label: "看示範",
 		desc: "藥師示範正確操作",
 		badgeBg: "bg-rose-600 text-white",
 		icon: (
@@ -34,8 +34,8 @@ const steps: StepItem[] = [
 		),
 	},
 	{
-		label: "調姿勢",
-		desc: "調整含嘴角度與站姿",
+		label: "對準畫面",
+		desc: "讓臉部與吸入器清楚入鏡",
 		badgeBg: "bg-slate-900 text-white",
 		icon: (
 			<svg
@@ -58,8 +58,8 @@ const steps: StepItem[] = [
 		),
 	},
 	{
-		label: "AI 糾正",
-		desc: "即時辨識並修正動作",
+		label: "跟著練習",
+		desc: "依照即時提示完成動作",
 		badgeBg: "bg-teal-700 text-white",
 		icon: (
 			<svg
@@ -80,8 +80,8 @@ const steps: StepItem[] = [
 		),
 	},
 	{
-		label: "看結果",
-		desc: "查看評分與改進建議",
+		label: "完成四關",
+		desc: "逐步確認每個操作重點",
 		badgeBg: "bg-sky-700 text-white",
 		icon: (
 			<svg
@@ -137,7 +137,7 @@ export function IntroSteps() {
 				{steps.map((step, i) => (
 					<div
 						key={step.label}
-						className="group relative flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-slate-900 cursor-default bg-white/92 backdrop-blur-md border-[1.5px] border-slate-200/90 shadow-lg shadow-slate-900/5 hover:-translate-y-0.5 hover:border-rose-600 hover:shadow-xl hover:shadow-rose-600/15 focus-visible:outline-3 focus-visible:outline-blue-600 focus-visible:outline-offset-2 transition-all duration-200"
+						className="relative flex cursor-default flex-col justify-between overflow-hidden rounded-2xl border-[1.5px] border-slate-200/90 bg-white/90 p-5 text-slate-900 shadow-lg shadow-slate-900/5 backdrop-blur-md"
 					>
 						{/* Top Row: Numeric Badge + Icon */}
 						<div className="flex items-center justify-between z-10">
@@ -146,7 +146,7 @@ export function IntroSteps() {
 							>
 								0{i + 1}
 							</span>
-							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition-colors duration-200 group-hover:bg-rose-600 group-hover:text-white">
+							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
 								{step.icon}
 							</div>
 						</div>

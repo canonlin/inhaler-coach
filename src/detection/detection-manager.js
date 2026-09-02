@@ -11,6 +11,7 @@ export class DetectionManager {
 		/** @type {'mediapipe'|'tfjs'|null} */
 		this.activeBackend = null;
 		this.isInitialized = false;
+		this.initializePromise = null;
 	}
 
 	/**
@@ -21,40 +22,60 @@ export class DetectionManager {
 			console.log("[DetectionManager] already initialized, skipping");
 			return;
 		}
+		if (this.initializePromise) return this.initializePromise;
+
+		this.initializePromise = this.initializeBackends();
+		try {
+			await this.initializePromise;
+		} catch (error) {
+			// A later retry must get a fresh initialization attempt rather than the
+			// same rejected promise.
+			this.initializePromise = null;
+			throw error;
+		}
+	}
+
+	async initializeBackends() {
 		console.log("[DetectionManager] initialize() called");
 		// Try MediaPipe first
+		let mediaPipeBackend = null;
 		try {
 			console.log("[DetectionManager] trying MediaPipe...");
 			const { MediaPipeBackend } = await import(
 				"./backends/mediapipe-backend.js"
 			);
-			const backend = new MediaPipeBackend();
-			await backend.initialize();
-			this.backend = backend;
+			mediaPipeBackend = new MediaPipeBackend();
+			await mediaPipeBackend.initialize();
+			this.backend = mediaPipeBackend;
 			this.activeBackend = "mediapipe";
 			this.isInitialized = true;
 			console.log("[DetectionManager] MediaPipe backend initialized (WebGL)");
 			return;
 		} catch (e) {
+			mediaPipeBackend?.destroy();
 			console.warn("[DetectionManager] MediaPipe failed:", e.message);
 		}
 
 		// Fallback to TF.js, off the main thread. WASM inference is synchronous,
 		// so running it inline would freeze the UI for the length of every
 		// forward pass.
+		let tfjsBackend = null;
 		try {
 			console.log("[DetectionManager] trying TF.js...");
 			const { TFJSWorkerBackend } = await import(
 				"./backends/tfjs-worker-backend.js"
 			);
-			const backend = new TFJSWorkerBackend();
-			await backend.initialize();
-			this.backend = backend;
+			tfjsBackend = new TFJSWorkerBackend();
+			await tfjsBackend.initialize();
+			this.backend = tfjsBackend;
 			this.activeBackend = "tfjs";
 			this.isInitialized = true;
-			console.log("[DetectionManager] TF.js backend initialized (WASM, in worker)");
+			console.log(
+				"[DetectionManager] TF.js backend initialized (WASM, in worker)",
+			);
 			return;
 		} catch (e) {
+			tfjsBackend?.destroy();
 			console.error("[DetectionManager] TF.js also failed:", e.message);
 			throw new Error(`No detection backend available: ${e.message}`);
 		}
@@ -86,5 +107,6 @@ export class DetectionManager {
 		this.backend = null;
 		this.activeBackend = null;
 		this.isInitialized = false;
+		this.initializePromise = null;
 	}
 }
