@@ -54,19 +54,62 @@
 
 兩份本機 session 不足以產生可部署模型。尤其兩折 sensitivity 差距極大，表示模型主要學到人／房間／麥克風差異，而不是穩定吐氣特徵。
 
-## 正確的完整訓練流程
+## 1150806 五位藥師 A100 重訓結果
 
-1. 找回所有藥師的成對 `.json + .webm`；不需要重錄既有資料。
-2. 驗證 session 數、參與者數、裝置與任務標籤完整性。
-3. 依人分組做 leave-one-person-out，不採隨機音窗切分。
-4. 從原始波形建立 log-mel 時頻資料；負樣本必須包含說話、靜止、操作、移動與噴藥。
-5. 比較校準後的線性模型與小型 TC-ResNet／DS-CNN；模型選擇以跨人結果為準。
-6. 預先登記驗收門檻；至少同時報告 sensitivity、specificity、AUC、每人結果與失敗情境。
-7. 音訊模型通過後，與可見姿勢融合：
-   - 姿勢確認吸入器遠離嘴邊。
-   - 音訊確認有持續吐氣聲。
-   - 無麥克風或低信心時降級為「吐氣引導」，不得宣稱 AI 已驗證氣流。
-8. 完成瀏覽器目標硬體 benchmark、模型 provenance、artifact digest 與產品負責人核准後，才可成為 production gate。
+2026-09-03 已找回 `1150806` 的五組 JSON／WebM，並在 Tailscale A100 上完成正式
+leave-one-session-out 訓練。原始 WebM 音軌以 FFmpeg 解碼為 16 kHz mono lossless
+FLAC；五份音軌長度與 JSON 最後 timestamp 的差距均不超過 0.05 秒。原始 ZIP、衍生
+音軌、Python 環境、window cache、checkpoint 與 run 全部留在 `/mnt`。
+
+固定條件：
+
+- 模型：40-band log-mel＋22,297 參數 depthwise-separable CNN。
+- 資料：5 位藥師、3,160 個一秒視窗，其中吐氣 270、負樣本 2,890。
+- 切分：5-fold leave-one-session-out，3 個固定 seeds，共 15 個 held-out folds。
+- 訓練：每折 100 epochs、batch 128、固定 threshold 0.5。
+- 預先門檻：每一折的 sensitivity、specificity、AUC 必須分別至少為
+  0.80、0.80、0.85。
+
+結果：15 折中 0 折通過，模型狀態為 `rejected-by-loso-gate`。
+
+| 指標 | 15 折平均 | 最差 | 最好 |
+|---|---:|---:|---:|
+| Sensitivity | 0.078 | 0.000 | 0.278 |
+| Specificity | 0.948 | 0.917 | 0.996 |
+| AUC | 0.475 | 0.233 | 0.684 |
+| Balanced accuracy | 0.513 | 0.468 | 0.600 |
+
+表面的 accuracy 為 0.873，但這是負樣本占多數造成的假象。模型幾乎總是回答「不是
+吐氣」，因此 specificity 很高、sensitivity 卻接近零；不能以 accuracy 宣稱成功。
+三個 seeds 都重現相同方向，排除單一初始化失敗。
+
+A100 run 正常結束，`exit_code=0`；455 個 GPU samples 中 451 個為非零負載，最高
+utilization 12%、最高 719 MiB VRAM、最高 36°C。這表示拒絕原因是跨人訊號不足，
+不是 OOM、環境或訓練程序中斷。
+
+完整 evaluation 在
+`training/a100-results/formal-c04fa2f/evaluation.json`。模型 checkpoint 僅保留於
+`/mnt/shared/inhaler-coach/runs/formal-c04fa2f/`，SHA-256 為
+`5ce8d5c0606309ad5c9cc8d476606e656174cee497814f8e1ab431fd9cff054b`；它是被驗收拒絕的
+研究產物，不得接入 browser runtime。
+
+此結果關閉「只要把同一批 webcam 音訊換成更強分類器即可」的路線。下一個合理實驗
+應改變可觀測訊號：以軀幹／胸口 motion 為主，音訊只作輔助，並維持 guided-exhale
+fallback；不能再以相同資料反覆換模型追逐單一分數。
+
+## 後續模型研究門檻
+
+1. 不晉升本次 DS-CNN；保留 evaluation 與 checkpoint 作為 rejected evidence。
+2. 下一輪只改一個主變因：以軀幹／胸口 motion 為主要訊號，再比較是否加入音訊；
+   session split、window、seeds 與驗收門檻維持不變。
+3. 若根據這五折選擇新架構，必須另收新的參與者作 locked external test；不能再把同五人
+   稱為未見測試集。
+4. 新資料應跨麥克風、房間與噪音條件，負樣本保留說話、靜止、操作、移動與噴藥。
+5. 至少同時報告 sensitivity、specificity、AUC、balanced accuracy、逐人結果與失敗情境。
+6. 只有跨人 gate 通過後，才能進行 browser runtime、延遲、風扇與目標硬體 benchmark。
+7. 無麥克風、低信心或 gate 未通過時，維持「吐氣引導」，不得宣稱 AI 已驗證氣流。
+8. production promotion 仍需要 model provenance、artifact digest、產品負責人核准與獨立
+   使用者驗收。
 
 ## 重跑方式
 
