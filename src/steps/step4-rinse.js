@@ -84,11 +84,13 @@ export function mouthROI(faceLandmarks, pad = 0.9) {
 	const maxY = Math.max(...ys);
 	const w = maxX - minX || 0.05;
 	const h = maxY - minY || 0.03;
+	const x = Math.max(0, minX - w * pad);
+	const y = Math.max(0, minY - h * pad);
 
 	return {
-		x: Math.max(0, minX - w * pad),
-		y: Math.max(0, minY - h * pad),
-		w: Math.min(1, w * (1 + 2 * pad)),
-		h: Math.min(1, h * (1 + 2 * pad)),
+		x,
+		y,
+		w: Math.min(1 - x, w * (1 + 2 * pad)),
+		h: Math.min(1 - y, h * (1 + 2 * pad)),
 	};
 }

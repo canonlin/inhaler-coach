@@ -108,23 +108,34 @@ export class InhalerDetector {
 		this.ready = false;
 		this.seq = 0;
 		this.pending = new Map();
+		this.tracker = new InhalerObservationTracker();
 		this._readyResolve = null;
-		this._readyPromise = new Promise((r) => {
-			this._readyResolve = r;
-		});
+		this._readyReject = null;
+		this._readyPromise = null;
 	}
 
 	/** Spins up the worker and resolves once the model is loaded. */
 	async load() {
 		if (this.worker) return this._readyPromise;
+		this._readyPromise = new Promise((resolve, reject) => {
+			this._readyResolve = resolve;
+			this._readyReject = reject;
+		});
 		this.worker = new Worker(new URL("./inhaler-worker.js", import.meta.url), {
 			type: "module",
 		});
 		this.worker.onmessage = (e) => {
-			const { id, result, error, ready } = e.data;
+			const { id, result, error, ready, warmupError } = e.data;
 			if (ready) {
 				this.ready = true;
 				this._readyResolve?.();
+				return;
+			}
+			if (warmupError) {
+				this.ready = false;
+				this._readyReject?.(new Error(warmupError));
+				this.worker?.terminate();
+				this.worker = null;
 				return;
 			}
 			const resolve = this.pending.get(id);
@@ -132,6 +143,14 @@ export class InhalerDetector {
 				this.pending.delete(id);
 				resolve(error ? EMPTY : result);
 			}
+		};
+		this.worker.onerror = (event) => {
+			this.ready = false;
+			this._readyReject?.(new Error(event.message || "inhaler worker failed"));
+			for (const resolve of this.pending.values()) resolve(EMPTY);
+			this.pending.clear();
+			this.worker?.terminate();
+			this.worker = null;
 		};
 		// Nudge the worker to load the model now, not on first detect.
 		this.worker.postMessage({ warmup: true });
@@ -142,22 +161,29 @@ export class InhalerDetector {
 	 * @param {CanvasImageSource} source - the raw video frame
 	 * @param {number} srcW @param {number} srcH - its natural pixel size
 	 * @param {number} conf - confidence floor
+	 * @param {number} timestamp - monotonic capture time
 	 * @returns {Promise<{present:boolean, score:number,
-	 *   center:{x:number,y:number}|null, box:{x,y,w,h}|null}>} normalized 0..1
+	 *   center:{x:number,y:number}|null, box:{x,y,w,h}|null,
+	 *   steadiness:number, observedAt:number|null}>} normalized 0..1
 	 */
-	async detect(source, srcW, srcH, conf = 0.35) {
-		if (!this.worker || !srcW || !srcH) return EMPTY;
+	async detect(source, srcW, srcH, conf = 0.35, timestamp = performance.now()) {
+		if (!this.worker || !srcW || !srcH) {
+			return this.tracker.observe(EMPTY, timestamp);
+		}
 		let bitmap;
 		try {
 			bitmap = await createImageBitmap(source);
 		} catch {
-			return EMPTY;
+			return this.tracker.observe(EMPTY, timestamp);
 		}
 		const id = ++this.seq;
 		const done = new Promise((resolve) => this.pending.set(id, resolve));
 		this.worker.postMessage({ id, bitmap, srcW, srcH, conf }, [bitmap]);
-		return done;
+		const result = await done;
+		return this.tracker.observe(result, timestamp);
 	}
 
-	reset() {}
+	reset() {
+		this.tracker.reset();
+	}
 }

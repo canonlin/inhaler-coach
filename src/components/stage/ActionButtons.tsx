@@ -36,12 +36,12 @@ export function ActionButtons({
 	onNext,
 }: ActionButtonsProps) {
 	return (
-		<div className="flex items-center gap-2.5 bg-slate-950/90 backdrop-blur-md border border-slate-800 p-2 rounded-2xl shadow-2xl flex-wrap justify-end">
+		<div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/10 bg-slate-950/85 p-2 shadow-2xl backdrop-blur-md">
 			{showReplay && onReplay && (
 				<button
 					type="button"
 					onClick={onReplay}
-					className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
+					className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-700 sm:text-sm"
 				>
 					<IconRotateCcw className="w-4 h-4 text-cyan-400" />
 					<span>重播</span>
@@ -52,10 +52,10 @@ export function ActionButtons({
 				<button
 					type="button"
 					onClick={onPharmacist}
-					className="px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-emerald-400 font-bold text-xs sm:text-sm border border-emerald-500/30 shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
+					className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-xs font-bold text-emerald-200 transition-colors hover:bg-emerald-400/20 sm:text-sm"
 				>
 					<IconCheck className="w-4 h-4 text-emerald-400" />
-					<span>藥師確認通過</span>
+					<span>由衛教師確認</span>
 				</button>
 			)}
 
@@ -63,7 +63,7 @@ export function ActionButtons({
 				<button
 					type="button"
 					onClick={onRetry}
-					className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm border border-slate-700 shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
+					className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-100 transition-colors hover:bg-slate-700 sm:text-sm"
 				>
 					<IconRefresh className="w-4 h-4 text-amber-400" />
 					<span>再測一次</span>
@@ -74,11 +74,11 @@ export function ActionButtons({
 				<button
 					type="button"
 					onClick={onStartAI}
-					className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
+					className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-rose-600/25 transition-colors hover:bg-rose-500 sm:text-sm"
 				>
-					<IconBrain className="w-4 h-4 text-slate-950" />
+					<IconBrain className="w-4 h-4 text-white" />
 					<span>{startAIText}</span>
-					<IconArrowRight className="w-4 h-4 text-slate-950" />
+					<IconArrowRight className="w-4 h-4 text-white" />
 				</button>
 			)}
 
@@ -86,7 +86,7 @@ export function ActionButtons({
 				<button
 					type="button"
 					onClick={onNext}
-					className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-rose-600/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
+					className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-rose-600/25 transition-colors hover:bg-rose-500 sm:text-sm"
 				>
 					<span>{nextBtnText}</span>
 					<IconArrowRight className="w-4 h-4" />
