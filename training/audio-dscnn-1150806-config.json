@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "1150806-exhale-audio-dscnn-loso-v1",
+  "objective": "Test whether raw collector audio separates exhale from hard negatives across pharmacists.",
+  "claimBoundary": "This experiment does not prove lung emptying and cannot promote a production model without a separate product gate.",
+  "dataset": {
+    "archive001": {
+      "filename": "1150806-20260809T145223Z-1-001.zip",
+      "bytes": 1697181179,
+      "sha256": "711f3814a7ff361dfe67663f8f5eebec196e067b13e52cf2073bf2b9987ddd80"
+    },
+    "archive002": {
+      "filename": "1150806-20260809T145223Z-1-002.zip",
+      "bytes": 1025146991,
+      "sha256": "9674b8aece07ae1eef75ff70490aa8f4424fbf903742bf31232b09f3cb88204b"
+    },
+    "sessions": [
+      "52db4e16",
+      "6c0ee61b",
+      "80918593",
+      "ab1ccc94",
+      "eb762b9b"
+    ],
+    "classification": "restricted internal research data"
+  },
+  "split": {
+    "method": "leave-one-session-out",
+    "rule": "No overlapping or non-overlapping window from the held-out session may enter training.",
+    "seeds": [42, 31415, 271828]
+  },
+  "audio": {
+    "sampleRate": 16000,
+    "windowMs": 1000,
+    "stepMs": 250,
+    "edgeTrimMs": 500,
+    "positiveLabels": ["exhale"],
+    "negativeLabels": [
+      "still",
+      "move",
+      "handle",
+      "speak",
+      "shake_normal",
+      "shake_hard",
+      "shake_gentle",
+      "shake_limited",
+      "press_mouth_steady",
+      "press_air_steady",
+      "spray_x2"
+    ]
+  },
+  "model": {
+    "architecture": "40-band log-mel plus compact depthwise-separable CNN",
+    "epochs": 100,
+    "batchSize": 128,
+    "learningRate": 0.001,
+    "weightDecay": 0.0001,
+    "threshold": 0.5
+  },
+  "acceptance": {
+    "scope": "research candidate only",
+    "requiredForEveryFoldAndSeed": {
+      "sensitivity": 0.8,
+      "specificity": 0.8,
+      "auc": 0.85
+    }
+  },
+  "compute": {
+    "node": "a100 via Tailscale",
+    "maximumMemoryFraction": 0.6,
+    "maximumNominalVram": "24 GiB (<25 GiB task limit)",
+    "workspace": "/mnt/shared/inhaler-coach",
+    "modelCache": "/mnt/model-cache/inhaler-coach"
+  }
+}
