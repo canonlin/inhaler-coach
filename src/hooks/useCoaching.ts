@@ -5,13 +5,52 @@ import { useStageNavigation } from "./useStageNavigation";
 import { useWebcamStream } from "./useWebcamStream";
 import { useYouTubePlayer } from "./useYouTubePlayer";
 
+export type ModelState = "idle" | "loading" | "ready" | "error";
+
+const MODEL_LOAD_TIMEOUT_MS = 30_000;
+const CAMERA_START_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(
+	promise: Promise<T>,
+	milliseconds: number,
+	message: string,
+): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const timer = window.setTimeout(
+			() => reject(new Error(message)),
+			milliseconds,
+		);
+		promise.then(
+			(value) => {
+				window.clearTimeout(timer);
+				resolve(value);
+			},
+			(error) => {
+				window.clearTimeout(timer);
+				reject(error);
+			},
+		);
+	});
+}
+
+function loadDetectionModels() {
+	return withTimeout(
+		Promise.all([
+			singletons.detection.initialize(),
+			singletons.inhalerDetector.load(),
+		]),
+		MODEL_LOAD_TIMEOUT_MS,
+		"model loading timed out",
+	);
+}
+
 export function useCoaching() {
 	const nav = useStageNavigation();
 	const webcam = useWebcamStream();
 
 	const [statusText, setStatusText] = useState("");
 	const [overlay, setOverlay] = useState<"none" | "correct" | "wrong">("none");
-	const [modelReady, setModelReady] = useState(false);
+	const [modelState, setModelState] = useState<ModelState>("idle");
 
 	const stageConfig = getStageConfig(nav.stageIdx);
 	const showVideo = nav.phase === "video";
@@ -45,15 +84,14 @@ export function useCoaching() {
 		if (nav.phase === "video" && !preloaded.current) {
 			preloaded.current = true;
 			console.log("[preload] Starting model preload during video...");
-			Promise.all([
-				singletons.detection.initialize(),
-				singletons.inhalerDetector.load(),
-			]).then(() => {
-				console.log("[preload] Models ready");
-			}).catch((err) => {
-				console.warn("[preload] Preload failed:", err);
-				preloaded.current = false;
-			});
+			loadDetectionModels()
+				.then(() => {
+					console.log("[preload] Models ready");
+				})
+				.catch((err) => {
+					console.warn("[preload] Preload failed:", err);
+					preloaded.current = false;
+				});
 		}
 	}, [nav.phase]);
 
@@ -63,32 +101,45 @@ export function useCoaching() {
 	}, [nav, yt]);
 
 	const startAIPhase = useCallback(async () => {
+		// Starting again while an async frame is still resolving would otherwise
+		// leave two detection loops and two camera streams alive.
+		detLoop.stopLoop();
+		webcam.stopTracks();
 		nav.startAIPhase();
+		setModelState("loading");
+		setStatusText("");
 		setOverlay("none");
 
-		const ok = await webcam.startStream();
+		let ok = false;
+		try {
+			ok = await withTimeout(
+				webcam.startStream(),
+				CAMERA_START_TIMEOUT_MS,
+				"camera permission timed out",
+			);
+		} catch (error) {
+			console.error("Camera start timed out:", error);
+			webcam.stopTracks();
+			setModelState("error");
+			setStatusText("等待攝影機權限逾時，請確認瀏覽器權限後再試一次。");
+			return;
+		}
 		if (ok) {
-			// Only show loading message if models aren't already loaded
-			if (!singletons.detection.isInitialized || !singletons.inhalerDetector.ready) {
-				setModelReady(false);
-				setStatusText("AI 模型載入中...");
-			}
-
 			try {
-				await Promise.all([
-					singletons.detection.initialize(),
-					singletons.inhalerDetector.load(),
-				]);
+				await loadDetectionModels();
 			} catch (err) {
 				console.error("Detection init failed:", err);
-				setStatusText("AI 模型載入失敗，請重新整理頁面");
+				webcam.stopTracks();
+				setModelState("error");
+				setStatusText("AI 模型載入失敗，請確認網路後再試一次。");
 				return;
 			}
-			setModelReady(true);
+			setModelState("ready");
 			setStatusText("即時 AI 辨識中...");
 			detLoop.startLoop(nav.stageIdx, () => nav.setStagePassed(true));
 		} else {
-			setStatusText("無法存取攝影機，請檢查硬體與授權！");
+			setModelState("error");
+			setStatusText("無法啟動攝影機，請確認鏡頭權限與硬體連線。");
 		}
 	}, [nav, webcam, detLoop]);
 
@@ -96,7 +147,7 @@ export function useCoaching() {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.backToVideo();
-		setModelReady(false);
+		setModelState("idle");
 		setStatusText("");
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
@@ -105,7 +156,7 @@ export function useCoaching() {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.nextStage();
-		setModelReady(false);
+		setModelState("idle");
 		setStatusText("");
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
@@ -114,13 +165,13 @@ export function useCoaching() {
 		detLoop.stopLoop();
 		webcam.stopTracks();
 		nav.nextStage();
-		setModelReady(false);
+		setModelState("idle");
 		setStatusText("");
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
 
 	const tryBtnText =
-		nav.phase === "video" && nav.stageIdx > 0 ? "開始 AI 辨識練習" : "";
+		nav.phase === "video" && nav.stageIdx > 0 ? "開始 AI 動作練習" : "";
 
 	const showPharmacist = nav.stageIdx > 0;
 	const showRetry = nav.stagePassed && nav.phase === "ai";
@@ -143,7 +194,8 @@ export function useCoaching() {
 		statusText,
 		overlay,
 		showVideo,
-		modelReady,
+		modelState,
+		modelReady: modelState === "ready",
 		tryBtnText,
 		showPharmacist,
 		showRetry,
@@ -153,6 +205,7 @@ export function useCoaching() {
 		setContainerRef: yt.setContainerRef,
 		isVideoLoading: yt.isVideoLoading,
 		isVideoEnded: yt.isVideoEnded,
+		videoError: yt.videoError,
 		replayVideo: handleReplayVideo,
 		finishIntro: nav.finishIntro,
 		loadStage: nav.loadStage,

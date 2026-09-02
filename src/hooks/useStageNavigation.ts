@@ -9,7 +9,11 @@ export function getInitialStageIdx(): number {
 }
 
 export function useStageNavigation() {
-	const [screen, setScreen] = useState<"intro" | "stage" | "success">("intro");
+	const [screen, setScreen] = useState<"intro" | "stage" | "success">(() =>
+		new URLSearchParams(window.location.search).has("stage")
+			? "stage"
+			: "intro",
+	);
 	const [stageIdx, setStageIdx] = useState<number>(getInitialStageIdx);
 	const [phase, setPhase] = useState<"video" | "ai" | "pharmacist">("video");
 	const [stagePassed, setStagePassed] = useState(false);

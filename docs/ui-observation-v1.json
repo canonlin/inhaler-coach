@@ -1,0 +1,201 @@
+{
+  "schema": "inhaler-coach-ui-observation/1",
+  "artifactId": "inhaler-coach-web-app",
+  "revisionId": "2026-09-02-demo-stabilization-v1",
+  "artifactPath": "/Users/gloomcheng/Workspace/inhaler-coach/src/App.tsx",
+  "identityMode": "APPLICATION",
+  "medium": "responsive browser-based clinical education application",
+  "brief": "Extend the existing rose-and-slate Inhaler Coach introduction language across video, live observation, recovery, and completion without overstating what webcam sensing can verify.",
+  "identityAuthority": {
+    "existingApplication": "src/components/intro/IntroHeader.tsx",
+    "masterProductImage": "public/inhaler_bg.jpg",
+    "existingDeviceAsset": "public/inhaler_device.svg",
+    "styleGuide": "docs/ui-style-guide-v1.md"
+  },
+  "governingRelationship": "Light instructional entry and completion surfaces frame a dark live-media workspace; rose identifies the service and primary action, while emerald is reserved for achieved states.",
+  "renders": [
+    {
+      "role": "intro-desktop",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/intro-desktop-r2-stable.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "intro-smallest",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/intro-mobile-320-r2.png",
+      "viewport": "320x720"
+    },
+    {
+      "role": "video-playing",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/stage1-video-replay.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "camera-timeout",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/camera-timeout-error.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "youtube-error",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/video-youtube-error.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "live-guidance",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/stage2-ai-from-video-error.png",
+      "viewport": "1440x900",
+      "camera": "Playwright-only synthetic MediaStream"
+    },
+    {
+      "role": "live-success-ui",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/stage1-success-banner-final.png",
+      "viewport": "1440x900",
+      "camera": "Playwright-only synthetic MediaStream; retained for banner contrast evidence, not current shake-detector validation"
+    },
+    {
+      "role": "static-inhaler-negative",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/stage1-static-inhaler-regression.png",
+      "viewport": "1440x900",
+      "camera": "Synthetic static image; ONNX reported inhaler present at score 0.802 and the stage remained unpassed"
+    },
+    {
+      "role": "recovered-next-stage",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/stage3-after-recovered-youtube.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "completion-desktop",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/success-desktop-final.png",
+      "viewport": "1440x900"
+    },
+    {
+      "role": "completion-smallest",
+      "path": "/Users/gloomcheng/Workspace/inhaler-coach/output/playwright/success-mobile-final.png",
+      "viewport": "320x720"
+    }
+  ],
+  "observerRoles": [
+    "brand_director",
+    "art_director",
+    "typographer",
+    "production_artist",
+    "digital_interaction_specialist",
+    "accessibility_reviewer",
+    "reader_advocate"
+  ],
+  "resolvedFindings": [
+    {
+      "severity": "critical",
+      "dimension": "clinical interaction integrity",
+      "locator": "stage 1 shake pass condition",
+      "evidence": "A physical inhaler could pass while held still because inference-bound motion sampling was allowed near 3 fps and presence established the only ROI.",
+      "brokenRelationship": "Inhaler presence was mistaken for completion of an up-and-down shake.",
+      "correction": "Use a two-state detector. ONNX acquires and locks the inhaler once per attempt; the mixing state then accepts either a normal-speed position path with meaningful vertical range, travel and full reversals or the existing 30 fps motion/flow fast path. Static presence, horizontal movement, one-way vertical motion, low-rate high ratio, high ratio without coherent flow, and hand movement before inhaler acquisition are regression-tested as failures."
+    },
+    {
+      "severity": "high",
+      "dimension": "live tracking continuity",
+      "locator": "stage 1 physical Brave camera and retry",
+      "evidence": "The real demo tab measured only about 21 motion samples per second and repeatedly cleared its ROI while the user continued shaking. Awaiting the worker-based inhaler fallback also reduced hand reacquisition to a few frames per second. Progress reset after the model outage even though the physical action continued.",
+      "brokenRelationship": "A sensing outage was treated as evidence that the learner stopped and erased valid progress.",
+      "correction": "Throttle synchronous MediaPipe landmark inference to about 10 fps so the motion sampler remains near 30 fps; run initial ONNX acquisition without blocking hand inference; once acquired, stop repeated ONNX calls and retain the target lock until retry/reset. Freeze accumulated shake progress while action tracking is unavailable, display the retained duration, and reset only after a sustained visible non-shake or a bounded ten-second action-tracking outage."
+    },
+    {
+      "severity": "high",
+      "dimension": "state recovery",
+      "locator": "AI camera loading",
+      "evidence": "Physical permission prompt remained pending beyond normal model load.",
+      "brokenRelationship": "Loading had no bounded transition to recovery.",
+      "correction": "Added a 15-second camera timeout and generation-based cancellation of stale streams."
+    },
+    {
+      "severity": "high",
+      "dimension": "state isolation",
+      "locator": "stage 2 AI to stage 3 video",
+      "evidence": "An async stage-2 frame wrote guidance after navigation.",
+      "brokenRelationship": "Previous-stage state appeared in the next stage.",
+      "correction": "Re-check runId after every long await and before evaluation."
+    },
+    {
+      "severity": "high",
+      "dimension": "recovery chain",
+      "locator": "YouTube iframe API error followed by next stage",
+      "evidence": "The failed script element prevented a clean API reload.",
+      "brokenRelationship": "One recovered error poisoned subsequent video states.",
+      "correction": "Remove a failed iframe API script so the next attempt can inject a clean resource."
+    },
+    {
+      "severity": "medium",
+      "dimension": "contrast",
+      "locator": "live success status banner",
+      "evidence": "Pale emerald text disappeared over a bright camera region.",
+      "brokenRelationship": "Achieved-state feedback was less legible than guidance.",
+      "correction": "Use a 90%-opaque emerald-950 surface with emerald-100 text."
+    },
+    {
+      "severity": "medium",
+      "dimension": "responsive composition",
+      "locator": "320x720 intro",
+      "evidence": "English labels wrapped, Chinese split inside 漱口, and footer touched the bottom rule.",
+      "brokenRelationship": "Smallest view lost the intended reading rhythm.",
+      "correction": "Compact labels, govern semantic line breaks, tighten footer, and strengthen the mobile image mask."
+    },
+    {
+      "severity": "medium",
+      "dimension": "overflow",
+      "locator": "completion page decoration",
+      "evidence": "A negative-position blur expanded horizontal scroll geometry.",
+      "brokenRelationship": "A decorative element introduced unintended navigation.",
+      "correction": "Keep the blur circle inside the right boundary; verified scrollWidth equals clientWidth at 320 and 1440."
+    }
+  ],
+  "locked": [
+    "existing product image and device asset",
+    "rose-and-slate identity relationship",
+    "four-stage clinical sequence",
+    "bounded video and camera recovery",
+    "truthful visible-action language",
+    "320x720 and 1440x900 compositions"
+  ],
+  "verification": {
+    "preflight": "passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "nodeTests": "45 passed",
+    "pythonTests": "6 passed",
+    "logicLineCoverage": "94.18%",
+    "productionBuild": "passed",
+    "playwrightE2E": "3 passed",
+    "browserScenarios": [
+      "intro desktop and smallest viewport",
+      "video playing and ended",
+      "YouTube API failure and recovery",
+      "camera permission timeout",
+      "static inhaler detected by ONNX but rejected for more than eight seconds",
+      "stage-1 normal-speed trajectory, target-lock persistence, vertical, horizontal, one-way, static, no-inhaler, and low-rate behavior through algorithm integration tests",
+      "physical Brave observation improved from about 21 to about 30 motion samples per second and accumulated 2.7 seconds before the final progress-freeze revision",
+      "clinician confirmation and cross-stage isolation",
+      "completion desktop and smallest viewport"
+    ]
+  },
+  "previewEvidence": {
+    "status": "browser-and-render-observed",
+    "limitation": "macOS Preview receipt required by the full VI harness was not produced"
+  },
+  "remainingBlockers": [
+    {
+      "owner": "demo team",
+      "missingInput": "final physical positive control after the two-state target-lock redesign, plus a full human rehearsal; target acquisition was observed in Brave, but the user did not perform the final five-second motion during the last observation window",
+      "nextAction": "Use the existing localhost Brave tab to run stage 1 twice with the real device, then complete the remaining stages on the presentation machine."
+    },
+    {
+      "owner": "authorized product owner",
+      "missingInput": "final visual and content approval",
+      "nextAction": "Review the retained desktop, smallest, error, live, and completion renders."
+    }
+  ],
+  "decision": "revise",
+  "readback": {
+    "status": "runtime-qa-passed-pending-real-device-and-approval",
+    "statement": "No critical source, build, or automated-test blocker remains. Static-inhaler rejection, the physical-camera performance failure, and successful one-time target acquisition were observed; the final two-state redesign still needs one real-camera five-second positive pass and retry, so full VI verification is intentionally not claimed."
+  }
+}

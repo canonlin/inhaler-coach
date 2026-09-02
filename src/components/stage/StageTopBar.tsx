@@ -1,21 +1,44 @@
 type StageTopBarProps = {
 	text: string;
-	leftClass?: string;
+	currentStep: number;
+	totalSteps?: number;
 };
 
-export function StageTopBar({ text }: StageTopBarProps) {
+export function StageTopBar({
+	text,
+	currentStep,
+	totalSteps = 4,
+}: StageTopBarProps) {
 	if (!text) return null;
+	const progress = `${Math.min(100, Math.max(0, (currentStep / totalSteps) * 100))}%`;
 
 	return (
-		<header className="fixed top-0 left-0 right-0 z-40 h-12 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between shadow-lg pointer-events-none">
-			<div className="flex items-center gap-2.5 min-w-0">
-				<span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-				<span className="text-white font-black text-sm sm:text-base tracking-wide truncate">
+		<header className="pointer-events-none fixed inset-x-0 top-0 z-40 flex h-14 items-center border-b border-white/10 bg-slate-950/90 px-4 shadow-xl backdrop-blur-md sm:px-6">
+			<div className="flex min-w-0 flex-1 items-center gap-3">
+				<div className="flex shrink-0 items-center gap-2 rounded-full border border-rose-400/25 bg-rose-400/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.16em] text-rose-200 sm:text-xs">
+					<span className="h-2 w-2 rounded-full bg-rose-400" />
+					<span className="hidden sm:inline">INHALER COACH</span>
+				</div>
+				<span className="truncate text-sm font-black tracking-wide text-white sm:text-base">
 					{text}
 				</span>
 			</div>
-			<div className="font-mono text-xs font-bold text-slate-400 shrink-0">
-				INHALER COACH
+			<div className="ml-4 shrink-0 font-mono text-xs font-bold tracking-wider text-slate-300 sm:text-sm">
+				{String(currentStep).padStart(2, "0")} /{" "}
+				{String(totalSteps).padStart(2, "0")}
+			</div>
+			<div
+				className="absolute inset-x-0 bottom-0 h-0.5 bg-white/10"
+				role="progressbar"
+				aria-label="闖關進度"
+				aria-valuemin={1}
+				aria-valuemax={totalSteps}
+				aria-valuenow={currentStep}
+			>
+				<div
+					className="h-full bg-rose-500 transition-[width] duration-500"
+					style={{ width: progress }}
+				/>
 			</div>
 		</header>
 	);

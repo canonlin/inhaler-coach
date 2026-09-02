@@ -12,7 +12,7 @@ export function StageScreen(props: StageScreenProps) {
 		stageIdx,
 		overlay,
 		showVideo,
-		modelReady,
+		modelState,
 		tryBtnText,
 		stagePassed,
 		showPharmacist,
@@ -24,6 +24,7 @@ export function StageScreen(props: StageScreenProps) {
 		setContainerRef,
 		isVideoLoading,
 		isVideoEnded,
+		videoError,
 		replayVideo,
 		startAIPhase,
 		retryStage,
@@ -35,7 +36,6 @@ export function StageScreen(props: StageScreenProps) {
 	const s = useMemo(() => {
 		const cfg = getStageConfig(stageIdx);
 
-		const topbarLeft = cfg.badge === "BONUS" ? "0" : "left-[120px]";
 		const topbarText =
 			cfg.badge === "BONUS"
 				? "恭喜！您已完成吸入器正確操作的所有階段！"
@@ -55,7 +55,6 @@ export function StageScreen(props: StageScreenProps) {
 				: "text-2xl font-black text-white/90 sm:text-3xl";
 
 		return {
-			topbarLeft,
 			topbarText,
 			headerVisible,
 			badgeClass,
@@ -69,7 +68,7 @@ export function StageScreen(props: StageScreenProps) {
 
 	return (
 		<div className="fixed inset-0 z-50">
-			<StageTopBar text={s.topbarText} leftClass={s.topbarLeft} />
+			<StageTopBar text={s.topbarText} currentStep={stageIdx} />
 
 			<div className="relative w-full h-screen bg-black flex items-center justify-center overflow-hidden">
 				{showVideo ? (
@@ -77,6 +76,7 @@ export function StageScreen(props: StageScreenProps) {
 						setContainerRef={setContainerRef}
 						isVideoLoading={isVideoLoading}
 						isVideoEnded={isVideoEnded}
+						videoError={videoError}
 						badge={s.badge}
 						badgeClass={s.badgeClass}
 						title={s.title}
@@ -99,7 +99,7 @@ export function StageScreen(props: StageScreenProps) {
 						overlay={overlay}
 						aiLabel={s.badge}
 						statusText={statusText}
-						modelReady={modelReady}
+						modelState={modelState}
 						stagePassed={stagePassed}
 						showPharmacist={showPharmacist}
 						showRetry={showRetry}

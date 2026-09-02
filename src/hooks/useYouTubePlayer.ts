@@ -47,6 +47,7 @@ export function useYouTubePlayer({
 	const [replayCount, setReplayCount] = useState(0);
 	const [isVideoLoading, setIsVideoLoading] = useState(true);
 	const [isVideoEnded, setIsVideoEnded] = useState(false);
+	const [videoError, setVideoError] = useState<string | null>(null);
 	// Tracks whether the container DOM element has been attached.
 	// Refs don't trigger re-renders, so we mirror it with state
 	// to make the player-creation effect re-run once the container exists.
@@ -82,6 +83,13 @@ export function useYouTubePlayer({
 		}
 
 		let destroyed = false;
+		const loadingTimeout = window.setTimeout(() => {
+			if (destroyed) return;
+			setIsVideoLoading(false);
+			setVideoError("教學影片載入逾時，可能是網路連線不穩定。");
+		}, 12_000);
+
+		const clearLoadingTimeout = () => window.clearTimeout(loadingTimeout);
 
 		function createPlayer(count: number) {
 			if (destroyed) return;
@@ -108,6 +116,8 @@ export function useYouTubePlayer({
 				events: {
 					onReady: () => {
 						if (destroyed) return;
+						clearLoadingTimeout();
+						setVideoError(null);
 						setIsVideoLoading(false);
 					},
 					onStateChange: (event: YT.OnStateChangeEvent) => {
@@ -117,6 +127,9 @@ export function useYouTubePlayer({
 					},
 					onError: (event: YT.OnErrorEvent) => {
 						console.error("[YT] player error:", event.data);
+						clearLoadingTimeout();
+						setIsVideoLoading(false);
+						setVideoError("YouTube 無法播放這段教學影片，請重新載入。");
 					},
 				},
 			});
@@ -127,12 +140,14 @@ export function useYouTubePlayer({
 		hasEndedRef.current = false;
 		setIsVideoEnded(false);
 		setIsVideoLoading(true);
+		setVideoError(null);
 
 		// API already loaded — create player immediately
 		if (window.YT?.Player) {
 			createPlayer(replayCount);
 			return () => {
 				destroyed = true;
+				clearLoadingTimeout();
 				if (playerRef.current) {
 					playerRef.current.destroy();
 					playerRef.current = null;
@@ -154,6 +169,13 @@ export function useYouTubePlayer({
 		) {
 			const tag = document.createElement("script");
 			tag.src = "https://www.youtube.com/iframe_api";
+			tag.onerror = () => {
+				if (destroyed) return;
+				clearLoadingTimeout();
+				setIsVideoLoading(false);
+				setVideoError("無法連線至 YouTube，請檢查網路後重試。");
+				tag.remove();
+			};
 			document.head.appendChild(tag);
 		}
 
@@ -171,6 +193,7 @@ export function useYouTubePlayer({
 
 		return () => {
 			destroyed = true;
+			clearLoadingTimeout();
 			clearInterval(pollId);
 			if (playerRef.current) {
 				playerRef.current.destroy();
@@ -180,9 +203,15 @@ export function useYouTubePlayer({
 	}, [videoId, showVideo, containerReady, replayCount, triggerVideoEnd]);
 
 	const replayVideo = useCallback(() => {
+		if (!window.YT?.Player) {
+			document
+				.querySelector('script[src="https://www.youtube.com/iframe_api"]')
+				?.remove();
+		}
 		hasEndedRef.current = false;
 		setIsVideoEnded(false);
 		setIsVideoLoading(true);
+		setVideoError(null);
 		setReplayCount((c) => c + 1);
 	}, []);
 
@@ -191,6 +220,7 @@ export function useYouTubePlayer({
 		setContainerRef,
 		isVideoLoading,
 		isVideoEnded,
+		videoError,
 		replayVideo,
 		finishLoading: () => setIsVideoLoading(false),
 		triggerVideoEnd,
