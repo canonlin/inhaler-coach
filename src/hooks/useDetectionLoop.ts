@@ -241,8 +241,12 @@ export function useDetectionLoop({
 							if (typeof singletons.detection?.processFrame === "function") {
 								const needs: FrameNeeds = {
 									pose: false,
-									face: stageIdx >= 2,
-									hands: stageIdx === 1,
+									face:
+										stageIdx >= 2 &&
+										(stageIdx !== 2 || !singletons.step2.awayLocked),
+									hands:
+										stageIdx === 1 ||
+										(stageIdx === 2 && !singletons.step2.awayLocked),
 								};
 								poseResult = await singletons.detection.processFrame(
 									canvas,
@@ -268,14 +272,16 @@ export function useDetectionLoop({
 						} | null;
 						const hand = pr?.hands ?? null;
 						const handRegion = handROI(hand, 0.6);
-						if (stageIdx === 1 && hand?.length) {
-							const handCenter = hand.reduce(
-								(center, landmark) => ({
-									x: center.x + landmark.x / hand.length,
-									y: center.y + landmark.y / hand.length,
-								}),
-								{ x: 0, y: 0 },
-							);
+						const handCenter = hand?.length
+							? hand.reduce(
+									(center, landmark) => ({
+										x: center.x + landmark.x / hand.length,
+										y: center.y + landmark.y / hand.length,
+									}),
+									{ x: 0, y: 0 },
+								)
+							: null;
+						if (stageIdx === 1 && handCenter) {
 							singletons.step1.updatePosition(handCenter, now, "hand");
 						}
 						const face = pr?.face ?? null;
@@ -349,7 +355,10 @@ export function useDetectionLoop({
 							box: { x: number; y: number; w: number; h: number } | null;
 							steadiness: number;
 						} | null = null;
-						if (stageIdx === 2 || stageIdx === 3) {
+						if (
+							(stageIdx === 2 && !singletons.step2.awayLocked) ||
+							stageIdx === 3
+						) {
 							const canvas = canvasRef.current;
 							if (canvas) {
 								device = await singletons.inhalerDetector.detect(
@@ -392,15 +401,22 @@ export function useDetectionLoop({
 												detect: (arg: {
 													device: unknown;
 													mouthPoint: unknown;
+													handPoint: unknown;
+													timestamp: number;
 												}) => {
 													exhaling?: boolean;
+													awayLocked?: boolean;
 													atMouth?: boolean;
 													ready?: boolean;
+													faceAcquired?: boolean;
+													targetAcquired?: boolean;
 												};
 											};
 											const res = step.detect({
 												device,
 												mouthPoint,
+												handPoint: handCenter,
+												timestamp: now,
 											});
 											stepResult = evaluator.evaluate(res, now);
 											if (frameCount % 30 === 0) {
