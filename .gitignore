@@ -34,3 +34,4 @@ public/ort/
 # Python test/training bytecode
 __pycache__/
 *.py[cod]
+.vercel
