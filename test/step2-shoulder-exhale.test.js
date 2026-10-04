@@ -17,39 +17,52 @@ test("Stage 2 exhale: passes 3 seconds with relaxed shoulders and no inhaler req
 		passSeconds: 3,
 	});
 
-	const pose = makePose(0.6); // relaxed shoulders at y=0.6
+	const restingPose = makePose(0.58);
+	const exhalePose = makePose(0.62);
 
-	// Frame 0: Baseline acquired, exhale starts
-	let det = detector.detect({
-		poseLandmarks: pose,
+	// Baseline resting pose
+	detector.detect({
+		poseLandmarks: restingPose,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		timestamp: 500,
+	});
+	detector.detect({
+		poseLandmarks: restingPose,
 		mouthPoint: { x: 0.5, y: 0.3 },
 		timestamp: 1000,
+	});
+
+	// Frame 1: Active exhalation relaxation drop begins
+	let det = detector.detect({
+		poseLandmarks: exhalePose,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		timestamp: 1500,
 	});
 	assert.equal(det.ready, true);
 	assert.equal(det.exhaling, true);
 	assert.equal(det.shrugging, false);
 
-	let evalRes = evaluator.evaluate(det, 1000);
+	let evalRes = evaluator.evaluate(det, 1500);
 	assert.equal(evalRes.ok, false);
 	assert.match(evalRes.msg, /放鬆雙肩慢慢吐氣 3 秒/);
 
-	// Advance 2 seconds
+	// Advance 2 seconds of sustained exhalation
 	det = detector.detect({
-		poseLandmarks: pose,
+		poseLandmarks: exhalePose,
 		mouthPoint: { x: 0.5, y: 0.3 },
-		timestamp: 3000,
+		timestamp: 3500,
 	});
-	evalRes = evaluator.evaluate(det, 3000);
+	evalRes = evaluator.evaluate(det, 3500);
 	assert.equal(evalRes.ok, false);
 	assert.match(evalRes.msg, /放鬆雙肩慢慢吐氣 1 秒/);
 
 	// Advance to 3+ seconds: Stage completes successfully
 	det = detector.detect({
-		poseLandmarks: pose,
+		poseLandmarks: exhalePose,
 		mouthPoint: { x: 0.5, y: 0.3 },
-		timestamp: 4100,
+		timestamp: 4600,
 	});
-	evalRes = evaluator.evaluate(det, 4100);
+	evalRes = evaluator.evaluate(det, 4600);
 	assert.equal(evalRes.ok, true);
 	assert.match(evalRes.msg, /吐氣引導完成/);
 });

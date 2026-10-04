@@ -1,52 +1,40 @@
 import { ShoulderKinematicsTracker } from "../detection/shoulder-kinematics.js";
 
 /**
- * Stage 2: Exhalation guidance with shoulder kinematics monitoring.
+ * Stage 2: Exhalation (吐氣)
  *
- * Clinical rationale:
- * The user exhales slowly and completely to empty the lungs before inhaling the drug.
- * An inhaler is NOT required in this step (the user may set it down, hold it at their
- * side, or rest their hands). Requiring an inhaler causes severe false negatives.
- *
- * Physical & physiological kinematics:
- * - During relaxed exhalation, the chest and respiratory muscles relax; shoulders
- *   remain stable or gently lower without elevation.
- * - Paradoxical shrugging (shoulder elevation >= 0.04 spans) indicates inhalation or
- *   tension, which is flagged to guide the user to relax.
- * - MediaPipe Pose landmarks 11 & 12 (left & right shoulders) provide body tracking.
- * - If an inhaler happens to be detected right at the mouth (< 0.28 dist), the user
- *   is warned not to exhale into the mouthpiece.
+ * Clinical objective:
+ * - Patient must exhale fully away from the inhaler mouthpiece before inhalation.
+ * - Monitored via Pose landmarks (shoulders + head relative excursion):
+ *   1. Must NOT shrug shoulders (indicates tension or premature inhalation).
+ *   2. Must exhibit active respiratory excursion (head-shoulder distance change and shoulder relaxation drop)
+ *      calibrated on 1150806 clinical pharmacist dataset.
+ *   3. Inhaler must NOT be at the mouth during exhalation.
+ *   4. Normal tidal breathing / sitting still must NOT pass without active exhalation.
  */
 
+const FACE_MEMORY_MS = 600;
 const AT_MOUTH_DIST = 0.28;
-const FACE_MEMORY_MS = 3000;
 
 export class ExhaleDetector {
-	/**
-	 * @param {Object} [options]
-	 * @param {Object} [options.shoulderConfig]
-	 */
 	constructor(options = {}) {
-		this.shoulderTracker = new ShoulderKinematicsTracker(
-			options.shoulderConfig,
-		);
-		this.reset();
+		this.shoulderTracker = new ShoulderKinematicsTracker(options.shoulder || {});
+		this.faceAcquired = false;
+		this.poseAcquired = false;
+		this.awayLocked = false;
+		this.lastMouthPoint = null;
+		this.lastMouthAt = Number.NEGATIVE_INFINITY;
 	}
 
 	/**
-	 * @param {Object} params
-	 * @param {Array<{x:number, y:number, visibility?:number}>|null} [params.poseLandmarks]
-	 * @param {{x:number, y:number}|null} [params.mouthPoint]
-	 * @param {{present:boolean, center:{x:number, y:number}|null}|null} [params.device]
-	 * @param {number} [params.timestamp=0]
+	 * Detect exhalation status for current frame.
+	 * @param {Object} input
+	 * @param {Object} [input.device]
+	 * @param {Object} [input.mouthPoint]
+	 * @param {Array}  [input.poseLandmarks]
+	 * @param {number} [input.timestamp]
 	 */
-	detect({
-		poseLandmarks = null,
-		mouthPoint = null,
-		device = null,
-		handPoint = null,
-		timestamp = 0,
-	} = {}) {
+	detect({ device = null, mouthPoint = null, poseLandmarks = null, timestamp = 0 } = {}) {
 		if (mouthPoint) {
 			this.faceAcquired = true;
 			this.lastMouthPoint = { ...mouthPoint };
@@ -59,9 +47,9 @@ export class ExhaleDetector {
 			this.poseAcquired = true;
 		}
 
-		const ready = this.poseAcquired || this.faceAcquired;
+		const ready = this.poseAcquired;
 
-		// Optional check: is an inhaler accidentally placed directly in front of the mouth?
+		// Check: is an inhaler accidentally placed directly in front of the mouth?
 		let atMouth = false;
 		const mouthIsRecent =
 			this.lastMouthPoint && timestamp - this.lastMouthAt <= FACE_MEMORY_MS;
@@ -72,9 +60,12 @@ export class ExhaleDetector {
 		// In screen coords, shoulder elevation >= 0.04 spans indicates shrugging/inhalation
 		const shrugging = shoulder.valid && shoulder.isElevated;
 
-		// Exhaling is active when body/shoulders are ready, shoulders are relaxed (not shrugging),
-		// and the inhaler is not placed right at the mouth.
-		const isExhaling = ready && !shrugging && !atMouth;
+		// Active exhalation requires:
+		// 1. Posture/shoulders acquired in frame
+		// 2. Not shrugging / tense
+		// 3. Not holding inhaler at mouth
+		// 4. Positive respiratory excursion (calibrated on 1150806 GT)
+		const isExhaling = ready && !shrugging && !atMouth && shoulder.exhaleActive;
 		if (isExhaling) {
 			this.awayLocked = true;
 		}
@@ -85,7 +76,9 @@ export class ExhaleDetector {
 				? "remove-inhaler"
 				: shrugging
 					? "relax-shoulders"
-					: "guided-exhale";
+					: isExhaling
+						? "guided-exhale"
+						: "wait-for-exhale";
 
 		return {
 			ready,
@@ -98,7 +91,7 @@ export class ExhaleDetector {
 			atMouth,
 			shoulder,
 			phase,
-			confidence: ready ? (shoulder.valid ? shoulder.confidence : 0.8) : 0,
+			confidence: ready ? shoulder.confidence : 0,
 		};
 	}
 
