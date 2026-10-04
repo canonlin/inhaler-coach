@@ -129,3 +129,51 @@ test("Stage 2 exhale: warns when inhaler is held directly in front of mouth", ()
 	assert.equal(evalRes.ok, false);
 	assert.match(evalRes.msg, /不要含著吸嘴吐氣/);
 });
+
+test("Stage 2 exhale: rejects close-up cropped shoulders and prompts to step back", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	// Shoulders cut off at bottom edge (y = 0.90 > 0.85)
+	const closeCropPose = makePose(0.90);
+	for (let t = 0; t <= 10000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: closeCropPose,
+			timestamp: t,
+		});
+		assert.equal(det.ready, false);
+		assert.equal(det.shoulder.framed, false);
+		assert.match(det.framingMsg, /距離鏡頭太近/);
+
+		const evalRes = evaluator.evaluate(det, t);
+		assert.equal(evalRes.ok, false);
+		assert.match(evalRes.msg, /距離鏡頭太近/);
+	}
+});
+
+test("Stage 2 exhale: motionless sitting never accumulates exhalation progress", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const stillPose = makePose(0.60);
+	// User sits still for 10 seconds (100 frames at 10 FPS)
+	for (let t = 0; t <= 10000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: stillPose,
+			timestamp: t,
+		});
+		const evalRes = evaluator.evaluate(det, t);
+		assert.equal(
+			evalRes.ok,
+			false,
+			`Must not pass Stage 2 exhalation while sitting motionless at t=${t}ms`,
+		);
+		assert.equal(det.exhaling, false);
+	}
+});

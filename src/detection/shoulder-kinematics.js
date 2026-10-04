@@ -12,11 +12,11 @@
  */
 
 export const SHOULDER_THRESHOLDS = {
-	minConfidence: 0.4,
+	minConfidence: 0.5,
 	elevationThreshold: 0.04,
 	stabilityMaxStep: 0.04,
 	exhaleHeadDistThreshold: 0.055,
-	exhaleDropThreshold: 0.035,
+	exhaleDropThreshold: 0.050,
 	exhaleMaxHorizontalDrift: 0.045,
 	historyWindowMs: 3500,
 	baselineAlpha: 0.20,
@@ -63,6 +63,8 @@ export class ShoulderKinematicsTracker {
 	 * @param {number} timestamp
 	 * @returns {{
 	 *   valid: boolean,
+	 *   framed: boolean,
+	 *   framingMsg: string,
 	 *   elevation: number,
 	 *   isElevated: boolean,
 	 *   isStable: boolean,
@@ -78,6 +80,8 @@ export class ShoulderKinematicsTracker {
 		if (!poseLandmarks || poseLandmarks.length < 13) {
 			return {
 				valid: false,
+				framed: false,
+				framingMsg: "未偵測到人體姿態，請面向鏡頭",
 				elevation: 0,
 				isElevated: false,
 				isStable: false,
@@ -95,6 +99,8 @@ export class ShoulderKinematicsTracker {
 		if (!ls || !rs) {
 			return {
 				valid: false,
+				framed: false,
+				framingMsg: "未完整偵測到雙肩，請面向鏡頭",
 				elevation: 0,
 				isElevated: false,
 				isStable: false,
@@ -111,6 +117,8 @@ export class ShoulderKinematicsTracker {
 		if (conf < this.cfg.minConfidence) {
 			return {
 				valid: false,
+				framed: false,
+				framingMsg: "雙肩模糊或光線不足，請調整位置",
 				elevation: 0,
 				isElevated: false,
 				isStable: false,
@@ -123,9 +131,95 @@ export class ShoulderKinematicsTracker {
 			};
 		}
 
+		// Boundary & framing checks:
+		// 1. Vertical boundary: shoulders must not be cut off at the bottom or top of the camera
+		if (ls.y > 0.85 || rs.y > 0.85) {
+			return {
+				valid: true,
+				framed: false,
+				framingMsg: "距離鏡頭太近，請後退讓雙肩完整入鏡",
+				elevation: 0,
+				isElevated: false,
+				isStable: false,
+				isDropping: false,
+				isStill: true,
+				exhaleActive: false,
+				shoulderY: (ls.y + rs.y) / 2.0,
+				shoulderSpan: Math.hypot(ls.x - rs.x, ls.y - rs.y),
+				confidence: conf,
+			};
+		}
+		if (ls.y < 0.15 || rs.y < 0.15) {
+			return {
+				valid: true,
+				framed: false,
+				framingMsg: "位置太高，請調整鏡頭角度讓雙肩完整入鏡",
+				elevation: 0,
+				isElevated: false,
+				isStable: false,
+				isDropping: false,
+				isStill: true,
+				exhaleActive: false,
+				shoulderY: (ls.y + rs.y) / 2.0,
+				shoulderSpan: Math.hypot(ls.x - rs.x, ls.y - rs.y),
+				confidence: conf,
+			};
+		}
+		// 2. Horizontal boundary
+		if (ls.x < 0.05 || ls.x > 0.95 || rs.x < 0.05 || rs.x > 0.95) {
+			return {
+				valid: true,
+				framed: false,
+				framingMsg: "肩膀超出畫面邊緣，請居中入座",
+				elevation: 0,
+				isElevated: false,
+				isStable: false,
+				isDropping: false,
+				isStill: true,
+				exhaleActive: false,
+				shoulderY: (ls.y + rs.y) / 2.0,
+				shoulderSpan: Math.hypot(ls.x - rs.x, ls.y - rs.y),
+				confidence: conf,
+			};
+		}
+
 		const rawY = (ls.y + rs.y) / 2.0;
 		const rawX = (ls.x + rs.x) / 2.0;
 		const rawSpan = Math.hypot(ls.x - rs.x, ls.y - rs.y);
+
+		// Span boundary check:
+		if (rawSpan < 0.15) {
+			return {
+				valid: true,
+				framed: false,
+				framingMsg: "距離太遠，請稍微靠近鏡頭",
+				elevation: 0,
+				isElevated: false,
+				isStable: false,
+				isDropping: false,
+				isStill: true,
+				exhaleActive: false,
+				shoulderY: rawY,
+				shoulderSpan: rawSpan,
+				confidence: conf,
+			};
+		}
+		if (rawSpan > 0.70) {
+			return {
+				valid: true,
+				framed: false,
+				framingMsg: "距離太近，請稍微退後",
+				elevation: 0,
+				isElevated: false,
+				isStable: false,
+				isDropping: false,
+				isStill: true,
+				exhaleActive: false,
+				shoulderY: rawY,
+				shoulderSpan: rawSpan,
+				confidence: conf,
+			};
+		}
 
 		// Span smoothing
 		this.smoothedSpan =
@@ -218,16 +312,22 @@ export class ShoulderKinematicsTracker {
 		const isStable = stepDiff <= this.cfg.stabilityMaxStep;
 		const isDropping = dropFromPeak >= this.cfg.exhaleDropThreshold;
 
-		// Still / Tidal breathing: low movement range and low head distance variance
-		const isStill =
-			this.history.length >= 3 &&
-			yRange < 0.025 &&
-			headDistRange < 0.04;
+		// Still / Tidal breathing: low movement range and low head distance variance in recent 2s
+		const recent = this.history.filter((h) => timestamp - h.t <= 2000);
+		let isStill = false;
+		if (recent.length >= 5) {
+			const rYs = recent.map((h) => h.y);
+			const rHds = recent.map((h) => h.headDist);
+			const rYRange = (Math.max(...rYs) - Math.min(...rYs)) / span;
+			const rHdRange = Math.max(...rHds) - Math.min(...rHds);
+			isStill = rYRange < 0.035 && rHdRange < 0.045;
+		}
 
 		// Exhale active: positive respiratory excursion (head-shoulder delta OR shoulder drop),
-		// relaxed shoulders (not elevated / shrugging), and minimal horizontal drift
+		// relaxed shoulders (not elevated / shrugging), low horizontal drift, and actively NOT still
 		const exhaleActive =
 			!isElevated &&
+			!isStill &&
 			xRange <= this.cfg.exhaleMaxHorizontalDrift &&
 			(headDistRange >= this.cfg.exhaleHeadDistThreshold ||
 				yDrop >= this.cfg.exhaleDropThreshold);
@@ -237,6 +337,8 @@ export class ShoulderKinematicsTracker {
 
 		return {
 			valid: true,
+			framed: true,
+			framingMsg: "",
 			elevation,
 			isElevated,
 			isStable,

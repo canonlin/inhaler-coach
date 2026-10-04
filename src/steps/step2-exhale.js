@@ -20,8 +20,6 @@ export class ExhaleDetector {
 	constructor(options = {}) {
 		this.shoulderTracker = new ShoulderKinematicsTracker(options.shoulder || {});
 		this.faceAcquired = false;
-		this.poseAcquired = false;
-		this.awayLocked = false;
 		this.lastMouthPoint = null;
 		this.lastMouthAt = Number.NEGATIVE_INFINITY;
 	}
@@ -41,13 +39,9 @@ export class ExhaleDetector {
 			this.lastMouthAt = timestamp;
 		}
 
-		// Shoulder kinematics tracking
+		// Shoulder kinematics tracking (re-evaluated on every frame, never latched)
 		const shoulder = this.shoulderTracker.update(poseLandmarks, timestamp);
-		if (shoulder.valid) {
-			this.poseAcquired = true;
-		}
-
-		const ready = this.poseAcquired;
+		const ready = shoulder.valid && shoulder.framed;
 
 		// Check: is an inhaler accidentally placed directly in front of the mouth?
 		let atMouth = false;
@@ -61,14 +55,11 @@ export class ExhaleDetector {
 		const shrugging = shoulder.valid && shoulder.isElevated;
 
 		// Active exhalation requires:
-		// 1. Posture/shoulders acquired in frame
+		// 1. Posture/shoulders acquired and properly framed
 		// 2. Not shrugging / tense
 		// 3. Not holding inhaler at mouth
 		// 4. Positive respiratory excursion (calibrated on 1150806 GT)
 		const isExhaling = ready && !shrugging && !atMouth && shoulder.exhaleActive;
-		if (isExhaling) {
-			this.awayLocked = true;
-		}
 
 		const phase = !ready
 			? "acquire-posture"
@@ -83,9 +74,10 @@ export class ExhaleDetector {
 		return {
 			ready,
 			faceAcquired: this.faceAcquired,
-			poseAcquired: this.poseAcquired,
+			poseAcquired: shoulder.valid,
 			targetAcquired: ready, // backwards compatibility
-			awayLocked: this.awayLocked,
+			awayLocked: isExhaling,
+			framingMsg: shoulder.framingMsg,
 			exhaling: isExhaling,
 			shrugging,
 			atMouth,
@@ -98,8 +90,6 @@ export class ExhaleDetector {
 	reset() {
 		this.shoulderTracker.reset();
 		this.faceAcquired = false;
-		this.poseAcquired = false;
-		this.awayLocked = false;
 		this.lastMouthPoint = null;
 		this.lastMouthAt = Number.NEGATIVE_INFINITY;
 	}

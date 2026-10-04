@@ -29,7 +29,13 @@ export class SustainedGate {
 		}
 
 		const elapsedMs =
-			this.startedAt === null ? 0 : Math.max(0, timestamp - this.startedAt);
+			this.startedAt === null
+				? 0
+				: Math.max(
+						0,
+						(active ? timestamp : this.lastActiveAt ?? timestamp) -
+							this.startedAt,
+					);
 		return {
 			active:
 				active ||
@@ -37,7 +43,7 @@ export class SustainedGate {
 					timestamp - this.lastActiveAt <= this.dropoutGraceMs),
 			elapsedMs,
 			remainingMs: Math.max(0, this.requiredMs - elapsedMs),
-			passed: elapsedMs >= this.requiredMs,
+			passed: active && elapsedMs >= this.requiredMs,
 		};
 	}
 
