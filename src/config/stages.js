@@ -6,7 +6,7 @@ export const STAGES = [
 		hint: "請先觀看完整衛教影片，了解吸入劑正確使用方式",
 		icon: "🎬",
 		videoURL:
-			"https://www.youtube.com/embed/2DYT6jev8a4?rel=0&modestbranding=1",
+			"https://www.youtube.com/embed/2DYT6jev8a4?rel=0&modestbranding=1&controls=0&disablekb=1",
 		modelURL: null,
 		passThreshold: 0,
 		passSeconds: 0,
@@ -26,7 +26,7 @@ export const STAGES = [
 		stepEmoji: "💊",
 		stepSub: "讓藥物充分混合，每次使用前都要搖",
 		videoURL:
-			"https://www.youtube.com/embed/itUWRBAkbR4?rel=0&modestbranding=1",
+			"https://www.youtube.com/embed/itUWRBAkbR4?rel=0&modestbranding=1&controls=0&disablekb=1",
 		modelURL: "https://teachablemachine.withgoogle.com/models/4s-Cq3RqD/",
 		modelType: "image",
 		passClass: "V振搖 正確",
@@ -49,7 +49,7 @@ export const STAGES = [
 		stepInstruction: "緩慢吐氣，直到肺部排空",
 		stepSub: "⚠ 不要對著吸嘴吐氣，吐完才含入吸嘴",
 		videoURL:
-			"https://www.youtube.com/embed/lS0ppt5Aic0?rel=0&modestbranding=1",
+			"https://www.youtube.com/embed/lS0ppt5Aic0?rel=0&modestbranding=1&controls=0&disablekb=1",
 		modelURL: "https://teachablemachine.withgoogle.com/models/EY9yUdpzU/",
 		passClass: "吐氣",
 		passThreshold: 0.85,
@@ -70,7 +70,7 @@ export const STAGES = [
 		stepInstruction: "含住吸嘴 → 按壓 + 深慢吸氣 → 憋氣約 10 秒",
 		stepSub: "按壓與吸氣要同步；憋氣以舒適為限，不要勉強",
 		videoURL:
-			"https://www.youtube.com/embed/uH9Rw71MNvc?rel=0&modestbranding=1",
+			"https://www.youtube.com/embed/uH9Rw71MNvc?rel=0&modestbranding=1&controls=0&disablekb=1",
 		modelURL: "https://teachablemachine.withgoogle.com/models/kOX75yZD8_/",
 		passThreshold: 0.75,
 		passClass: "吸壓_正確",
@@ -94,7 +94,7 @@ export const STAGES = [
 		stepInstruction: "含水漱口，再把水吐掉",
 		stepSub: "去除口腔殘留藥物，預防念珠菌感染",
 		videoURL:
-			"https://www.youtube.com/embed/bhQ2fYn7GVo?rel=0&modestbranding=1",
+			"https://www.youtube.com/embed/bhQ2fYn7GVo?rel=0&modestbranding=1&controls=0&disablekb=1",
 		modelURL: "https://teachablemachine.withgoogle.com/models/ERFneU6fl/",
 		passClass: "漱口_正確",
 		passThreshold: 0.85,
