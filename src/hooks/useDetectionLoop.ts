@@ -240,13 +240,9 @@ export function useDetectionLoop({
 						try {
 							if (typeof singletons.detection?.processFrame === "function") {
 								const needs: FrameNeeds = {
-									pose: stageIdx === 3,
-									face:
-										stageIdx >= 2 &&
-										(stageIdx !== 2 || !singletons.step2.awayLocked),
-									hands:
-										stageIdx === 1 ||
-										(stageIdx === 2 && !singletons.step2.awayLocked),
+									pose: stageIdx === 2 || stageIdx === 3,
+									face: stageIdx >= 2,
+									hands: stageIdx === 1,
 								};
 								poseResult = await singletons.detection.processFrame(
 									canvas,
@@ -364,10 +360,7 @@ export function useDetectionLoop({
 							box: { x: number; y: number; w: number; h: number } | null;
 							steadiness: number;
 						} | null = null;
-						if (
-							(stageIdx === 2 && !singletons.step2.awayLocked) ||
-							stageIdx === 3
-						) {
+						if (stageIdx === 3) {
 							const canvas = canvasRef.current;
 							if (canvas) {
 								device = await singletons.inhalerDetector.detect(
@@ -408,30 +401,30 @@ export function useDetectionLoop({
 										if (typeof singletons.step2?.detect === "function") {
 											const step = singletons.step2 as unknown as {
 												detect: (arg: {
-													device: unknown;
-													mouthPoint: unknown;
-													handPoint: unknown;
-													timestamp: number;
+													poseLandmarks?: unknown;
+													mouthPoint?: unknown;
+													device?: unknown;
+													timestamp?: number;
 												}) => {
-													exhaling?: boolean;
-													awayLocked?: boolean;
-													atMouth?: boolean;
 													ready?: boolean;
-													faceAcquired?: boolean;
-													targetAcquired?: boolean;
+													exhaling?: boolean;
+													shrugging?: boolean;
+													atMouth?: boolean;
+													shoulder?: unknown;
+													confidence?: number;
 												};
 											};
 											const res = step.detect({
-												device,
+												poseLandmarks: pr?.pose,
 												mouthPoint,
-												handPoint: handCenter,
+												device,
 												timestamp: now,
 											});
 											stepResult = evaluator.evaluate(res, now);
 											if (frameCount % 30 === 0) {
 												console.log(
 													"  step2:",
-													`mouth:${mouthPoint ? `(${mouthPoint.x.toFixed(2)},${mouthPoint.y.toFixed(2)})` : "null"} exhaling:${res?.exhaling}`,
+													`ready:${res?.ready} exhaling:${res?.exhaling} shrugging:${res?.shrugging}`,
 												);
 											}
 										}

@@ -33,62 +33,69 @@ test("steadiness uses both axes and rejects deliberate waving", () => {
 	assert.ok(waving.observe(hit(0.8, 0.5), 400).steadiness < 0.1);
 });
 
-test("exhale acquires face and inhaler, then keeps an away posture lock", () => {
+test("exhale tracks relaxed shoulder posture without requiring inhaler", () => {
 	const detector = new ExhaleDetector();
-	const faceOnly = detector.detect({
-		device: null,
+	const normalPose = [
+		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+		{ x: 0.4, y: 0.6, visibility: 0.9 }, // 11 left shoulder
+		{ x: 0.6, y: 0.6, visibility: 0.9 }, // 12 right shoulder
+	];
+
+	// Without any inhaler device, shoulder posture is acquired and exhalation starts
+	const res = detector.detect({
+		poseLandmarks: normalPose,
 		mouthPoint: { x: 0.5, y: 0.3 },
 		timestamp: 0,
 	});
-	assert.equal(faceOnly.faceAcquired, true);
-	assert.equal(faceOnly.exhaling, false);
-
-	const away = detector.detect({
-		device: hit(0.5, 0.7),
-		mouthPoint: null,
-		timestamp: 500,
-	});
-	assert.equal(away.awayLocked, true);
-	assert.equal(away.phase, "guided-exhale");
-
-	const dropout = detector.detect({
-		device: null,
-		mouthPoint: null,
-		timestamp: 1500,
-	});
-	assert.equal(dropout.awayLocked, true);
-	assert.equal(dropout.exhaling, true);
-
-	detector.reset();
-	assert.equal(
-		detector.detect({
-			device: hit(0.5, 0.7),
-			mouthPoint: null,
-			timestamp: 2000,
-		}).awayLocked,
-		false,
-	);
+	assert.equal(res.ready, true);
+	assert.equal(res.exhaling, true);
+	assert.equal(res.shrugging, false);
+	assert.equal(res.awayLocked, true);
+	assert.equal(res.phase, "guided-exhale");
 });
 
-test("exhale can confirm move-away from the holding hand after ONNX drops", () => {
+test("exhale detects shrugging/elevated shoulders and warns to relax", () => {
 	const detector = new ExhaleDetector();
+	const basePose = [
+		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+		{ x: 0.4, y: 0.6, visibility: 0.9 },
+		{ x: 0.6, y: 0.6, visibility: 0.9 },
+	];
+	for (let i = 0; i < 5; i++) {
+		detector.detect({ poseLandmarks: basePose, timestamp: i * 100 });
+	}
+
+	// Shrug/inhale: shoulders lift upward in screen coords (y decreases from 0.6 to 0.52)
+	const shruggedPose = [
+		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+		{ x: 0.4, y: 0.52, visibility: 0.9 },
+		{ x: 0.6, y: 0.52, visibility: 0.9 },
+	];
+	const shrugged = detector.detect({
+		poseLandmarks: shruggedPose,
+		timestamp: 600,
+	});
+	assert.equal(shrugged.shrugging, true);
+	assert.equal(shrugged.exhaling, false);
+	assert.equal(shrugged.phase, "relax-shoulders");
+});
+
+test("exhale warns if inhaler is accidentally held at mouth", () => {
+	const detector = new ExhaleDetector();
+	const normalPose = [
+		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+		{ x: 0.4, y: 0.6, visibility: 0.9 },
+		{ x: 0.6, y: 0.6, visibility: 0.9 },
+	];
 	const atMouth = detector.detect({
-		device: hit(0.51, 0.31),
+		poseLandmarks: normalPose,
 		mouthPoint: { x: 0.5, y: 0.3 },
-		handPoint: { x: 0.51, y: 0.32 },
+		device: hit(0.51, 0.31), // directly at mouth
 		timestamp: 0,
 	});
-	assert.equal(atMouth.awayLocked, false);
 	assert.equal(atMouth.atMouth, true);
-
-	const lowered = detector.detect({
-		device: null,
-		mouthPoint: { x: 0.5, y: 0.3 },
-		handPoint: { x: 0.5, y: 0.72 },
-		timestamp: 500,
-	});
-	assert.equal(lowered.awayLocked, true);
-	assert.equal(lowered.awayEvidence, "hand");
+	assert.equal(atMouth.exhaling, false);
+	assert.equal(atMouth.phase, "remove-inhaler");
 });
 
 test("press requires a visible, close, steady YOLO observation", () => {
