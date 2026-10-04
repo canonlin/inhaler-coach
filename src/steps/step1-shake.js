@@ -164,11 +164,13 @@ export class ShakeDetector {
 			sustainedMs: this.progressMs,
 			secondsHeld: this.progressMs / 1000,
 			passed,
-			phase: !analysis.targetAcquired
-				? "acquiring"
-				: passed
-					? "complete"
-					: "mixing",
+			phase: passed
+				? "complete"
+				: analysis.shaking
+					? "mixing"
+					: !analysis.targetAcquired
+						? "acquiring"
+						: "ready",
 			requiredSeconds: REQUIRED_SUSTAINED_MS / 1000,
 		};
 	}
@@ -222,10 +224,16 @@ export class ShakeDetector {
 			verticalShare >= MIN_VERTICAL_SHARE &&
 			verticalReversals >= MIN_VERTICAL_REVERSALS;
 		const trajectory = this.analyseTrajectory(timestamp);
+
+		// Signal hierarchy: Hand/device vertical shaking is the primary signal.
+		// Inhaler recognition (targetAcquired) is a secondary weak signal.
+		// Shaking with hands or practice device must NOT be permanently failed.
+		const isShaking = motionShaking || trajectory.shaking;
+		const isObservable = motionObservable || trajectory.observable;
+
 		return {
-			shaking: this.targetAcquired && (motionShaking || trajectory.shaking),
-			observable:
-				this.targetAcquired && (motionObservable || trajectory.observable),
+			shaking: isShaking,
+			observable: isObservable,
 			targetAcquired: this.targetAcquired,
 			// Kept as a compatibility field for the evaluator and existing logs. It
 			// means "acquired for this attempt", not "redetected this frame".

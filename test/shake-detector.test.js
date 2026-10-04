@@ -218,7 +218,7 @@ test("slow horizontal tracking does not pass the up-and-down step", () => {
 	assert.equal(result.passed, false);
 });
 
-test("tracked hand motion cannot pass before the inhaler is seen", () => {
+test("tracked hand motion passes even when inhaler is not recognized (secondary signal)", () => {
 	const detector = new ShakeDetector();
 	const result = feed(detector, {
 		durationMs: 8_000,
@@ -231,7 +231,7 @@ test("tracked hand motion cannot pass before the inhaler is seen", () => {
 		}),
 	});
 	assert.equal(result.inhalerPresent, false);
-	assert.equal(result.passed, false);
+	assert.equal(result.passed, true);
 });
 
 test("one inhaler acquisition stays locked through the mixing attempt", () => {

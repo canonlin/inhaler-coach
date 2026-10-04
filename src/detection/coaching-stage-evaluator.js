@@ -47,21 +47,25 @@ export class CoachingStageEvaluator {
 		const ratio = observation.ratio ?? 0;
 		const held = observation.secondsHeld ?? 0;
 		const required = observation.requiredSeconds ?? 5;
+		const shaking = observation.shaking ?? false;
+		const passed = observation.passed ?? false;
+		const hasInhaler = Boolean(
+			observation.targetAcquired ?? observation.inhalerPresent ?? false,
+		);
+
 		return {
-			ok: observation.passed ?? false,
-			msg: observation.passed
+			ok: passed,
+			msg: passed
 				? `動作正確！已搖動 ${held.toFixed(1)} 秒`
 				: observation.observable === false && held > 0
 					? `動作暫停，已保留進度（${held.toFixed(1)} / ${required} 秒）`
-					: observation.targetAcquired === false ||
-							observation.inhalerPresent === false
-						? "請讓吸入器完整出現在畫面中，再持續上下搖動"
-						: observation.targetAcquired === true &&
-								observation.observable === false
-							? "已鎖定吸入器，請持續完成上下往返"
+					: shaking || held > 0
+						? `動作正確！已持續搖勻 ${held.toFixed(1)} / ${required} 秒`
+						: hasInhaler
+							? "吸入器已就位，請持續上下搖動 5 秒"
 							: ratio > 0
 								? `搖動偵測中（${held.toFixed(1)} / ${required} 秒）`
-								: "請拿起吸入器，持續上下搖動",
+								: "請手持吸入器，持續上下搖動",
 		};
 	}
 
@@ -145,9 +149,9 @@ export class CoachingStageEvaluator {
 			msg: progress.passed
 				? `壓吸完成，請移開吸入器並憋氣 ${secondsLeft(this.holdMs)} 秒（以舒適為限）`
 				: !observation.ready
-					? "請讓臉部和吸入器都保持在畫面中"
+					? "請讓臉部保持在畫面中"
 					: !observation.atMouth
-						? "請將吸嘴放入口中"
+						? "請將吸嘴放入口中（或手持就定位）"
 						: !observation.steady
 							? "位置正確，請保持吸入器穩定"
 							: `請同步按壓並緩慢深吸 ${secondsLeft(progress.remainingMs)} 秒`,

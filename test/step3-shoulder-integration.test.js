@@ -105,3 +105,42 @@ test("stage 4 rinse ratio matches clinical pharmacist measurements", () => {
 	detector.update(1.4, 200);
 	assert.equal(detector.detect().rinsing, false);
 });
+
+test("step3 passes with hand at mouth and shoulder kinematics when inhaler is not recognized", () => {
+	const detector = new PressInhaleDetector();
+	const mouthPoint = { x: 0.5, y: 0.35 };
+
+	// Pose with right hand wrist (landmark 16) at mouth (0.5, 0.36) and shoulders at 0.60
+	const makePoseWithHand = (shoulderY, wristY = 0.36) => {
+		const lm = makePoseLandmarks(shoulderY, shoulderY);
+		lm[16] = { x: 0.5, y: wristY, visibility: 0.95 }; // right wrist at mouth
+		return lm;
+	};
+
+	// 1. Warmup baseline shoulders
+	for (let t = 0; t < 500; t += 100) {
+		detector.detect({
+			device: null, // NO INHALER DETECTED
+			mouthPoint,
+			poseLandmarks: makePoseWithHand(0.60),
+			timestamp: t,
+		});
+	}
+
+	// 2. Shoulders elevate during deep inhalation
+	let res = null;
+	for (let t = 500; t <= 1500; t += 100) {
+		res = detector.detect({
+			device: null, // NO INHALER DETECTED
+			mouthPoint,
+			poseLandmarks: makePoseWithHand(0.55),
+			timestamp: t,
+		});
+	}
+
+	assert.equal(res.ready, true);
+	assert.equal(res.atMouth, true);
+	assert.equal(res.shoulder.isElevated, true);
+	assert.equal(res.inhaling, true);
+	assert.equal(res.pressing, true);
+});
