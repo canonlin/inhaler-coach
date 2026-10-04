@@ -27,8 +27,10 @@ dist-ssr
 .env
 .env.local
 
-# onnxruntime-web wasm backend (copied from node_modules by scripts/copy-ort.mjs)
+# onnxruntime-web and mediapipe wasm backends (copied from node_modules by scripts/copy-ort.mjs)
 public/ort/
+public/mediapipe/
+public/models/mediapipe/
 .playwright-cli/
 
 # Python test/training bytecode
