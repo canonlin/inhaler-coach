@@ -41,11 +41,33 @@ test("exhale tracks relaxed shoulder posture without requiring inhaler", () => {
 		{ x: 0.6, y: 0.6, visibility: 0.9 }, // 12 right shoulder
 	];
 
-	// Without any inhaler device, shoulder posture is acquired and exhalation starts
-	const res = detector.detect({
+	// Without any inhaler device, shoulder posture is acquired and waits for exhalation
+	let res = detector.detect({
 		poseLandmarks: normalPose,
 		mouthPoint: { x: 0.5, y: 0.3 },
 		timestamp: 0,
+	});
+	assert.equal(res.ready, true);
+	assert.equal(res.exhaling, false);
+	assert.equal(res.shrugging, false);
+	assert.equal(res.awayLocked, false);
+	assert.equal(res.phase, "wait-for-exhale");
+
+	// When shoulders relax and drop during exhalation
+	detector.detect({
+		poseLandmarks: normalPose,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		timestamp: 1000,
+	});
+	const exhalePose = [
+		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+		{ x: 0.4, y: 0.63, visibility: 0.9 }, // 11 left shoulder drop
+		{ x: 0.6, y: 0.63, visibility: 0.9 }, // 12 right shoulder drop
+	];
+	res = detector.detect({
+		poseLandmarks: exhalePose,
+		mouthPoint: { x: 0.5, y: 0.3 },
+		timestamp: 2000,
 	});
 	assert.equal(res.ready, true);
 	assert.equal(res.exhaling, true);
