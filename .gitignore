@@ -37,3 +37,4 @@ public/models/mediapipe/
 __pycache__/
 *.py[cod]
 .vercel
+training/negative_eval/

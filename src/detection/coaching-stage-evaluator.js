@@ -68,28 +68,48 @@ export class CoachingStageEvaluator {
 	evaluateExhale(observation, timestamp) {
 		const ready =
 			observation.ready ??
+			observation.targetAcquired ??
 			observation.faceAcquired ??
-			observation.poseAcquired ??
 			false;
 		const shrugging = observation.shrugging ?? false;
 		const atMouth = observation.atMouth ?? false;
 		const exhaling =
-			observation.exhaling ?? observation.awayLocked ?? false;
+			ready &&
+			!shrugging &&
+			!atMouth &&
+			(observation.exhaling ?? observation.awayLocked ?? false);
+
+		if (!ready) {
+			this.actionGate.reset();
+			return {
+				ok: false,
+				msg: observation.framingMsg || "請讓臉部與雙肩完整出現在畫面中",
+			};
+		}
+
+		if (atMouth) {
+			this.actionGate.reset();
+			return {
+				ok: false,
+				msg: "請將吸入器移離嘴邊，不要含著吸嘴吐氣",
+			};
+		}
+
+		if (shrugging) {
+			return {
+				ok: false,
+				msg: "請放鬆雙肩慢慢吐氣，不要聳肩",
+			};
+		}
 
 		const progress = this.actionGate.update(exhaling, timestamp);
 		return {
 			ok: progress.passed,
 			msg: progress.passed
 				? "吐氣引導完成！接著再將吸嘴放入口中"
-				: !ready
-					? "請讓臉部與雙肩完整出現在畫面中"
-					: atMouth
-						? "請將吸入器移離嘴邊，不要含著吸嘴吐氣"
-						: shrugging
-							? "請放鬆雙肩慢慢吐氣，不要聳肩"
-							: exhaling
-								? `姿勢正確，請放鬆雙肩慢慢吐氣 ${secondsLeft(progress.remainingMs)} 秒`
-								: "請放鬆雙肩，開始慢慢吐氣",
+				: exhaling
+					? `姿勢正確，請放鬆雙肩慢慢吐氣 ${secondsLeft(progress.remainingMs)} 秒`
+					: "請緩慢深吐氣，放鬆雙肩將肺部排空",
 		};
 	}
 

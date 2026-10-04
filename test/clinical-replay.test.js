@@ -18,7 +18,7 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 
 	assert.equal(sessions.length, 5, "Expected 5 pharmacists in 1150806 dataset");
 
-	// 1. Positive cohort: exhale
+	// 1. Positive cohort: exhale (continuous 10 FPS camera stream simulation)
 	let passedExhale = 0;
 	for (const sess of sessions) {
 		const detector = new ExhaleDetector();
@@ -27,26 +27,43 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 			passSeconds: 2,
 			dropoutGraceMs: 800,
 		});
-		const frames = data
+		const rawFrames = data
 			.filter((d) => d.session === sess && d.task === "exhale")
 			.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
-		const t0 = frames[0].timestamp_ms;
+		let frames = [];
+		for (let i = 0; i < rawFrames.length - 1; i++) {
+			const f1 = rawFrames[i], f2 = rawFrames[i + 1];
+			for (let s = 0; s < 10; s++) {
+				const a = s / 10;
+				frames.push({
+					t: f1.timestamp_ms * (1 - a) + f2.timestamp_ms * a,
+					sy: f1.shoulder_y * (1 - a) + f2.shoulder_y * a,
+					sx: f1.shoulder_x * (1 - a) + f2.shoulder_x * a,
+					ny: f1.nose_y * (1 - a) + f2.nose_y * a,
+					nx: (f1.nose_x || 0.5) * (1 - a) + (f2.nose_x || 0.5) * a,
+					sp: (f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
+					ls_conf: f1.ls_conf,
+					rs_conf: f1.rs_conf,
+				});
+			}
+		}
+
+		const t0 = frames[0].t;
 		let passed = false;
 
 		for (const f of frames) {
-			const relT = f.timestamp_ms - t0;
-			const span = f.shoulder_span || 0.3;
+			const relT = f.t - t0;
 			const lm = new Array(33).fill(null);
-			lm[0] = { x: f.nose_x, y: f.nose_y, visibility: 0.99 };
+			lm[0] = { x: f.nx, y: f.ny, visibility: 0.99 };
 			lm[11] = {
-				x: f.shoulder_x - span / 2,
-				y: f.shoulder_y,
+				x: f.sx - f.sp / 2,
+				y: f.sy,
 				visibility: f.ls_conf,
 			};
 			lm[12] = {
-				x: f.shoulder_x + span / 2,
-				y: f.shoulder_y,
+				x: f.sx + f.sp / 2,
+				y: f.sy,
 				visibility: f.rs_conf,
 			};
 
@@ -70,7 +87,7 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 		"All 5 clinical pharmacists must pass Stage 2 exhalation",
 	);
 
-	// 2. Negative controls: quiet sitting / normal breathing (still)
+	// 2. Negative controls: quiet sitting / normal breathing (still) at continuous 10 FPS
 	let falsePositivesStill = 0;
 	for (const sess of sessions) {
 		const detector = new ExhaleDetector();
@@ -79,26 +96,43 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 			passSeconds: 2,
 			dropoutGraceMs: 800,
 		});
-		const frames = data
+		const rawFrames = data
 			.filter((d) => d.session === sess && d.task === "still")
 			.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
-		const t0 = frames[0].timestamp_ms;
+		let frames = [];
+		for (let i = 0; i < rawFrames.length - 1; i++) {
+			const f1 = rawFrames[i], f2 = rawFrames[i + 1];
+			for (let s = 0; s < 10; s++) {
+				const a = s / 10;
+				frames.push({
+					t: f1.timestamp_ms * (1 - a) + f2.timestamp_ms * a,
+					sy: f1.shoulder_y * (1 - a) + f2.shoulder_y * a,
+					sx: f1.shoulder_x * (1 - a) + f2.shoulder_x * a,
+					ny: f1.nose_y * (1 - a) + f2.nose_y * a,
+					nx: (f1.nose_x || 0.5) * (1 - a) + (f2.nose_x || 0.5) * a,
+					sp: (f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
+					ls_conf: f1.ls_conf,
+					rs_conf: f1.rs_conf,
+				});
+			}
+		}
+
+		const t0 = frames[0].t;
 		let passed = false;
 
 		for (const f of frames) {
-			const relT = f.timestamp_ms - t0;
-			const span = f.shoulder_span || 0.3;
+			const relT = f.t - t0;
 			const lm = new Array(33).fill(null);
-			lm[0] = { x: f.nose_x, y: f.nose_y, visibility: 0.99 };
+			lm[0] = { x: f.nx, y: f.ny, visibility: 0.99 };
 			lm[11] = {
-				x: f.shoulder_x - span / 2,
-				y: f.shoulder_y,
+				x: f.sx - f.sp / 2,
+				y: f.sy,
 				visibility: f.ls_conf,
 			};
 			lm[12] = {
-				x: f.shoulder_x + span / 2,
-				y: f.shoulder_y,
+				x: f.sx + f.sp / 2,
+				y: f.sy,
 				visibility: f.rs_conf,
 			};
 
