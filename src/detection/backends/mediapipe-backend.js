@@ -34,54 +34,69 @@ export class MediaPipeBackend extends DetectionBackend {
 			throw new Error("WebGL not available — MediaPipe requires WebGL");
 		}
 
-		// Pinned, not @latest. An unpinned CDN URL means the deployed collector can
-		// change behaviour — or break outright — without anyone touching it, and
-		// two pharmacists recording a week apart could be running different code.
-		// Keep in step with the @mediapipe/tasks-vision version in package.json.
-		const vision = await FilesetResolver.forVisionTasks(
-			"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm",
-		);
+		const origin =
+			typeof location !== "undefined" && location.origin
+				? location.origin
+				: "";
+		const basePath = import.meta.env.BASE_URL || "/";
+		const base = origin ? new URL(basePath, origin).href : basePath;
 
-		this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-			baseOptions: {
-				modelAssetPath:
-					"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
-				delegate: "CPU",
-			},
-			runningMode: "VIDEO",
-			numPoses: 1,
-			minPoseDetectionConfidence: 0.5,
-			minPosePresenceConfidence: 0.5,
-			minTrackingConfidence: 0.5,
-		});
+		const wasmPath = origin
+			? new URL("mediapipe/", base).href
+			: `${basePath}mediapipe/`;
+		const posePath = origin
+			? new URL("models/mediapipe/pose_landmarker_lite.task", base).href
+			: `${basePath}models/mediapipe/pose_landmarker_lite.task`;
+		const facePath = origin
+			? new URL("models/mediapipe/face_landmarker.task", base).href
+			: `${basePath}models/mediapipe/face_landmarker.task`;
+		const handPath = origin
+			? new URL("models/mediapipe/hand_landmarker.task", base).href
+			: `${basePath}models/mediapipe/hand_landmarker.task`;
 
-		this.faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-			baseOptions: {
-				modelAssetPath:
-					"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-				delegate: "CPU",
-			},
-			runningMode: "VIDEO",
-			numFaces: 1,
-			minFaceDetectionConfidence: 0.5,
-			minFacePresenceConfidence: 0.5,
-			minTrackingConfidence: 0.5,
-			outputFaceBlendshapes: false,
-		});
+		const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
-		this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
-			baseOptions: {
-				modelAssetPath:
-					"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-				delegate: "CPU",
-			},
-			runningMode: "VIDEO",
-			numHands: 1,
-			minHandDetectionConfidence: 0.5,
-			minHandPresenceConfidence: 0.5,
-			minTrackingConfidence: 0.5,
-		});
+		const [poseLandmarker, faceLandmarker, handLandmarker] =
+			await Promise.all([
+				PoseLandmarker.createFromOptions(vision, {
+					baseOptions: {
+						modelAssetPath: posePath,
+						delegate: "CPU",
+					},
+					runningMode: "VIDEO",
+					numPoses: 1,
+					minPoseDetectionConfidence: 0.5,
+					minPosePresenceConfidence: 0.5,
+					minTrackingConfidence: 0.5,
+				}),
+				FaceLandmarker.createFromOptions(vision, {
+					baseOptions: {
+						modelAssetPath: facePath,
+						delegate: "CPU",
+					},
+					runningMode: "VIDEO",
+					numFaces: 1,
+					minFaceDetectionConfidence: 0.5,
+					minFacePresenceConfidence: 0.5,
+					minTrackingConfidence: 0.5,
+					outputFaceBlendshapes: false,
+				}),
+				HandLandmarker.createFromOptions(vision, {
+					baseOptions: {
+						modelAssetPath: handPath,
+						delegate: "CPU",
+					},
+					runningMode: "VIDEO",
+					numHands: 1,
+					minHandDetectionConfidence: 0.5,
+					minHandPresenceConfidence: 0.5,
+					minTrackingConfidence: 0.5,
+				}),
+			]);
 
+		this.poseLandmarker = poseLandmarker;
+		this.faceLandmarker = faceLandmarker;
+		this.handLandmarker = handLandmarker;
 		this.isInitialized = true;
 	}
 

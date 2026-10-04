@@ -13,10 +13,19 @@ import * as ort from "onnxruntime-web/wasm";
  * of [x1,y1,x2,y2,score,class] in 640-letterboxed pixel space, NMS baked in.
  */
 
-ort.env.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`;
+const origin =
+	typeof location !== "undefined" && location.origin
+		? location.origin
+		: "";
+const basePath = import.meta.env.BASE_URL || "/";
+const base = origin ? new URL(basePath, origin).href : basePath;
+
+ort.env.wasm.wasmPaths = origin ? new URL("ort/", base).href : `${basePath}ort/`;
 ort.env.wasm.numThreads = 1;
 
-const MODEL_URL = `${import.meta.env.BASE_URL}models/inhaler.onnx`;
+const MODEL_URL = origin
+	? new URL("models/inhaler.onnx", base).href
+	: `${basePath}models/inhaler.onnx`;
 const SIZE = 640;
 
 let session = null;

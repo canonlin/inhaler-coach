@@ -6,8 +6,8 @@ import { useWebcamStream } from "./useWebcamStream";
 import { useYouTubePlayer } from "./useYouTubePlayer";
 
 export type ModelState = "idle" | "loading" | "ready" | "error";
-
-const MODEL_LOAD_TIMEOUT_MS = 30_000;
+ 
+const MODEL_LOAD_TIMEOUT_MS = 60_000;
 const CAMERA_START_TIMEOUT_MS = 15_000;
 
 function withTimeout<T>(
