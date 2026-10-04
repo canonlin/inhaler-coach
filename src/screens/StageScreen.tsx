@@ -25,6 +25,10 @@ export function StageScreen(props: StageScreenProps) {
 		isVideoLoading,
 		isVideoEnded,
 		videoError,
+		isPlaying,
+		isMuted,
+		togglePlay,
+		toggleMute,
 		replayVideo,
 		startAIPhase,
 		retryStage,
@@ -77,6 +81,8 @@ export function StageScreen(props: StageScreenProps) {
 						isVideoLoading={isVideoLoading}
 						isVideoEnded={isVideoEnded}
 						videoError={videoError}
+						isPlaying={isPlaying}
+						isMuted={isMuted}
 						badge={s.badge}
 						badgeClass={s.badgeClass}
 						title={s.title}
@@ -91,6 +97,8 @@ export function StageScreen(props: StageScreenProps) {
 						nextBtnText={nextBtnText}
 						onStartAI={startAIPhase}
 						onReplayVideo={replayVideo}
+						onTogglePlay={togglePlay}
+						onToggleMute={toggleMute}
 						onNext={nextStage}
 					/>
 				) : (

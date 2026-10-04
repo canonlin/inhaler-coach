@@ -12,3 +12,18 @@ test("Symbicort coaching durations match the product instructions", () => {
 	assert.match(STAGES[3].stepSub, /舒適為限/);
 	assert.match(STAGES[4].stepInstruction, /吐掉/);
 });
+
+test("all educational videos hide player controls to avoid obstructing clinical subtitles", () => {
+	for (const stage of STAGES) {
+		assert.ok(stage.videoURL, `Stage ${stage.id} must have a videoURL`);
+		assert.ok(
+			stage.videoURL.includes("controls=0"),
+			`Stage ${stage.id} videoURL (${stage.videoURL}) must include controls=0 to avoid covering subtitles`,
+		);
+		const match = stage.videoURL.match(
+			/(?:embed\/|v=|vi\/|youtu\.be\/|\/v\/|\/e\/|watch\?v=|\?v=)([^#&?]+)/,
+		);
+		assert.ok(match && match[1].length > 5, `Stage ${stage.id} video ID must extract cleanly`);
+	}
+});
+
