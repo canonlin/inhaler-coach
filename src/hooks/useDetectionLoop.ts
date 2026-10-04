@@ -242,7 +242,7 @@ export function useDetectionLoop({
 								const needs: FrameNeeds = {
 									pose: stageIdx === 2 || stageIdx === 3,
 									face: stageIdx >= 2,
-									hands: stageIdx === 1,
+									hands: stageIdx === 1 || stageIdx === 3,
 								};
 								poseResult = await singletons.detection.processFrame(
 									canvas,
@@ -435,6 +435,7 @@ export function useDetectionLoop({
 												detect: (arg: {
 													device: unknown;
 													mouthPoint: unknown;
+													handPoint?: unknown;
 													poseLandmarks?: unknown;
 													timestamp?: number;
 												}) => {
@@ -451,6 +452,7 @@ export function useDetectionLoop({
 											const res = step.detect({
 												device,
 												mouthPoint,
+												handPoint: handCenter,
 												poseLandmarks: pr?.pose,
 												timestamp: now,
 											});
