@@ -15,9 +15,10 @@ export const SHOULDER_THRESHOLDS = {
 	minConfidence: 0.5,
 	elevationThreshold: 0.04,
 	stabilityMaxStep: 0.04,
-	exhaleHeadDistThreshold: 0.055,
-	exhaleDropThreshold: 0.050,
-	exhaleMaxHorizontalDrift: 0.045,
+	exhaleHeadDistThreshold: 0.045,
+	exhaleDropThreshold: 0.045,
+	exhaleProminentDropThreshold: 0.065,
+	exhaleMaxHorizontalDrift: 0.065,
 	historyWindowMs: 3500,
 	baselineAlpha: 0.20,
 	smoothAlpha: 0.35,
@@ -133,7 +134,7 @@ export class ShoulderKinematicsTracker {
 
 		// Boundary & framing checks:
 		// 1. Vertical boundary: shoulders must not be cut off at the bottom or top of the camera
-		if (ls.y > 0.85 || rs.y > 0.85) {
+		if (ls.y > 0.88 || rs.y > 0.88) {
 			return {
 				valid: true,
 				framed: false,
@@ -149,7 +150,7 @@ export class ShoulderKinematicsTracker {
 				confidence: conf,
 			};
 		}
-		if (ls.y < 0.15 || rs.y < 0.15) {
+		if (ls.y < 0.05 || rs.y < 0.05) {
 			return {
 				valid: true,
 				framed: false,
@@ -166,7 +167,7 @@ export class ShoulderKinematicsTracker {
 			};
 		}
 		// 2. Horizontal boundary
-		if (ls.x < 0.05 || ls.x > 0.95 || rs.x < 0.05 || rs.x > 0.95) {
+		if (ls.x < 0.02 || ls.x > 0.98 || rs.x < 0.02 || rs.x > 0.98) {
 			return {
 				valid: true,
 				framed: false,
@@ -188,7 +189,7 @@ export class ShoulderKinematicsTracker {
 		const rawSpan = Math.hypot(ls.x - rs.x, ls.y - rs.y);
 
 		// Span boundary check:
-		if (rawSpan < 0.15) {
+		if (rawSpan < 0.10) {
 			return {
 				valid: true,
 				framed: false,
@@ -204,7 +205,7 @@ export class ShoulderKinematicsTracker {
 				confidence: conf,
 			};
 		}
-		if (rawSpan > 0.70) {
+		if (rawSpan > 0.82) {
 			return {
 				valid: true,
 				framed: false,
@@ -275,6 +276,7 @@ export class ShoulderKinematicsTracker {
 		let yDrop = 0;
 		let xRange = 0;
 		let yRange = 0;
+		let minY = this.smoothedY;
 
 		if (this.history.length >= 3) {
 			const hDists = this.history.map((h) => h.headDist);
@@ -283,7 +285,7 @@ export class ShoulderKinematicsTracker {
 
 			headDistRange = Math.max(...hDists) - Math.min(...hDists);
 			yRange = (Math.max(...ys) - Math.min(...ys)) / span;
-			const minY = Math.min(...ys); // highest shoulder point in window
+			minY = Math.min(...ys); // highest shoulder point in window
 			yDrop = (this.smoothedY - minY) / span;
 			xRange = (Math.max(...xs) - Math.min(...xs)) / span;
 		}
@@ -312,25 +314,31 @@ export class ShoulderKinematicsTracker {
 		const isStable = stepDiff <= this.cfg.stabilityMaxStep;
 		const isDropping = dropFromPeak >= this.cfg.exhaleDropThreshold;
 
-		// Still / Tidal breathing: low movement range and low head distance variance in recent 2s
-		const recent = this.history.filter((h) => timestamp - h.t <= 2000);
-		let isStill = false;
-		if (recent.length >= 5) {
-			const rYs = recent.map((h) => h.y);
-			const rHds = recent.map((h) => h.headDist);
-			const rYRange = (Math.max(...rYs) - Math.min(...rYs)) / span;
-			const rHdRange = Math.max(...rHds) - Math.min(...rHds);
-			isStill = rYRange < 0.035 && rHdRange < 0.045;
-		}
+		// Physiological exhalation dynamics:
+		// 1. Initial relaxation descent:
+		//    - Either compound respiratory excursion (both shoulder drop and head-distance expansion >= 0.045),
+		//    - Or prominent single-metric excursion (either shoulder drop >= 0.065 or head-distance >= 0.070)
+		const hasExhaledDrop =
+			(yDrop >= this.cfg.exhaleDropThreshold &&
+				headDistRange >= this.cfg.exhaleHeadDistThreshold) ||
+			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.065) ||
+			headDistRange >= (this.cfg.exhaleProminentDropThreshold || 0.065) + 0.005;
 
-		// Exhale active: positive respiratory excursion (head-shoulder delta OR shoulder drop),
-		// relaxed shoulders (not elevated / shrugging), low horizontal drift, and actively NOT still
+		// 2. Sustained lowered posture: user maintains empty lungs with lowered relaxed shoulders.
+		//    Shoulders must remain below the window's highest position by at least 0.020 spans
+		//    (not bouncing back up or inhaling).
+		const isMaintainingDrop = (this.smoothedY - minY) / span >= 0.020;
+
+		// 3. Motionless baseline: user is motionless at resting baseline with NO exhalation drop.
+		const isStill = yDrop < 0.025 && headDistRange < 0.030;
+
+		// Exhale active: has dropped, is maintaining lowered relaxed shoulders,
+		// not elevated/shrugging, and not swaying horizontally.
 		const exhaleActive =
 			!isElevated &&
-			!isStill &&
-			xRange <= this.cfg.exhaleMaxHorizontalDrift &&
-			(headDistRange >= this.cfg.exhaleHeadDistThreshold ||
-				yDrop >= this.cfg.exhaleDropThreshold);
+			hasExhaledDrop &&
+			isMaintainingDrop &&
+			xRange <= this.cfg.exhaleMaxHorizontalDrift;
 
 		this.prevY = this.smoothedY;
 		this.lastTimestamp = timestamp;
