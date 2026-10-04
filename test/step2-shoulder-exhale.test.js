@@ -232,3 +232,95 @@ test("Stage 2 exhale: shoulder kinematics is strong signal, hand/inhaler is weak
 	evalRes = evaluator.evaluate(det, 5100);
 	assert.equal(evalRes.ok, true, "Exhale completes based on strong shoulder signal");
 });
+
+test("Stage 2 exhale: detects 頭偏 (Head Turned/Tilted) exhalation with lateral head rotation", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const span = 0.25;
+	const makeHeadPose = (shoulderY, headX, headY) => {
+		const lm = Array(33).fill(null);
+		lm[0] = { x: headX, y: headY, visibility: 0.95 }; // Nose
+		lm[11] = { x: 0.5 - span / 2, y: shoulderY, visibility: 0.9 }; // Left shoulder
+		lm[12] = { x: 0.5 + span / 2, y: shoulderY, visibility: 0.9 }; // Right shoulder
+		return lm;
+	};
+
+	// 1. User sits straight before exhaling (nose x=0.5, y=0.3, shoulders y=0.54)
+	for (let t = 0; t < 1000; t += 100) {
+		detector.detect({
+			poseLandmarks: makeHeadPose(0.54, 0.50, 0.30),
+			timestamp: t,
+		});
+	}
+
+	// 2. User turns head sideways to exhale away from inhaler (頭偏: nose x moves to 0.54, delta x / span = 0.04 / 0.25 = 0.16)
+	// and relaxes shoulders down (y = 0.548, yDrop = 0.008 / 0.25 = 0.032 >= 0.020)
+	let passed = false;
+	for (let t = 1000; t <= 5000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: makeHeadPose(0.548, 0.54, 0.30),
+			timestamp: t,
+		});
+		assert.equal(det.ready, true);
+		if (t >= 1300) {
+			assert.equal(det.exhaling, true, `Should detect exhaleActive during head turn at t=${t}`);
+		}
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "頭偏 exhalation must successfully pass Stage 2");
+});
+
+test("Stage 2 exhale: detects 頭正 (Head Straight) exhalation facing camera forward", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const span = 0.25;
+	const makeHeadPose = (shoulderY, headX, headY) => {
+		const lm = Array(33).fill(null);
+		lm[0] = { x: headX, y: headY, visibility: 0.95 }; // Nose
+		lm[11] = { x: 0.5 - span / 2, y: shoulderY, visibility: 0.9 }; // Left shoulder
+		lm[12] = { x: 0.5 + span / 2, y: shoulderY, visibility: 0.9 }; // Right shoulder
+		return lm;
+	};
+
+	// 1. User sits straight before exhaling (nose x=0.5, y=0.3, shoulders y=0.54)
+	for (let t = 0; t < 1000; t += 100) {
+		detector.detect({
+			poseLandmarks: makeHeadPose(0.54, 0.50, 0.30),
+			timestamp: t,
+		});
+	}
+
+	// 2. User exhales facing camera (頭正: nose stays centered x=0.50, shoulders drop y=0.553, yDrop = 0.013 / 0.25 = 0.052 spans >= 0.040)
+	let passed = false;
+	for (let t = 1000; t <= 5000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: makeHeadPose(0.553, 0.50, 0.30),
+			timestamp: t,
+		});
+		assert.equal(det.ready, true);
+		if (t >= 1300) {
+			assert.equal(det.exhaling, true, `Should detect exhaleActive during head straight at t=${t}`);
+		}
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "頭正 exhalation must successfully pass Stage 2");
+});
+
