@@ -54,11 +54,15 @@ export class ExhaleDetector {
 		// In screen coords, shoulder elevation >= 0.04 spans indicates shrugging/inhalation
 		const shrugging = shoulder.valid && shoulder.isElevated;
 
-		// Active exhalation requires:
-		// 1. Posture/shoulders acquired and properly framed
-		// 2. Not shrugging / tense
-		// 3. Not holding inhaler at mouth
-		// 4. Positive respiratory excursion (calibrated on 1150806 GT)
+		// Signal Hierarchy (臨床與工程訊號分級):
+		// 1. 強訊號 (Primary Strong Signal): 雙肩生理姿態與呼吸運動
+		//    - 雙肩完整入鏡未被邊界裁切 (ready: shoulder.valid && shoulder.framed)
+		//    - 吐氣時雙肩自然放鬆下沉且非靜止 (shoulder.exhaleActive)
+		//    - 未聳肩緊繃 (shrugging = false)
+		// 2. 弱（次）訊號 (Secondary Weak Signal): 手上有無拿吸入器
+		//    - 不要求必須持拿吸入器 (deviceInHand 是次要狀態，不阻礙吐氣通關)
+		//    - 負向防呆：僅在吸入器明確貼近嘴唇時提示移開，避免含著吸嘴吐氣
+		const deviceInHand = Boolean(device?.present);
 		const isExhaling = ready && !shrugging && !atMouth && shoulder.exhaleActive;
 
 		const phase = !ready
@@ -82,6 +86,7 @@ export class ExhaleDetector {
 			shrugging,
 			atMouth,
 			shoulder,
+			deviceInHand,
 			phase,
 			confidence: ready ? shoulder.confidence : 0,
 		};

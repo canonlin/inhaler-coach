@@ -177,3 +177,58 @@ test("Stage 2 exhale: motionless sitting never accumulates exhalation progress",
 		assert.equal(det.exhaling, false);
 	}
 });
+
+test("Stage 2 exhale: shoulder kinematics is strong signal, hand/inhaler is weak secondary signal", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const normalPose = makePose(0.6);
+	const exhalePose = makePose(0.66);
+
+	// Warmup baseline with NO inhaler in hand
+	for (let i = 0; i < 5; i++) {
+		detector.detect({
+			poseLandmarks: normalPose,
+			timestamp: 1000 + i * 100,
+			device: null,
+		});
+	}
+
+	// 1. Weak signal absent (no device in hand): strong shoulder signal still drives exhalation
+	let det = detector.detect({
+		poseLandmarks: exhalePose,
+		timestamp: 2000,
+		device: null,
+	});
+	assert.equal(det.deviceInHand, false);
+	assert.equal(det.exhaling, true);
+	assert.equal(det.atMouth, false);
+	let evalRes = evaluator.evaluate(det, 2000);
+	assert.equal(evalRes.ok, false); // still counting down
+
+	// 2. Weak signal present away from mouth: exhalation continues without interruption
+	det = detector.detect({
+		poseLandmarks: exhalePose,
+		timestamp: 3500,
+		device: { present: true, center: { x: 0.2, y: 0.7 } },
+	});
+	assert.equal(det.deviceInHand, true);
+	assert.equal(det.exhaling, true);
+	assert.equal(det.atMouth, false);
+	evalRes = evaluator.evaluate(det, 3500);
+	assert.equal(evalRes.ok, false);
+
+	// 3. Weak signal disappears again: exhalation is NOT disrupted and completes
+	det = detector.detect({
+		poseLandmarks: exhalePose,
+		timestamp: 5100,
+		device: null,
+	});
+	assert.equal(det.deviceInHand, false);
+	assert.equal(det.exhaling, true);
+	evalRes = evaluator.evaluate(det, 5100);
+	assert.equal(evalRes.ok, true, "Exhale completes based on strong shoulder signal");
+});
