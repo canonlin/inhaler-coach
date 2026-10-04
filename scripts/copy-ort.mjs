@@ -20,4 +20,44 @@ for (const f of [
     console.log(`Using existing ${dst}/${f}`);
   }
 }
-console.log("checked onnxruntime-web wasm backend in public/ort/");
+
+const mpSrc = `${root}/node_modules/@mediapipe/tasks-vision/wasm`;
+const mpDst = `${root}/public/mediapipe`;
+mkdirSync(mpDst, { recursive: true });
+for (const f of ["vision_wasm_internal.js", "vision_wasm_internal.wasm"]) {
+  if (existsSync(`${mpSrc}/${f}`)) {
+    copyFileSync(`${mpSrc}/${f}`, `${mpDst}/${f}`);
+  }
+}
+
+const taskModels = [
+  {
+    name: "pose_landmarker_lite.task",
+    url: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+  },
+  {
+    name: "face_landmarker.task",
+    url: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+  },
+  {
+    name: "hand_landmarker.task",
+    url: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+  },
+];
+
+const mpModelDst = `${root}/public/models/mediapipe`;
+mkdirSync(mpModelDst, { recursive: true });
+
+for (const m of taskModels) {
+  const target = `${mpModelDst}/${m.name}`;
+  if (!existsSync(target)) {
+    console.log(`Downloading ${m.name}...`);
+    const res = await fetch(m.url);
+    if (!res.ok) throw new Error(`Failed to download ${m.name}: ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(target, buf);
+  }
+}
+
+console.log("checked mediapipe and onnxruntime-web assets in public/");
