@@ -19,8 +19,8 @@
  */
 
 /** Mouth-region motion must stand this far above the background to count as
- * rinsing. Same dimensionless ratio as the shake detector; runtime-calibrate. */
-const RINSE_RATIO = 8;
+ * rinsing. Calibrated on 0519 and clinical pharmacist recordings (2.81 vs 1.01). */
+export const RINSE_RATIO = 2.2;
 
 /** Smooth over a short window so a single jittery frame doesn't decide it. */
 const WINDOW_MS = 1000;

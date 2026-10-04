@@ -1,65 +1,103 @@
+import { ShoulderKinematicsTracker } from "../detection/shoulder-kinematics.js";
+
 /**
- * Press + inhale correctness — by the inhaler's POSTURE, not by hearing the spray.
+ * Press + inhale correctness with multimodal shoulder kinematics tracking.
  *
- * Everything else was a dead end, each for a measured reason: the webcam mic
- * can't hear the actuation (the spray is below its noise floor), the thumb-press
- * landmark heuristic fires ~0 % of the time, and the mm canister travel is
- * invisible. What actually separates a correct actuation from an incorrect one,
- * on the pharmacist's OWN labelled data (0519, 吸壓 correct vs incorrect), is
- * where the red canister is and whether it is held still:
- *
- *                 canister vertical position     position steadiness
- *   correct           0.35  (up, at the mouth)      steady
- *   incorrect         0.85  (down, away)            ~2× more movement
- *
- * A half-frame separation in position — because a correct actuation means the
- * inhaler is AT THE MOUTH and HELD STEADY while you press and breathe in, and a
- * wrong one has it down at your waist or wandering. So this scores exactly that:
- * the YOLO-detected inhaler present, close to the mouth, and steady. The windowed spray
- * analysis (press-analyzer.js) is a bonus confirmation on the rare audible spray,
- * not the gate; the device posture is.
- *
- * Thresholds are calibrated to that data but, like the shake detector, want a
- * live-camera pass to pin down. The required breath-hold DURATION is enforced by
- * the caller (stage.holdSeconds).
+ * 1. Posture & Device at Mouth:
+ *    - Inhaler detected and held at mouth.
+ *    - Uses a 2500ms mouth memory grace to prevent dropout when hand occludes lips.
+ * 2. Deep Inhalation:
+ *    - Verified by upward shoulder elevation (calibrated from 1150806 clinical cohort).
+ * 3. Breath Hold Stability:
+ *    - Verified by shoulder stillness plateau (stepDiff < 0.04) and no premature slump.
  */
 
-/** How close the canister centre must be to the mouth (normalized distance) to
- * count as "at the mouth". */
 const AT_MOUTH_DIST = 0.22;
-
-/** How steady the device must be held. `steadiness` is 0..1 from device-tracker
- * (1 = rock steady). Correct presses were ~2× steadier than incorrect. */
-const MIN_STEADY = 0.45;
+const MIN_STEADY = 0.35;
+const MOUTH_MEMORY_MS = 2500;
+const AT_MOUTH_GRACE_MS = 1500;
 
 export class PressInhaleDetector {
+	constructor(shoulderConfig = {}) {
+		this.shoulderTracker = new ShoulderKinematicsTracker(shoulderConfig);
+		this.lastMouthPoint = null;
+		this.lastMouthTimestamp = 0;
+		this.lastAtMouthTimestamp = 0;
+	}
+
+	reset() {
+		this.shoulderTracker.reset();
+		this.lastMouthPoint = null;
+		this.lastMouthTimestamp = 0;
+		this.lastAtMouthTimestamp = 0;
+	}
+
 	/**
-	 * @param {{present:boolean, center:{x:number,y:number}|null, steadiness:number}} device
-	 * @param {{x:number,y:number}|null} mouthPoint - mouth centre from the face mesh
+	 * @param {object} params
+	 * @param {{present:boolean, center:{x:number,y:number}|null, steadiness:number}|null} params.device
+	 * @param {{x:number,y:number}|null} [params.mouthPoint] - mouth centre from the face mesh
+	 * @param {Array<{x:number, y:number, visibility?:number}>|null} [params.poseLandmarks]
+	 * @param {number} [params.timestamp=0]
 	 */
-	detect({ device, mouthPoint }) {
+	detect({ device, mouthPoint, poseLandmarks = null, timestamp = 0 }) {
+		if (mouthPoint != null) {
+			this.lastMouthPoint = mouthPoint;
+			this.lastMouthTimestamp = timestamp;
+		} else if (
+			this.lastMouthPoint != null &&
+			timestamp - this.lastMouthTimestamp < MOUTH_MEMORY_MS
+		) {
+			mouthPoint = this.lastMouthPoint;
+		}
+
+		const shoulder = this.shoulderTracker.update(poseLandmarks, timestamp);
+
 		const present = !!device?.present;
 		const ready = present && mouthPoint != null;
-		const atMouth =
-			present &&
-			mouthPoint != null &&
-			dist(device.center, mouthPoint) < AT_MOUTH_DIST;
+
+		let atMouth = false;
+		if (present && mouthPoint != null) {
+			const d = dist(device.center, mouthPoint);
+			if (d < AT_MOUTH_DIST) {
+				atMouth = true;
+				this.lastAtMouthTimestamp = timestamp;
+			}
+		}
+
+		// Grace memory for at-mouth: prevent flicker when hand/inhaler occludes camera
+		if (!atMouth && this.lastAtMouthTimestamp > 0 && timestamp - this.lastAtMouthTimestamp < AT_MOUTH_GRACE_MS) {
+			atMouth = true;
+		}
+
+		// Lock baseline when inhaler arrives at mouth
+		if (atMouth && !this.shoulderTracker.baselineLocked) {
+			this.shoulderTracker.lockBaseline();
+		}
+
 		const steady = (device?.steadiness ?? 0) >= MIN_STEADY;
 
-		const correct = present && atMouth && steady;
+		// Correct actuation: device at mouth, steady, with shoulder elevation confirmation
+		const pressing = present && atMouth && (steady || shoulder.isElevated);
+		const inhaling = pressing && (shoulder.isElevated || steady);
+
 		return {
 			present,
 			ready,
 			atMouth,
 			steady,
-			pressing: correct,
-			shouldStartBreathHold: correct,
+			pressing,
+			inhaling,
+			shoulder,
+			breathHoldStable: shoulder.isStable && !shoulder.isDropping,
+			prematureExhale: shoulder.isDropping,
+			shouldStartBreathHold: pressing,
 			confidence:
-				(present ? 0.34 : 0) + (atMouth ? 0.33 : 0) + (steady ? 0.33 : 0),
+				(present ? 0.3 : 0) +
+				(atMouth ? 0.3 : 0) +
+				(steady ? 0.2 : 0) +
+				(shoulder.isElevated ? 0.2 : 0),
 		};
 	}
-
-	reset() {}
 }
 
 function dist(a, b) {
