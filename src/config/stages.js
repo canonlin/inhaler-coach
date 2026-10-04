@@ -53,7 +53,7 @@ export const STAGES = [
 		modelURL: "https://teachablemachine.withgoogle.com/models/EY9yUdpzU/",
 		passClass: "吐氣",
 		passThreshold: 0.85,
-		passSeconds: 3,
+		passSeconds: 2,
 		manualPass: false,
 		showPharmacist: true,
 		badgeClass: "bg-gradient-to-br from-[#a18cd1] to-[#fbc2eb] text-black",

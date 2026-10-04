@@ -80,7 +80,7 @@ export class CoachingStageEvaluator {
 			(observation.exhaling ?? observation.awayLocked ?? false);
 
 		if (!ready) {
-			this.actionGate.reset();
+			this.actionGate.update(false, timestamp);
 			return {
 				ok: false,
 				msg: observation.framingMsg || "請讓臉部與雙肩完整出現在畫面中",
@@ -96,6 +96,7 @@ export class CoachingStageEvaluator {
 		}
 
 		if (shrugging) {
+			this.actionGate.update(false, timestamp);
 			return {
 				ok: false,
 				msg: "請放鬆雙肩慢慢吐氣，不要聳肩",
