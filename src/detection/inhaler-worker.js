@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web";
+import * as ort from "onnxruntime-web/wasm";
 
 /**
  * Runs the inhaler ONNX model OFF the main thread.
