@@ -1,0 +1,8 @@
+{
+  "minConfidence": 0.4,
+  "elevationThreshold": 0.04,
+  "stabilityMaxStep": 0.04,
+  "exhaleDropThreshold": 0.06,
+  "baselineAlpha": 0.08,
+  "smoothAlpha": 0.35
+}

@@ -240,7 +240,7 @@ export function useDetectionLoop({
 						try {
 							if (typeof singletons.detection?.processFrame === "function") {
 								const needs: FrameNeeds = {
-									pose: false,
+									pose: stageIdx === 3,
 									face:
 										stageIdx >= 2 &&
 										(stageIdx !== 2 || !singletons.step2.awayLocked),
@@ -325,7 +325,16 @@ export function useDetectionLoop({
 							}
 						}
 						if (stageIdx === 4) {
-							latestMotionRoi = mouthROI(face);
+							const nextMouthRoi = mouthROI(face);
+							if (nextMouthRoi) {
+								latestMotionRoi = nextMouthRoi;
+								latestMotionRoiSeenAt = performance.now();
+							} else if (
+								performance.now() - latestMotionRoiSeenAt >
+								ACTION_ROI_DROPOUT_GRACE_MS
+							) {
+								latestMotionRoi = null;
+							}
 						}
 
 						frameCount++;
@@ -433,22 +442,30 @@ export function useDetectionLoop({
 												detect: (arg: {
 													device: unknown;
 													mouthPoint: unknown;
+													poseLandmarks?: unknown;
+													timestamp?: number;
 												}) => {
 													pressing?: boolean;
 													atMouth?: boolean;
 													steady?: boolean;
 													ready?: boolean;
+													shoulder?: { isElevated?: boolean };
+													inhaling?: boolean;
+													breathHoldStable?: boolean;
+													prematureExhale?: boolean;
 												};
 											};
 											const res = step.detect({
 												device,
 												mouthPoint,
+												poseLandmarks: pr?.pose,
+												timestamp: now,
 											});
 											stepResult = evaluator.evaluate(res, now);
 											if (frameCount % 30 === 0) {
 												console.log(
 													"  step3:",
-													`device:${device?.present ? `(${device.center?.x?.toFixed(2)},${device.center?.y?.toFixed(2)})` : "null"} mouth:${mouthPoint ? `(${mouthPoint.x.toFixed(2)},${mouthPoint.y.toFixed(2)})` : "null"} pressing:${res?.pressing}`,
+													`device:${device?.present ? `(${device.center?.x?.toFixed(2)},${device.center?.y?.toFixed(2)})` : "null"} mouth:${mouthPoint ? `(${mouthPoint.x.toFixed(2)},${mouthPoint.y.toFixed(2)})` : "null"} pressing:${res?.pressing} shoulderElevated:${res?.shoulder?.isElevated}`,
 												);
 											}
 										}

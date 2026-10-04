@@ -91,17 +91,22 @@ export class CoachingStageEvaluator {
 				0,
 				this.holdMs - (timestamp - this.holdStartedAt),
 			);
+			const holdGuidance = observation.prematureExhale
+				? `注意請維持憋氣，不要提早吐氣（剩餘 ${secondsLeft(remainingMs)} 秒）`
+				: `很好，請移開吸入器並憋氣 ${secondsLeft(remainingMs)} 秒（以舒適為限）`;
+
 			return {
 				ok: remainingMs === 0,
 				msg:
 					remainingMs === 0
 						? "壓吸步驟完成，憋氣倒數也完成了！"
-						: `很好，請移開吸入器並憋氣 ${secondsLeft(remainingMs)} 秒（以舒適為限）`,
+						: holdGuidance,
 			};
 		}
 
+		const isActuating = (observation.pressing ?? false) || (observation.inhaling ?? false);
 		const progress = this.inhaleGate.update(
-			observation.pressing ?? false,
+			isActuating,
 			timestamp,
 		);
 		if (progress.passed) this.holdStartedAt = timestamp;
