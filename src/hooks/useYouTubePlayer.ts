@@ -47,6 +47,8 @@ export function useYouTubePlayer({
 	const [replayCount, setReplayCount] = useState(0);
 	const [isVideoLoading, setIsVideoLoading] = useState(true);
 	const [isVideoEnded, setIsVideoEnded] = useState(false);
+	const [isPlaying, setIsPlaying] = useState(true);
+	const [isMuted, setIsMuted] = useState(true);
 	const [videoError, setVideoError] = useState<string | null>(null);
 	// Tracks whether the container DOM element has been attached.
 	// Refs don't trigger re-renders, so we mirror it with state
@@ -111,6 +113,10 @@ export function useYouTubePlayer({
 					playsinline: 1,
 					rel: 0,
 					modestbranding: 1,
+					controls: 0,
+					disablekb: 1,
+					fs: 0,
+					iv_load_policy: 3,
 					_r: count,
 				},
 				events: {
@@ -119,10 +125,18 @@ export function useYouTubePlayer({
 						clearLoadingTimeout();
 						setVideoError(null);
 						setIsVideoLoading(false);
+						setIsPlaying(true);
+						setIsMuted(true);
 					},
 					onStateChange: (event: YT.OnStateChangeEvent) => {
-						if (!destroyed && event.data === window.YT.PlayerState.ENDED) {
+						if (destroyed) return;
+						if (event.data === window.YT.PlayerState.ENDED) {
+							setIsPlaying(false);
 							triggerVideoEnd();
+						} else if (event.data === window.YT.PlayerState.PLAYING) {
+							setIsPlaying(true);
+						} else if (event.data === window.YT.PlayerState.PAUSED) {
+							setIsPlaying(false);
 						}
 					},
 					onError: (event: YT.OnErrorEvent) => {
@@ -215,12 +229,49 @@ export function useYouTubePlayer({
 		setReplayCount((c) => c + 1);
 	}, []);
 
+	const togglePlay = useCallback(() => {
+		const player = playerRef.current;
+		if (!player) return;
+		try {
+			const state = player.getPlayerState();
+			if (state === window.YT?.PlayerState?.PLAYING) {
+				player.pauseVideo();
+				setIsPlaying(false);
+			} else {
+				player.playVideo();
+				setIsPlaying(true);
+			}
+		} catch (e) {
+			console.warn("[YT] togglePlay failed:", e);
+		}
+	}, []);
+
+	const toggleMute = useCallback(() => {
+		const player = playerRef.current;
+		if (!player) return;
+		try {
+			if (player.isMuted()) {
+				player.unMute();
+				setIsMuted(false);
+			} else {
+				player.mute();
+				setIsMuted(true);
+			}
+		} catch (e) {
+			console.warn("[YT] toggleMute failed:", e);
+		}
+	}, []);
+
 	return {
 		videoContainerRef,
 		setContainerRef,
 		isVideoLoading,
 		isVideoEnded,
 		videoError,
+		isPlaying,
+		isMuted,
+		togglePlay,
+		toggleMute,
 		replayVideo,
 		finishLoading: () => setIsVideoLoading(false),
 		triggerVideoEnd,
