@@ -2,8 +2,12 @@ import {
 	IconArrowRight,
 	IconBrain,
 	IconCheck,
+	IconPause,
+	IconPlay,
 	IconRotateCcw,
 	IconVideo,
+	IconVolume,
+	IconVolumeX,
 } from "../icons";
 import { LoadingWave } from "../LoadingWave";
 import { StatusBanner } from "./StatusBanner";
@@ -13,6 +17,8 @@ type VideoSectionProps = {
 	isVideoLoading?: boolean;
 	isVideoEnded?: boolean;
 	videoError?: string | null;
+	isPlaying?: boolean;
+	isMuted?: boolean;
 	badge: string;
 	badgeClass: string;
 	title: string;
@@ -27,6 +33,8 @@ type VideoSectionProps = {
 	nextBtnText: string;
 	onStartAI: () => void;
 	onReplayVideo?: () => void;
+	onTogglePlay?: () => void;
+	onToggleMute?: () => void;
 	onNext: () => void;
 };
 
@@ -35,6 +43,8 @@ export function VideoSection({
 	isVideoLoading = false,
 	isVideoEnded = false,
 	videoError = null,
+	isPlaying = true,
+	isMuted = true,
 	badge,
 	badgeClass,
 	title,
@@ -49,6 +59,8 @@ export function VideoSection({
 	nextBtnText,
 	onStartAI,
 	onReplayVideo,
+	onTogglePlay,
+	onToggleMute,
 	onNext,
 }: VideoSectionProps) {
 	const isEnded = stagePassed || isVideoEnded;
@@ -152,6 +164,51 @@ export function VideoSection({
 				<div className="pointer-events-none absolute left-4 top-20 z-20 hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-md sm:flex">
 					<IconVideo className="w-4 h-4 text-rose-300" />
 					<span>{videoLabel}</span>
+				</div>
+			)}
+
+			{/* Non-intrusive floating video controls (Top-Right, far away from bottom subtitles) */}
+			{!isEnded && !isVideoLoading && !videoError && (
+				<div className="absolute right-4 top-18 sm:top-20 z-30 flex items-center gap-2">
+					{onTogglePlay && (
+						<button
+							type="button"
+							onClick={onTogglePlay}
+							aria-label={isPlaying ? "暫停影片" : "播放影片"}
+							title={isPlaying ? "暫停影片" : "播放影片"}
+							className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition-all hover:bg-white/15 active:scale-95 cursor-pointer"
+						>
+							{isPlaying ? (
+								<IconPause className="h-4 w-4 text-white" />
+							) : (
+								<IconPlay className="h-4 w-4 text-white" />
+							)}
+						</button>
+					)}
+					{onToggleMute && (
+						<button
+							type="button"
+							onClick={onToggleMute}
+							aria-label={isMuted ? "開啟聲音" : "靜音"}
+							title={isMuted ? "開啟聲音" : "靜音"}
+							className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition-all hover:bg-white/15 active:scale-95 cursor-pointer"
+						>
+							{isMuted ? (
+								<IconVolumeX className="h-4 w-4 text-slate-400" />
+							) : (
+								<IconVolume className="h-4 w-4 text-emerald-400" />
+							)}
+						</button>
+					)}
+					<button
+						type="button"
+						onClick={showNext && onNext ? onNext : onStartAI}
+						title="跳過衛教影片直接開始練習"
+						className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/15 px-3 py-2 text-xs font-black text-rose-200 shadow-xl backdrop-blur-md transition-all hover:bg-rose-500/25 active:scale-95 cursor-pointer"
+					>
+						<span>略過影片</span>
+						<IconArrowRight className="h-3.5 w-3.5" />
+					</button>
 				</div>
 			)}
 
