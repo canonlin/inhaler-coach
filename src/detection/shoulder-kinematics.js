@@ -12,13 +12,14 @@
  */
 
 export const SHOULDER_THRESHOLDS = {
-	minConfidence: 0.5,
+	minConfidence: 0.4,
 	elevationThreshold: 0.04,
 	stabilityMaxStep: 0.04,
-	exhaleHeadDistThreshold: 0.045,
-	exhaleDropThreshold: 0.045,
+	exhaleHeadDistThreshold: 0.040,
+	exhaleDropThreshold: 0.040,
+	exhaleHeadTurnThreshold: 0.045,
 	exhaleProminentDropThreshold: 0.065,
-	exhaleMaxHorizontalDrift: 0.065,
+	exhaleMaxHorizontalDrift: 0.18,
 	historyWindowMs: 3500,
 	baselineAlpha: 0.20,
 	smoothAlpha: 0.35,
@@ -246,13 +247,42 @@ export class ShoulderKinematicsTracker {
 		const stepDiff =
 			lastSmooth === null ? 0 : Math.abs(this.smoothedY - lastSmooth) / span;
 
-		// Head distance tracking (via nose if available)
+		// Head tracking: supports both facing front (頭正) and turning/tilting sideways (頭偏)
+		// Landmark 0: nose, 7: left ear, 8: right ear
 		const nose = poseLandmarks[0];
 		const noseConf = nose ? (nose.visibility ?? 1.0) : 0;
+		const leftEar = poseLandmarks[7];
+		const rightEar = poseLandmarks[8];
+		let headX = null;
+		let headY = null;
+
+		if (nose && noseConf >= 0.35) {
+			headX = nose.x;
+			headY = nose.y;
+		} else if (
+			leftEar &&
+			rightEar &&
+			(leftEar.visibility ?? 1) >= 0.3 &&
+			(rightEar.visibility ?? 1) >= 0.3
+		) {
+			headX = (leftEar.x + rightEar.x) / 2;
+			headY = (leftEar.y + rightEar.y) / 2;
+		} else if (leftEar && (leftEar.visibility ?? 1) >= 0.3) {
+			headX = leftEar.x;
+			headY = leftEar.y;
+		} else if (rightEar && (rightEar.visibility ?? 1) >= 0.3) {
+			headX = rightEar.x;
+			headY = rightEar.y;
+		}
+
+		// 2D Euclidean distance capturing both vertical neck expansion/drop (頭正) and horizontal turn (頭偏)
 		const headDist =
-			nose && noseConf >= 0.4
-				? Math.abs(this.smoothedY - nose.y) / span
+			headX !== null && headY !== null
+				? Math.hypot(this.smoothedX - headX, this.smoothedY - headY) / span
 				: 1.0;
+		// Head horizontal offset relative to shoulder center (captures lateral head rotation)
+		const headTurn =
+			headX !== null ? Math.abs(this.smoothedX - headX) / span : 0;
 
 		// Maintain sliding window buffer (~3.5s)
 		this.history.push({
@@ -261,6 +291,7 @@ export class ShoulderKinematicsTracker {
 			x: this.smoothedX,
 			span,
 			headDist,
+			headTurn,
 		});
 
 		// Prune older than historyWindowMs, retaining at least 3 frames
@@ -273,6 +304,7 @@ export class ShoulderKinematicsTracker {
 
 		// Calculate windowed excursion metrics
 		let headDistRange = 0;
+		let headTurnRange = 0;
 		let yDrop = 0;
 		let xRange = 0;
 		let yRange = 0;
@@ -280,10 +312,12 @@ export class ShoulderKinematicsTracker {
 
 		if (this.history.length >= 3) {
 			const hDists = this.history.map((h) => h.headDist);
+			const turns = this.history.map((h) => h.headTurn);
 			const ys = this.history.map((h) => h.y);
 			const xs = this.history.map((h) => h.x);
 
 			headDistRange = Math.max(...hDists) - Math.min(...hDists);
+			headTurnRange = Math.max(...turns) - Math.min(...turns);
 			yRange = (Math.max(...ys) - Math.min(...ys)) / span;
 			minY = Math.min(...ys); // highest shoulder point in window
 			yDrop = (this.smoothedY - minY) / span;
@@ -314,23 +348,37 @@ export class ShoulderKinematicsTracker {
 		const isStable = stepDiff <= this.cfg.stabilityMaxStep;
 		const isDropping = dropFromPeak >= this.cfg.exhaleDropThreshold;
 
-		// Physiological exhalation dynamics:
-		// 1. Initial relaxation descent:
-		//    - Either compound respiratory excursion (both shoulder drop and head-distance expansion >= 0.045),
-		//    - Or prominent single-metric excursion (either shoulder drop >= 0.065 or head-distance >= 0.070)
-		const hasExhaledDrop =
-			(yDrop >= this.cfg.exhaleDropThreshold &&
-				headDistRange >= this.cfg.exhaleHeadDistThreshold) ||
+		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 頭偏 (Head Turned/Tilted):
+		// 1. 頭偏 (Head Turned / Tilted Exhale):
+		//    User turns head to the side to exhale away from inhaler (clinical guideline).
+		//    Distinct lateral head rotation excursion accompanied by shoulder relaxation:
+		const isHeadTurnExhale =
+			headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.045) &&
+			yDrop >= 0.020;
+
+		// 2. 頭正 (Head Straight Exhale):
+		//    User faces camera, relaxes chest and drops shoulders.
+		//    2D head distance excursion and shoulder relaxation drop:
+		const isHeadStraightExhale =
+			yDrop >= this.cfg.exhaleDropThreshold &&
+			headDistRange >= this.cfg.exhaleHeadDistThreshold;
+
+		// 3. 顯著深吐氣 (Prominent Exhale):
+		const isProminentDrop =
 			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.065) ||
 			headDistRange >= (this.cfg.exhaleProminentDropThreshold || 0.065) + 0.005;
 
-		// 2. Sustained lowered posture: user maintains empty lungs with lowered relaxed shoulders.
-		//    Shoulders must remain below the window's highest position by at least 0.020 spans
-		//    (not bouncing back up or inhaling).
+		const hasExhaledDrop =
+			isHeadTurnExhale || isHeadStraightExhale || isProminentDrop;
+
+		// Sustained lowered posture: user maintains empty lungs with lowered relaxed shoulders.
+		// Shoulders must remain below the window's highest position by at least 0.020 spans
+		// (not bouncing back up or inhaling).
 		const isMaintainingDrop = (this.smoothedY - minY) / span >= 0.020;
 
-		// 3. Motionless baseline: user is motionless at resting baseline with NO exhalation drop.
-		const isStill = yDrop < 0.025 && headDistRange < 0.030;
+		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop or head turn.
+		const isStill =
+			yDrop < 0.025 && headDistRange < 0.030 && headTurnRange < 0.035;
 
 		// Exhale active: has dropped, is maintaining lowered relaxed shoulders,
 		// not elevated/shrugging, and not swaying horizontally.
