@@ -1,92 +1,111 @@
+import { ShoulderKinematicsTracker } from "../detection/shoulder-kinematics.js";
+
 /**
- * Stage 2 is posture acquisition followed by truthful timed coaching.
+ * Stage 2: Exhalation guidance with shoulder kinematics monitoring.
  *
- * A webcam cannot reliably prove a slow exhale or lung emptying. It can verify
- * the clinically important visible constraint: the inhaler is away from the
- * mouth before the user breathes out. Face and inhaler are therefore acquired,
- * one clearly-away observation locks the posture, and the caller then runs the
- * configured exhale timer without requiring ONNX to remain visible. This avoids
- * both false physiological claims and detector-flicker resets.
+ * Clinical rationale:
+ * The user exhales slowly and completely to empty the lungs before inhaling the drug.
+ * An inhaler is NOT required in this step (the user may set it down, hold it at their
+ * side, or rest their hands). Requiring an inhaler causes severe false negatives.
+ *
+ * Physical & physiological kinematics:
+ * - During relaxed exhalation, the chest and respiratory muscles relax; shoulders
+ *   remain stable or gently lower without elevation.
+ * - Paradoxical shrugging (shoulder elevation >= 0.04 spans) indicates inhalation or
+ *   tension, which is flagged to guide the user to relax.
+ * - MediaPipe Pose landmarks 11 & 12 (left & right shoulders) provide body tracking.
+ * - If an inhaler happens to be detected right at the mouth (< 0.28 dist), the user
+ *   is warned not to exhale into the mouthpiece.
  */
 
-/** The canister must be at least this far from the mouth (normalized distance)
- * to count as "lowered away" — the mirror of press's AT_MOUTH_DIST. */
-const AWAY_FROM_MOUTH_DIST = 0.28;
-const HAND_AWAY_FROM_MOUTH_DIST = 0.32;
+const AT_MOUTH_DIST = 0.28;
 const FACE_MEMORY_MS = 3000;
 
 export class ExhaleDetector {
-	constructor() {
+	/**
+	 * @param {Object} [options]
+	 * @param {Object} [options.shoulderConfig]
+	 */
+	constructor(options = {}) {
+		this.shoulderTracker = new ShoulderKinematicsTracker(
+			options.shoulderConfig,
+		);
 		this.reset();
 	}
 
 	/**
-	 * @param {{present:boolean, center:{x:number,y:number}|null}} device
-	 * @param {{x:number,y:number}|null} mouthPoint - mouth centre from the face mesh
+	 * @param {Object} params
+	 * @param {Array<{x:number, y:number, visibility?:number}>|null} [params.poseLandmarks]
+	 * @param {{x:number, y:number}|null} [params.mouthPoint]
+	 * @param {{present:boolean, center:{x:number, y:number}|null}|null} [params.device]
+	 * @param {number} [params.timestamp=0]
 	 */
-	detect({ device, mouthPoint, handPoint = null, timestamp = 0 }) {
+	detect({
+		poseLandmarks = null,
+		mouthPoint = null,
+		device = null,
+		handPoint = null,
+		timestamp = 0,
+	} = {}) {
 		if (mouthPoint) {
 			this.faceAcquired = true;
 			this.lastMouthPoint = { ...mouthPoint };
 			this.lastMouthAt = timestamp;
 		}
 
-		const present = !!device?.present;
-		let awayObservedNow = false;
-		let awayEvidence = null;
+		// Shoulder kinematics tracking
+		const shoulder = this.shoulderTracker.update(poseLandmarks, timestamp);
+		if (shoulder.valid) {
+			this.poseAcquired = true;
+		}
+
+		const ready = this.poseAcquired || this.faceAcquired;
+
+		// Optional check: is an inhaler accidentally placed directly in front of the mouth?
 		let atMouth = false;
 		const mouthIsRecent =
 			this.lastMouthPoint && timestamp - this.lastMouthAt <= FACE_MEMORY_MS;
-		if (present && device.center) {
-			this.targetAcquired = true;
-			if (mouthIsRecent) {
-				awayObservedNow =
-					dist(device.center, this.lastMouthPoint) >= AWAY_FROM_MOUTH_DIST;
-				atMouth = !awayObservedNow;
-				if (awayObservedNow) awayEvidence = "device";
-			}
+		if (device?.present && device.center && mouthIsRecent) {
+			atMouth = dist(device.center, this.lastMouthPoint) < AT_MOUTH_DIST;
 		}
-		// Once the inhaler has been acquired, the holding hand may remain visible
-		// after the canister is lowered out of frame or blurred. Its separation from
-		// the remembered mouth position is valid visible evidence of moving away.
-		if (
-			!awayObservedNow &&
-			this.targetAcquired &&
-			mouthIsRecent &&
-			handPoint &&
-			dist(handPoint, this.lastMouthPoint) >= HAND_AWAY_FROM_MOUTH_DIST
-		) {
-			awayObservedNow = true;
-			awayEvidence = "hand";
+
+		// In screen coords, shoulder elevation >= 0.04 spans indicates shrugging/inhalation
+		const shrugging = shoulder.valid && shoulder.isElevated;
+
+		// Exhaling is active when body/shoulders are ready, shoulders are relaxed (not shrugging),
+		// and the inhaler is not placed right at the mouth.
+		const isExhaling = ready && !shrugging && !atMouth;
+		if (isExhaling) {
+			this.awayLocked = true;
 		}
-		if (awayObservedNow) this.awayLocked = true;
+
+		const phase = !ready
+			? "acquire-posture"
+			: atMouth
+				? "remove-inhaler"
+				: shrugging
+					? "relax-shoulders"
+					: "guided-exhale";
 
 		return {
-			// Compatibility name: this starts the timed coaching gate. It does not
-			// claim that pulmonary airflow itself was sensed.
-			exhaling: this.awayLocked,
-			away: this.awayLocked,
-			awayLocked: this.awayLocked,
-			awayObservedNow,
-			awayEvidence,
-			atMouth,
+			ready,
 			faceAcquired: this.faceAcquired,
-			targetAcquired: this.targetAcquired,
-			ready: this.faceAcquired && this.targetAcquired,
-			phase: !this.faceAcquired
-				? "acquire-face"
-				: !this.targetAcquired
-					? "acquire-inhaler"
-					: !this.awayLocked
-						? "move-away"
-						: "guided-exhale",
-			confidence: this.awayLocked ? 1 : 0,
+			poseAcquired: this.poseAcquired,
+			targetAcquired: ready, // backwards compatibility
+			awayLocked: this.awayLocked,
+			exhaling: isExhaling,
+			shrugging,
+			atMouth,
+			shoulder,
+			phase,
+			confidence: ready ? (shoulder.valid ? shoulder.confidence : 0.8) : 0,
 		};
 	}
 
 	reset() {
+		this.shoulderTracker.reset();
 		this.faceAcquired = false;
-		this.targetAcquired = false;
+		this.poseAcquired = false;
 		this.awayLocked = false;
 		this.lastMouthPoint = null;
 		this.lastMouthAt = Number.NEGATIVE_INFINITY;
