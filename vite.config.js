@@ -53,7 +53,7 @@ export default defineConfig(({ command }) => ({
   // dev server answers it as HTML, so the wasm backend fails to load. Excluding
   // it leaves the runtime dynamic import untouched, served straight from public/.
   optimizeDeps: {
-    exclude: ['onnxruntime-web'],
+    exclude: ['onnxruntime-web', 'onnxruntime-web/wasm'],
   },
   server: {
     host: '0.0.0.0',
