@@ -33,10 +33,14 @@ test("exhale requires visible inputs and the full configured duration", () => {
 		stageIdx: 2,
 		passSeconds: 3,
 	});
-	assert.match(evaluator.evaluate({ ready: false }, 0).msg, /臉部完整/);
+	assert.match(evaluator.evaluate({ ready: false }, 0).msg, /雙肩|臉部/);
 	assert.match(
 		evaluator.evaluate({ ready: true, atMouth: true }, 100).msg,
 		/移離嘴邊/,
+	);
+	assert.match(
+		evaluator.evaluate({ ready: true, shrugging: true }, 200).msg,
+		/不要聳肩/,
 	);
 	assert.equal(
 		evaluator.evaluate({ ready: true, exhaling: true }, 1000).ok,

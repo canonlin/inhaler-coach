@@ -66,22 +66,30 @@ export class CoachingStageEvaluator {
 	}
 
 	evaluateExhale(observation, timestamp) {
-		const faceAcquired = observation.faceAcquired ?? observation.ready ?? false;
-		const targetAcquired =
-			observation.targetAcquired ?? observation.ready ?? false;
-		const awayLocked = observation.awayLocked ?? observation.exhaling ?? false;
-		const progress = this.actionGate.update(awayLocked, timestamp);
+		const ready =
+			observation.ready ??
+			observation.faceAcquired ??
+			observation.poseAcquired ??
+			false;
+		const shrugging = observation.shrugging ?? false;
+		const atMouth = observation.atMouth ?? false;
+		const exhaling =
+			observation.exhaling ?? observation.awayLocked ?? false;
+
+		const progress = this.actionGate.update(exhaling, timestamp);
 		return {
 			ok: progress.passed,
 			msg: progress.passed
 				? "吐氣引導完成！接著再將吸嘴放入口中"
-				: !faceAcquired
-					? "請讓臉部完整出現在畫面中"
-					: !targetAcquired
-						? "請讓吸入器出現在畫面中，並保持遠離嘴邊"
-						: !awayLocked
-							? "請將吸入器移離嘴邊，再開始慢慢吐氣"
-							: `吸入器位置正確，請慢慢吐氣 ${secondsLeft(progress.remainingMs)} 秒`,
+				: !ready
+					? "請讓臉部與雙肩完整出現在畫面中"
+					: atMouth
+						? "請將吸入器移離嘴邊，不要含著吸嘴吐氣"
+						: shrugging
+							? "請放鬆雙肩慢慢吐氣，不要聳肩"
+							: exhaling
+								? `姿勢正確，請放鬆雙肩慢慢吐氣 ${secondsLeft(progress.remainingMs)} 秒`
+								: "請放鬆雙肩，開始慢慢吐氣",
 		};
 	}
 
