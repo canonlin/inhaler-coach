@@ -18,7 +18,10 @@ const AT_MOUTH_DIST = 0.28;
 
 export class ExhaleDetector {
 	constructor(options = {}) {
-		this.shoulderTracker = new ShoulderKinematicsTracker(options.shoulder || {});
+		this.shoulderTracker = new ShoulderKinematicsTracker({
+			...options,
+			...(options.shoulder || {}),
+		});
 		this.faceAcquired = false;
 		this.lastMouthPoint = null;
 		this.lastMouthAt = Number.NEGATIVE_INFINITY;

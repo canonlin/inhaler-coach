@@ -61,8 +61,8 @@ test("exhale tracks relaxed shoulder posture without requiring inhaler", () => {
 	});
 	const exhalePose = [
 		...Array(11).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
-		{ x: 0.4, y: 0.63, visibility: 0.9 }, // 11 left shoulder drop
-		{ x: 0.6, y: 0.63, visibility: 0.9 }, // 12 right shoulder drop
+		{ x: 0.4, y: 0.635, visibility: 0.9 }, // 11 left shoulder drop
+		{ x: 0.6, y: 0.635, visibility: 0.9 }, // 12 right shoulder drop
 	];
 	res = detector.detect({
 		poseLandmarks: exhalePose,
