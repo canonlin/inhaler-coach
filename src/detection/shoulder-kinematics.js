@@ -351,10 +351,10 @@ export class ShoulderKinematicsTracker {
 		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 頭偏 (Head Turned/Tilted):
 		// 1. 頭偏 (Head Turned / Tilted Exhale):
 		//    User turns head to the side to exhale away from inhaler (clinical guideline).
-		//    Distinct lateral head rotation excursion accompanied by shoulder relaxation:
+		//    Distinct lateral head rotation excursion away from chest midline:
 		const isHeadTurnExhale =
 			headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.045) &&
-			yDrop >= 0.020;
+			!isElevated;
 
 		// 2. 頭正 (Head Straight Exhale):
 		//    User faces camera, relaxes chest and drops shoulders.
@@ -371,21 +371,22 @@ export class ShoulderKinematicsTracker {
 		const hasExhaledDrop =
 			isHeadTurnExhale || isHeadStraightExhale || isProminentDrop;
 
-		// Sustained lowered posture: user maintains empty lungs with lowered relaxed shoulders.
-		// Shoulders must remain below the window's highest position by at least 0.020 spans
-		// (not bouncing back up or inhaling).
-		const isMaintainingDrop = (this.smoothedY - minY) / span >= 0.020;
+		// Sustained exhalation posture:
+		// Either user maintains lowered shoulders ((smoothedY - minY) / span >= 0.020)
+		// or user is turning head away from the inhaler (isHeadTurnExhale).
+		const isMaintainingExhale =
+			isHeadTurnExhale || (this.smoothedY - minY) / span >= 0.020;
 
 		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop or head turn.
 		const isStill =
 			yDrop < 0.025 && headDistRange < 0.030 && headTurnRange < 0.035;
 
-		// Exhale active: has dropped, is maintaining lowered relaxed shoulders,
+		// Exhale active: has dropped or turned head, is maintaining posture,
 		// not elevated/shrugging, and not swaying horizontally.
 		const exhaleActive =
 			!isElevated &&
 			hasExhaledDrop &&
-			isMaintainingDrop &&
+			isMaintainingExhale &&
 			xRange <= this.cfg.exhaleMaxHorizontalDrift;
 
 		this.prevY = this.smoothedY;

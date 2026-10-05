@@ -60,10 +60,15 @@ export function isPursedLips(landmarks) {
 	}
 	const normWidth = mouthWidth / eyeSpan;
 
-	// Pursed lips (縮唇吐氣 / puckered lips):
-	// 1. Mouth width contracts inwards (normWidth < 0.65) and mouth has rounded opening (mar >= 0.16)
-	// 2. High aspect ratio whistle puckering (mar >= 0.28)
-	return Boolean((normWidth < 0.65 && mar >= 0.16) || (mar >= 0.28 && normWidth < 0.75));
+	// Pursed lips (縮唇呼氣 / puckered lips blowing):
+	// Clinical pursed-lip breathing contracts the mouth corners inwards (normWidth < 0.72)
+	// and blows out air through a small slit or puckered aperture (mar >= 0.025).
+	// Normal resting mouth has normWidth >= 0.75 and closed lips (mar < 0.02).
+	const isPuckeredSlit = normWidth < 0.72 && mar >= 0.025 && mar <= 0.55;
+	const isPuckeredNarrow = normWidth < 0.62 && mar <= 0.60;
+	const isWhistle = mar >= 0.18 && normWidth < 0.80;
+
+	return Boolean(isPuckeredSlit || isPuckeredNarrow || isWhistle);
 }
 
 export function extractFaceFeatures(landmarks) {
