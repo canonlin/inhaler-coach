@@ -418,12 +418,12 @@ test("Stage 2 exhale: detects 縮唇吹氣 (pursed-lip blowing with small slit o
 	});
 
 	const steadyPose = makePose(0.55);
-	// Slit opening pursed face: normWidth = 0.467, mar = 0.071 (narrow puckered mouth blowing air)
+	// Slit opening pursed face: normWidth = 0.367, mar = 0.091 (narrow puckered mouth blowing air)
 	const face = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
 	face[33] = { x: 0.35, y: 0.30, z: 0 };
 	face[263] = { x: 0.65, y: 0.30, z: 0 };
-	face[61] = { x: 0.43, y: 0.45, z: 0 };
-	face[291] = { x: 0.57, y: 0.45, z: 0 };
+	face[61] = { x: 0.445, y: 0.45, z: 0 };
+	face[291] = { x: 0.555, y: 0.45, z: 0 };
 	face[13] = { x: 0.50, y: 0.445, z: 0 };
 	face[14] = { x: 0.50, y: 0.455, z: 0 };
 
@@ -640,31 +640,27 @@ test("Stage 2 exhale: MediaPipe mouthPucker blendshape triggers pursed exhalatio
 	assert.equal(passed, true, "MediaPipe mouthPucker blendshape must pass Stage 2");
 });
 
-test("Stage 2 exhale: 3D forward protrusion (puckering lips forward towards camera) passes", () => {
+test("Stage 2 exhale: MediaPipe mouthFunnel blendshape triggers pursed exhalation and passes", () => {
 	const detector = new ExhaleDetector();
 	const evaluator = new CoachingStageEvaluator({
 		stageIdx: 2,
-		passSeconds: 2,
+		passSeconds: 3,
 	});
 
 	const steadyPose = makePose(0.55);
-	// 3D forward puckered face:
-	// Lips protrude towards camera (negative z in MediaPipe coordinates)
-	const puckered3DFace = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
-	puckered3DFace[33] = { x: 0.35, y: 0.30, z: 0 };
-	puckered3DFace[263] = { x: 0.65, y: 0.30, z: 0 };
-	puckered3DFace[61] = { x: 0.43, y: 0.45, z: 0.015 }; // mouth corners farther back
-	puckered3DFace[291] = { x: 0.57, y: 0.45, z: 0.015 };
-	puckered3DFace[13] = { x: 0.50, y: 0.44, z: -0.015 }; // lip center forward (protrusion = 0.030)
-	puckered3DFace[14] = { x: 0.50, y: 0.46, z: -0.015 };
-	puckered3DFace[0] = { x: 0.50, y: 0.43, z: -0.015 };
-	puckered3DFace[17] = { x: 0.50, y: 0.47, z: -0.015 };
+	const restingFace = makeFaceMesh({ pursed: false });
+	const blendshapes = [
+		{ categoryName: "mouthPucker", score: 0.05 },
+		{ categoryName: "mouthFunnel", score: 0.58 },
+		{ categoryName: "jawOpen", score: 0.03 },
+	];
 
 	let passed = false;
-	for (let t = 0; t <= 3000; t += 100) {
+	for (let t = 0; t <= 4000; t += 100) {
 		const det = detector.detect({
 			poseLandmarks: steadyPose,
-			faceLandmarks: puckered3DFace,
+			faceLandmarks: restingFace,
+			faceBlendshapes: blendshapes,
 			mouthPoint: { x: 0.5, y: 0.45 },
 			timestamp: t,
 		});
@@ -679,7 +675,7 @@ test("Stage 2 exhale: 3D forward protrusion (puckering lips forward towards came
 			break;
 		}
 	}
-	assert.equal(passed, true, "3D forward lip protrusion must pass Stage 2");
+	assert.equal(passed, true, "MediaPipe mouthFunnel blendshape must pass Stage 2");
 });
 
 
