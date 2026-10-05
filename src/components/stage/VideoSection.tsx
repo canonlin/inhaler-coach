@@ -210,7 +210,7 @@ export function VideoSection({
 					)}
 					<button
 						type="button"
-						onClick={onSkipVideo ?? (showNext && onNext ? onNext : onStartAI)}
+						onClick={onSkipVideo ?? (showNext ? onNext : onStartAI)}
 						title="跳過衛教影片直接開始練習"
 						className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/15 px-3 py-2 text-xs font-black text-rose-200 shadow-xl backdrop-blur-md transition-all hover:bg-rose-500/25 active:scale-95 cursor-pointer"
 					>
