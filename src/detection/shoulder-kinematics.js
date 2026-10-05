@@ -27,6 +27,95 @@ export const SHOULDER_THRESHOLDS = {
 	smoothAlpha: 0.35,
 };
 
+/**
+ * Calculate head yaw (horizontal rotation around neck axis, looking to the side)
+ * as distinct from head roll (tilting head sideways, 偏著頭 / 歪頭).
+ *
+ * In clinical video 0420, the pharmacist turns her head 45-90 degrees to the side (yaw).
+ * - When head is turned:
+ *   1. If both ears or eyes are visible, the projection of (nose - midpoint) along the ear/eye vector
+ *      is strongly shifted to one side (yaw >= 0.22). When head is merely tilted (roll / 偏著頭),
+ *      the nose remains along the perpendicular bisector (yaw ≈ 0).
+ *   2. If the user turns into strong profile (60-90 degrees, like the pharmacist in video 0420),
+ *      one ear or one eye becomes occluded / low visibility while the other remains high visibility.
+ */
+export function calculateHeadYaw(
+	poseLandmarks,
+	shoulderCenter = null,
+	shoulderSpan = null,
+) {
+	if (!poseLandmarks) return { isTurned: false, yaw: 0, isProfile: false };
+	const nose = poseLandmarks[0];
+	if (!nose || (nose.visibility ?? 1) < 0.35) {
+		return { isTurned: false, yaw: 0, isProfile: false };
+	}
+
+	const leftEar = poseLandmarks[7];
+	const rightEar = poseLandmarks[8];
+	const leftEye = poseLandmarks[2];
+	const rightEye = poseLandmarks[5];
+
+	const learVis = leftEar ? (leftEar.visibility ?? 1) : 0;
+	const rearVis = rightEar ? (rightEar.visibility ?? 1) : 0;
+	const leyeVis = leftEye ? (leftEye.visibility ?? 1) : 0;
+	const reyeVis = rightEye ? (rightEye.visibility ?? 1) : 0;
+
+	const hasEars = leftEar && rightEar;
+	const hasEyes = leftEye && rightEye;
+
+	if (hasEars || hasEyes) {
+		// 1. Strong profile: one ear/eye is occluded while other is clearly visible
+		// (Matching clinical video 0420 where pharmacist turns into full 70-90° side profile)
+		const isProfile =
+			(learVis >= 0.65 && rearVis < 0.35) ||
+			(rearVis >= 0.65 && learVis < 0.35) ||
+			(leyeVis >= 0.65 && reyeVis < 0.35) ||
+			(reyeVis >= 0.65 && leyeVis < 0.35);
+
+		// 2. Ear-based yaw projection (invariant to 2D roll / tilting head "偏著頭")
+		let earYaw = 0;
+		if (hasEars && learVis >= 0.4 && rearVis >= 0.4) {
+			const vx = rightEar.x - leftEar.x;
+			const vy = rightEar.y - leftEar.y;
+			const vLenSq = vx * vx + vy * vy;
+			if (vLenSq > 1e-5) {
+				const midX = (leftEar.x + rightEar.x) / 2;
+				const midY = (leftEar.y + rightEar.y) / 2;
+				const wx = nose.x - midX;
+				const wy = nose.y - midY;
+				earYaw = Math.abs(wx * vx + wy * vy) / vLenSq;
+			}
+		}
+
+		// 3. Eye-based yaw projection
+		let eyeYaw = 0;
+		if (hasEyes && leyeVis >= 0.4 && reyeVis >= 0.4) {
+			const vx = rightEye.x - leftEye.x;
+			const vy = rightEye.y - leftEye.y;
+			const vLenSq = vx * vx + vy * vy;
+			if (vLenSq > 1e-5) {
+				const midX = (leftEye.x + rightEye.x) / 2;
+				const midY = (leftEye.y + rightEye.y) / 2;
+				const wx = nose.x - midX;
+				const wy = nose.y - midY;
+				eyeYaw = Math.abs(wx * vx + wy * vy) / vLenSq;
+			}
+		}
+
+		const yaw = Math.max(earYaw, eyeYaw);
+		const isTurned = isProfile || yaw >= 0.22;
+		return { isTurned, yaw, isProfile };
+	}
+
+	// Fallback when only nose and shoulders are available (e.g. minimal synthetic fixtures)
+	if (shoulderCenter !== null && shoulderSpan) {
+		const rawTurn = Math.abs(nose.x - shoulderCenter) / shoulderSpan;
+		return { isTurned: rawTurn >= 0.15, yaw: rawTurn, isProfile: false };
+	}
+
+	return { isTurned: false, yaw: 0, isProfile: false };
+}
+
 export class ShoulderKinematicsTracker {
 	constructor(thresholds = {}) {
 		this.cfg = { ...SHOULDER_THRESHOLDS, ...thresholds };
@@ -350,47 +439,48 @@ export class ShoulderKinematicsTracker {
 		const isStable = stepDiff <= this.cfg.stabilityMaxStep;
 		const isDropping = dropFromPeak >= this.cfg.exhaleDropThreshold;
 
-		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 頭偏 (Head Turned/Tilted):
-		// 1. 頭偏 (Head Turned / Tilted Exhale):
-		//    User turns head to the side to exhale away from inhaler (clinical guideline).
-		//    Either held sideways (headTurn >= 0.22) or turned dynamically (headTurn >= 0.15 && headTurnRange >= 0.06):
-		const isHeadTurnExhale =
-			(headTurn >= (this.cfg.exhaleHeadTurnAbsoluteThreshold || 0.22) ||
-				(headTurn >= (this.cfg.exhaleHeadTurnDynamic || 0.15) &&
-					headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.06))) &&
-			!isElevated;
+		const headYaw = calculateHeadYaw(
+			poseLandmarks,
+			this.smoothedX,
+			span,
+		);
 
-		// 2. 頭正 (Head Straight Exhale):
+		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 偏頭向側 (Head Turned to Side):
+		// 1. 偏頭向側 (Head Turned Sideways Exhale - 藥師衛教影片那樣，轉向側面吐氣避開吸入器):
+		//    User turns head horizontally to the side (yaw >= 0.22 or profile).
+		//    Notice: Tilting/cocking head (偏著頭 / roll) does NOT increase yaw (yaw ≈ 0).
+		const isHeadTurnExhale = headYaw.isTurned && !isElevated;
+
+		// 2. 頭正深吐氣 (Head Straight Deep Exhale):
 		//    User faces camera, relaxes chest and drops shoulders deeply.
-		//    Deep 2D head distance excursion and shoulder relaxation drop:
 		const isHeadStraightExhale =
-			(yDrop >= (this.cfg.exhaleDropThreshold || 0.065) &&
-				headDistRange >= (this.cfg.exhaleHeadDistThreshold || 0.050)) ||
-			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.080);
+			!headYaw.isTurned &&
+			((yDrop >= (this.cfg.exhaleDropThreshold || 0.055) &&
+				headDistRange >= (this.cfg.exhaleHeadDistThreshold || 0.045)) ||
+			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.075)) &&
+			!isElevated;
 
 		// 3. 顯著深吐氣 (Prominent Exhale):
 		const isProminentDrop =
-			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.080) ||
-			headDistRange >= (this.cfg.exhaleProminentDropThreshold || 0.080);
+			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.075) && !isElevated;
 
 		const hasExhaledDrop =
 			isHeadTurnExhale || isHeadStraightExhale || isProminentDrop;
 
 		// Sustained exhalation posture:
-		// Either user maintains lowered shoulders ((smoothedY - minY) / span >= 0.035)
-		// or user is holding head turned away from the inhaler (headTurn >= 0.15).
+		// If turning head: user maintains turned head posture (headYaw.isTurned).
+		// If dropping shoulders: user maintains lowered shoulders ((smoothedY - minY) / span >= 0.030).
 		const isMaintainingExhale =
-			(isHeadTurnExhale && headTurn >= 0.15) ||
+			(isHeadTurnExhale && headYaw.isTurned) ||
 			((isHeadStraightExhale || isProminentDrop) &&
-				(this.smoothedY - minY) / span >= 0.035);
+				(this.smoothedY - minY) / span >= 0.030);
 
-		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop or head turn.
-		// Resting forward posture or small natural movements must NEVER be considered exhaling.
+		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop and NOT turned.
+		// Resting forward posture or tilting head ("偏著頭") must NEVER be considered exhaling.
 		const isStill =
-			yDrop < (this.cfg.exhaleDropThreshold || 0.045) &&
-			headDistRange < (this.cfg.exhaleHeadDistThreshold || 0.045) &&
-			headTurn < (this.cfg.exhaleHeadTurnDynamic || 0.15) &&
-			headTurnRange < (this.cfg.exhaleHeadTurnThreshold || 0.05);
+			!headYaw.isTurned &&
+			yDrop < (this.cfg.exhaleDropThreshold || 0.055) &&
+			headDistRange < (this.cfg.exhaleHeadDistThreshold || 0.045);
 
 		// Exhale active: has dropped or turned head, is maintaining posture,
 		// not elevated/shrugging, not motionless still, and not swaying horizontally.
@@ -415,7 +505,9 @@ export class ShoulderKinematicsTracker {
 			isStill,
 			exhaleActive,
 			yDrop,
-			headTurn,
+			headTurn: headYaw.yaw,
+			isHeadTurned: headYaw.isTurned,
+			isProfile: headYaw.isProfile,
 			headTurnRange,
 			headDistRange,
 			shoulderY: this.smoothedY,

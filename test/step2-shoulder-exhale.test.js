@@ -548,5 +548,150 @@ test("Stage 2 exhale: seated at desk with slight angle and tidal breathing NEVER
 	assert.equal(passed, false, "Sitting quietly at desk must never pass Stage 2");
 });
 
+test("Stage 2 exhale: 偏著頭 (Tilting head / 2D roll) NEVER passes Stage 2 without real exhalation", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	let passed = false;
+	const rad = (25 * Math.PI) / 180;
+	const rot = (x, y) => ({
+		x: 0.50 + (x - 0.50) * Math.cos(rad) - (y - 0.25) * Math.sin(rad),
+		y: 0.25 + (x - 0.50) * Math.sin(rad) + (y - 0.25) * Math.cos(rad),
+		visibility: 0.99,
+	});
+
+	// User tilts head 25 degrees sideways (偏著頭 / roll) while sitting normally at desk
+	for (let t = 0; t <= 6000; t += 100) {
+		const lm = Array(33).fill(null);
+		lm[0] = rot(0.50, 0.25);
+		lm[2] = rot(0.46, 0.23);
+		lm[5] = rot(0.54, 0.23);
+		lm[7] = rot(0.42, 0.25);
+		lm[8] = rot(0.58, 0.25);
+		lm[11] = { x: 0.35, y: 0.55, visibility: 0.99 };
+		lm[12] = { x: 0.65, y: 0.55, visibility: 0.99 };
+
+		const det = detector.detect({
+			poseLandmarks: lm,
+			timestamp: t,
+		});
+
+		assert.equal(det.exhaling, false, `偏著頭 must NEVER trigger exhaling at t=${t}`);
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, false, "偏著頭 (tilted head roll) must NEVER pass Stage 2");
+});
+
+test("Stage 2 exhale: 藥師影片 偏頭向側吐氣 (Head turned sideways / yaw 45 deg) passes Stage 2", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	// Baseline warmup (sitting straight)
+	for (let t = 0; t < 500; t += 100) {
+		const front = Array(33).fill(null);
+		front[0] = { x: 0.50, y: 0.25, visibility: 0.99 };
+		front[2] = { x: 0.46, y: 0.23, visibility: 0.99 };
+		front[5] = { x: 0.54, y: 0.23, visibility: 0.99 };
+		front[7] = { x: 0.42, y: 0.25, visibility: 0.99 };
+		front[8] = { x: 0.58, y: 0.25, visibility: 0.99 };
+		front[11] = { x: 0.35, y: 0.55, visibility: 0.99 };
+		front[12] = { x: 0.65, y: 0.55, visibility: 0.99 };
+		detector.detect({ poseLandmarks: front, timestamp: t });
+	}
+
+	// User turns head horizontally 45 degrees away from inhaler (藥師衛教影片動作)
+	let passed = false;
+	for (let t = 500; t <= 4500; t += 100) {
+		const turned = Array(33).fill(null);
+		turned[0] = { x: 0.54, y: 0.25, visibility: 0.99 }; // nose shifted towards right
+		turned[2] = { x: 0.47, y: 0.23, visibility: 0.99 };
+		turned[5] = { x: 0.52, y: 0.23, visibility: 0.99 };
+		turned[7] = { x: 0.44, y: 0.25, visibility: 0.99 };
+		turned[8] = { x: 0.56, y: 0.25, visibility: 0.99 };
+		turned[11] = { x: 0.35, y: 0.55, visibility: 0.99 };
+		turned[12] = { x: 0.65, y: 0.55, visibility: 0.99 };
+
+		const det = detector.detect({
+			poseLandmarks: turned,
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		if (t >= 800) {
+			assert.equal(det.exhaling, true, `Must detect exhalation when turned at t=${t}`);
+		}
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			assert.match(evalRes.msg, /吐氣引導完成/);
+			break;
+		}
+	}
+	assert.equal(passed, true, "藥師影片偏頭向側吐氣 (yaw 45 deg) must successfully pass Stage 2");
+});
+
+test("Stage 2 exhale: 藥師影片 側面Profile視角 (Full profile 70-90 deg) passes Stage 2", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	// Baseline warmup (sitting straight)
+	for (let t = 0; t < 500; t += 100) {
+		const front = Array(33).fill(null);
+		front[0] = { x: 0.50, y: 0.25, visibility: 0.99 };
+		front[2] = { x: 0.46, y: 0.23, visibility: 0.99 };
+		front[5] = { x: 0.54, y: 0.23, visibility: 0.99 };
+		front[7] = { x: 0.42, y: 0.25, visibility: 0.99 };
+		front[8] = { x: 0.58, y: 0.25, visibility: 0.99 };
+		front[11] = { x: 0.35, y: 0.55, visibility: 0.99 };
+		front[12] = { x: 0.65, y: 0.55, visibility: 0.99 };
+		detector.detect({ poseLandmarks: front, timestamp: t });
+	}
+
+	// User turns head into full side profile (藥師衛教影片縮圖視角：側面吐氣，一側五官被遮蔽)
+	let passed = false;
+	for (let t = 500; t <= 4500; t += 100) {
+		const profile = Array(33).fill(null);
+		profile[0] = { x: 0.40, y: 0.25, visibility: 0.99 }; // nose facing left
+		profile[2] = { x: 0.43, y: 0.23, visibility: 0.95 }; // left eye visible
+		profile[5] = { x: 0.44, y: 0.23, visibility: 0.10 }; // right eye occluded
+		profile[7] = { x: 0.48, y: 0.25, visibility: 0.95 }; // left ear visible
+		profile[8] = { x: 0.49, y: 0.25, visibility: 0.10 }; // right ear occluded
+		profile[11] = { x: 0.35, y: 0.55, visibility: 0.99 };
+		profile[12] = { x: 0.65, y: 0.55, visibility: 0.99 };
+
+		const det = detector.detect({
+			poseLandmarks: profile,
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		if (t >= 800) {
+			assert.equal(det.exhaling, true, `Must detect exhalation in profile at t=${t}`);
+		}
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			assert.match(evalRes.msg, /吐氣引導完成/);
+			break;
+		}
+	}
+	assert.equal(passed, true, "藥師影片側面 profile 吐氣 must successfully pass Stage 2");
+});
+
 
 
