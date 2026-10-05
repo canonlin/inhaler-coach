@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>吸必擴智慧教學平台</title>
   <link rel="icon" type="image/svg+xml" href="/inhaler_device.svg" />
+  <script>
+    if (window.location.hostname.endsWith('github.io')) {
+      window.location.replace('https://inhaler-coach.vercel.app' + window.location.pathname.replace(/^\/inhaler-coach/, ''));
+    }
+  </script>
 </head>
 <body class="bg-white text-text font-sans min-h-screen overflow-x-hidden">
   <div id="app"></div>
