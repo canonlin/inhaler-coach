@@ -324,3 +324,90 @@ test("Stage 2 exhale: detects 頭正 (Head Straight) exhalation facing camera fo
 	assert.equal(passed, true, "頭正 exhalation must successfully pass Stage 2");
 });
 
+function makeFaceMesh({ pursed = false } = {}) {
+	const face = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
+	// Outer eye corners: 33 (left), 263 (right) -> eyeSpan = 0.30
+	face[33] = { x: 0.35, y: 0.30, z: 0 };
+	face[263] = { x: 0.65, y: 0.30, z: 0 };
+
+	if (pursed) {
+		// Pursed lips (縮唇吐氣): narrowed mouth corners, rounded opening
+		face[61] = { x: 0.46, y: 0.45, z: 0 };
+		face[291] = { x: 0.54, y: 0.45, z: 0 };
+		face[13] = { x: 0.50, y: 0.43, z: 0 };
+		face[14] = { x: 0.50, y: 0.47, z: 0 };
+	} else {
+		// Normal resting mouth: wide mouth corners, closed lips
+		face[61] = { x: 0.40, y: 0.45, z: 0 };
+		face[291] = { x: 0.60, y: 0.45, z: 0 };
+		face[13] = { x: 0.50, y: 0.45, z: 0 };
+		face[14] = { x: 0.50, y: 0.452, z: 0 };
+	}
+	return face;
+}
+
+test("Stage 2 exhale: detects 縮唇呼氣 (Pursed-lip breathing) via FaceMesh without requiring shoulder drop", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const steadyPose = makePose(0.55);
+	const pursedFace = makeFaceMesh({ pursed: true });
+
+	let passed = false;
+	for (let t = 0; t <= 4000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: pursedFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		assert.equal(det.mouthPursed, true);
+		assert.equal(det.exhaling, true);
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "Pursed-lip breathing alone must accumulate exhalation progress and pass");
+});
+
+test("Stage 2 exhale: quiet sitting with resting mouth does NOT pass without exhalation action", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	const steadyPose = makePose(0.55);
+	const restingFace = makeFaceMesh({ pursed: false });
+
+	let passed = false;
+	for (let t = 0; t <= 10000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: restingFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		assert.equal(det.mouthPursed, false);
+		assert.equal(det.exhaling, false);
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, false, "Resting mouth quiet breathing must never pass Stage 2");
+});
+
+

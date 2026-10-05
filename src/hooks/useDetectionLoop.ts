@@ -402,6 +402,7 @@ export function useDetectionLoop({
 											const step = singletons.step2 as unknown as {
 												detect: (arg: {
 													poseLandmarks?: unknown;
+													faceLandmarks?: unknown;
 													mouthPoint?: unknown;
 													device?: unknown;
 													timestamp?: number;
@@ -411,11 +412,13 @@ export function useDetectionLoop({
 													shrugging?: boolean;
 													atMouth?: boolean;
 													shoulder?: unknown;
+													mouthPursed?: boolean;
 													confidence?: number;
 												};
 											};
 											const res = step.detect({
 												poseLandmarks: pr?.pose,
+												faceLandmarks: pr?.face,
 												mouthPoint,
 												device,
 												timestamp: now,
@@ -424,7 +427,7 @@ export function useDetectionLoop({
 											if (frameCount % 30 === 0) {
 												console.log(
 													"  step2:",
-													`ready:${res?.ready} exhaling:${res?.exhaling} shrugging:${res?.shrugging}`,
+													`ready:${res?.ready} exhaling:${res?.exhaling} pursed:${res?.mouthPursed} shrugging:${res?.shrugging}`,
 												);
 											}
 										}
