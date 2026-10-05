@@ -9,13 +9,16 @@ import { chromium } from "playwright";
 test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async () => {
 	const distDir = path.resolve("dist");
 	if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, "index.html"))) {
-		execSync("VITE_BASE=/ npx vite build", { stdio: "inherit" });
+		execSync("VITE_BASE=/ npm run build", { stdio: "inherit" });
 	}
 	assert.ok(fs.existsSync(distDir), "dist directory must exist for smoke test");
 
 	const server = http.createServer((req, res) => {
 		let reqPath = req.url.split("?")[0];
-		if (reqPath === "/") reqPath = "/index.html";
+		if (reqPath.startsWith("/inhaler-coach/")) {
+			reqPath = reqPath.slice("/inhaler-coach".length);
+		}
+		if (reqPath === "" || reqPath === "/") reqPath = "/index.html";
 		const filePath = path.join(distDir, reqPath);
 		if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
 			const ext = path.extname(filePath);
@@ -48,7 +51,7 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 
 		// 1. Visit homepage
 		await page.goto(`http://localhost:${port}`);
-		await page.waitForTimeout(500);
+		await page.waitForSelector("#btn-start", { timeout: 10000 });
 
 		assert.equal(pageErrors.length, 0, `Homepage threw errors: ${pageErrors.join(", ")}`);
 		const homeText = await page.textContent("#app");
@@ -57,7 +60,10 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 
 		// 2. Start practice -> opens Stage 0 (開場介紹)
 		await page.click("#btn-start");
-		await page.waitForTimeout(500);
+		await page.waitForFunction(
+			() => document.querySelector("#app")?.textContent?.includes("開場介紹"),
+			{ timeout: 10000 },
+		);
 
 		assert.equal(pageErrors.length, 0, `Stage 0 threw errors: ${pageErrors.join(", ")}`);
 		const stage0Text = await page.textContent("#app");
@@ -66,7 +72,10 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 
 		// 3. Directly load stage 1 via URL
 		await page.goto(`http://localhost:${port}/?stage=1`);
-		await page.waitForTimeout(500);
+		await page.waitForFunction(
+			() => document.querySelector("#app")?.textContent?.includes("振搖"),
+			{ timeout: 10000 },
+		);
 
 		assert.equal(pageErrors.length, 0, `Stage 1 threw errors: ${pageErrors.join(", ")}`);
 		const stage1Text = await page.textContent("#app");
