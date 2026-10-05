@@ -80,6 +80,7 @@ export function useDetectionLoop({
 				passSeconds: stage.passSeconds ?? 0,
 				inhaleSeconds: stage.inhaleSeconds ?? 0,
 				holdSeconds: stage.holdSeconds ?? 0,
+				dropoutGraceMs: stageIdx === 2 ? 1000 : 600,
 			});
 
 			let isEvaluating = false;

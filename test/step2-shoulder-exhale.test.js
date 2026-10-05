@@ -410,4 +410,145 @@ test("Stage 2 exhale: quiet sitting with resting mouth does NOT pass without exh
 	assert.equal(passed, false, "Resting mouth quiet breathing must never pass Stage 2");
 });
 
+test("Stage 2 exhale: detects 縮唇吹氣 (pursed-lip blowing with small slit opening matching live camera)", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+	});
+
+	const steadyPose = makePose(0.55);
+	// Slit opening pursed face: normWidth = 0.467, mar = 0.071 (narrow puckered mouth blowing air)
+	const face = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
+	face[33] = { x: 0.35, y: 0.30, z: 0 };
+	face[263] = { x: 0.65, y: 0.30, z: 0 };
+	face[61] = { x: 0.43, y: 0.45, z: 0 };
+	face[291] = { x: 0.57, y: 0.45, z: 0 };
+	face[13] = { x: 0.50, y: 0.445, z: 0 };
+	face[14] = { x: 0.50, y: 0.455, z: 0 };
+
+	let passed = false;
+	for (let t = 0; t <= 3000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: face,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		assert.equal(det.mouthPursed, true, "Narrow slit blowing must be detected as pursed lips");
+		assert.equal(det.exhaling, true, "Narrow slit blowing must be detected as exhaling");
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "Narrow slit pursed-lip exhalation must pass Stage 2");
+});
+
+test("Stage 2 exhale: detects 頭偏 (Head Turned/Tilted) exhalation without requiring shoulder drop", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+	});
+
+	const span = 0.25;
+	const makeHeadPose = (shoulderY, headX, headY) => {
+		const lm = Array(33).fill(null);
+		lm[0] = { x: headX, y: headY, visibility: 0.95 }; // Nose
+		lm[11] = { x: 0.5 - span / 2, y: shoulderY, visibility: 0.9 }; // Left shoulder
+		lm[12] = { x: 0.5 + span / 2, y: shoulderY, visibility: 0.9 }; // Right shoulder
+		return lm;
+	};
+
+	// Baseline centered posture at steady shoulder level y=0.55
+	for (let t = 0; t < 1000; t += 100) {
+		detector.detect({
+			poseLandmarks: makeHeadPose(0.55, 0.50, 0.25),
+			timestamp: t,
+		});
+	}
+
+	// User turns head to the side (nose moves from x=0.50 to x=0.58, headTurnRange = 0.08 / 0.25 = 0.32 >= 0.045)
+	// Shoulders stay level (y=0.55, yDrop = 0)
+	let passed = false;
+	for (let t = 1000; t <= 4000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: makeHeadPose(0.55, 0.58, 0.25),
+			timestamp: t,
+		});
+		assert.equal(det.ready, true);
+		if (t >= 1300) {
+			assert.equal(det.exhaling, true, `Should detect exhalation during head turn at t=${t}`);
+		}
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "Head turned exhalation without shoulder drop must pass Stage 2");
+});
+
+test("Stage 2 exhale: real-time exhalation progression pauses when exhalation stops and completes when resumed", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+		dropoutGraceMs: 800,
+	});
+
+	const steadyPose = makePose(0.55);
+	const pursedFace = makeFaceMesh({ pursed: true });
+	const restingFace = makeFaceMesh({ pursed: false });
+
+	// Phase 1: Exhale for 1.0 second (t=0 to 1000)
+	for (let t = 0; t <= 1000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: pursedFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+		const evalRes = evaluator.evaluate(det, t);
+		assert.equal(evalRes.ok, false);
+		assert.match(evalRes.msg, /放鬆雙肩慢慢吐氣/);
+	}
+
+	// Phase 2: User pauses exhalation (closes mouth at t=1100 to t=1500, within dropout grace)
+	for (let t = 1100; t <= 1500; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: restingFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+		const evalRes = evaluator.evaluate(det, t);
+		assert.equal(evalRes.ok, false);
+	}
+
+	// Phase 3: User resumes pursed-lip blowing from t=1600 to t=3000 -> completes!
+	let passed = false;
+	for (let t = 1600; t <= 3500; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: pursedFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			assert.match(evalRes.msg, /吐氣引導完成/);
+			break;
+		}
+	}
+	assert.equal(passed, true, "Exhalation accumulation must resume and complete");
+});
+
 
