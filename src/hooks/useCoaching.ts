@@ -100,6 +100,33 @@ export function useCoaching() {
 		yt.replayVideo();
 	}, [nav, yt]);
 
+	const backToVideo = useCallback(() => {
+		detLoop.stopLoop();
+		webcam.stopTracks();
+		nav.backToVideo();
+		setModelState("idle");
+		setStatusText("");
+		setOverlay("none");
+	}, [detLoop, webcam, nav]);
+
+	const pharmacistConfirm = useCallback(() => {
+		detLoop.stopLoop();
+		webcam.stopTracks();
+		nav.nextStage();
+		setModelState("idle");
+		setStatusText("");
+		setOverlay("none");
+	}, [detLoop, webcam, nav]);
+
+	const nextStage = useCallback(() => {
+		detLoop.stopLoop();
+		webcam.stopTracks();
+		nav.nextStage();
+		setModelState("idle");
+		setStatusText("");
+		setOverlay("none");
+	}, [detLoop, webcam, nav]);
+
 	const startAIPhase = useCallback(async () => {
 		// Stage 0 is opening educational video only, no AI detection
 		if (nav.stageIdx === 0) {
@@ -148,33 +175,6 @@ export function useCoaching() {
 			setStatusText("無法啟動攝影機，請確認鏡頭權限與硬體連線。");
 		}
 	}, [nav, webcam, detLoop, nextStage]);
-
-	const backToVideo = useCallback(() => {
-		detLoop.stopLoop();
-		webcam.stopTracks();
-		nav.backToVideo();
-		setModelState("idle");
-		setStatusText("");
-		setOverlay("none");
-	}, [detLoop, webcam, nav]);
-
-	const pharmacistConfirm = useCallback(() => {
-		detLoop.stopLoop();
-		webcam.stopTracks();
-		nav.nextStage();
-		setModelState("idle");
-		setStatusText("");
-		setOverlay("none");
-	}, [detLoop, webcam, nav]);
-
-	const nextStage = useCallback(() => {
-		detLoop.stopLoop();
-		webcam.stopTracks();
-		nav.nextStage();
-		setModelState("idle");
-		setStatusText("");
-		setOverlay("none");
-	}, [detLoop, webcam, nav]);
 
 	const skipVideo = useCallback(() => {
 		if (nav.stageIdx === 0) {
