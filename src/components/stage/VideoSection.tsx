@@ -32,6 +32,7 @@ type VideoSectionProps = {
 	showNext: boolean;
 	nextBtnText: string;
 	onStartAI: () => void;
+	onSkipVideo?: () => void;
 	onReplayVideo?: () => void;
 	onTogglePlay?: () => void;
 	onToggleMute?: () => void;
@@ -58,6 +59,7 @@ export function VideoSection({
 	showNext,
 	nextBtnText,
 	onStartAI,
+	onSkipVideo,
 	onReplayVideo,
 	onTogglePlay,
 	onToggleMute,
@@ -136,22 +138,28 @@ export function VideoSection({
 			)}
 
 			{headerVisible && (
-				<div className="absolute top-12 left-0 right-0 z-20 text-center pt-3 pb-4 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
+				<div className="absolute top-4 sm:top-6 left-0 right-0 z-20 text-center pt-2 pb-4 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
 					<div
 						className={`inline-block px-4 py-1 rounded text-sm font-bold mb-1 ${badgeClass}`}
 					>
 						{badge}
 					</div>
 					<div
-						className={`text-[clamp(24px,4vw,40px)] font-black text-white leading-tight drop-shadow-md ${titleClass}`}
+						className={`text-[clamp(24px,4vw,36px)] font-black text-white leading-tight drop-shadow-md ${titleClass}`}
 					>
 						{title}
 					</div>
+					{hint && (
+						<div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/80 px-4 py-1.5 text-xs sm:text-sm font-bold text-white shadow-lg backdrop-blur-md">
+							<span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
+							<span>{hint}</span>
+						</div>
+					)}
 				</div>
 			)}
 
-			{/* High-Contrast Crystal-Clear Stage Hint Banner ("請上下搖動吸入器...") */}
-			{hint && (
+			{/* High-Contrast Crystal-Clear Stage Hint Banner ("請上下搖動吸入器...") for stages 1-4 */}
+			{!headerVisible && hint && (
 				<div className="pointer-events-none absolute left-1/2 top-18 z-30 w-auto max-w-[94vw] -translate-x-1/2 px-4">
 					<div className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/80 px-5 py-2.5 text-center text-sm font-black leading-5 text-white shadow-2xl backdrop-blur-md sm:text-base">
 						<span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
@@ -202,7 +210,7 @@ export function VideoSection({
 					)}
 					<button
 						type="button"
-						onClick={showNext && onNext ? onNext : onStartAI}
+						onClick={onSkipVideo ?? (showNext && onNext ? onNext : onStartAI)}
 						title="跳過衛教影片直接開始練習"
 						className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/15 px-3 py-2 text-xs font-black text-rose-200 shadow-xl backdrop-blur-md transition-all hover:bg-rose-500/25 active:scale-95 cursor-pointer"
 					>

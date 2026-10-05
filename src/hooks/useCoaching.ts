@@ -101,6 +101,12 @@ export function useCoaching() {
 	}, [nav, yt]);
 
 	const startAIPhase = useCallback(async () => {
+		// Stage 0 is opening educational video only, no AI detection
+		if (nav.stageIdx === 0) {
+			nextStage();
+			return;
+		}
+
 		// Starting again while an async frame is still resolving would otherwise
 		// leave two detection loops and two camera streams alive.
 		detLoop.stopLoop();
@@ -141,7 +147,7 @@ export function useCoaching() {
 			setModelState("error");
 			setStatusText("無法啟動攝影機，請確認鏡頭權限與硬體連線。");
 		}
-	}, [nav, webcam, detLoop]);
+	}, [nav, webcam, detLoop, nextStage]);
 
 	const backToVideo = useCallback(() => {
 		detLoop.stopLoop();
@@ -170,13 +176,24 @@ export function useCoaching() {
 		setOverlay("none");
 	}, [detLoop, webcam, nav]);
 
+	const skipVideo = useCallback(() => {
+		if (nav.stageIdx === 0) {
+			nextStage();
+		} else {
+			startAIPhase();
+		}
+	}, [nav.stageIdx, nextStage, startAIPhase]);
+
 	const tryBtnText =
 		nav.phase === "video" && nav.stageIdx > 0 ? "開始 AI 動作練習" : "";
 
 	const showPharmacist = nav.stageIdx > 0;
 	const showRetry = nav.stagePassed && nav.phase === "ai";
 	const showNext = nav.stagePassed && nav.stageIdx === 0;
-	const nextBtnText = nav.stageIdx === 0 ? "開始闖關" : "進入下一關";
+	const nextBtnText =
+		nav.stageIdx === 0
+			? (stageConfig.manualBtnText || "開始闖關")
+			: "進入下一關";
 
 	useEffect(() => {
 		if (nav.screen !== "stage") {
@@ -215,6 +232,7 @@ export function useCoaching() {
 		loadStage: nav.loadStage,
 		restartGame: nav.restartGame,
 		nextStage,
+		skipVideo,
 		backToVideo,
 		startAIPhase,
 		retryStage: startAIPhase,

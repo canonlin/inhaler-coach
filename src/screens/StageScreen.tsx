@@ -34,6 +34,7 @@ export function StageScreen(props: StageScreenProps) {
 		retryStage,
 		pharmacistConfirm,
 		nextStage,
+		skipVideo,
 		backToVideo,
 	} = props;
 
@@ -96,6 +97,7 @@ export function StageScreen(props: StageScreenProps) {
 						showNext={showNext}
 						nextBtnText={nextBtnText}
 						onStartAI={startAIPhase}
+						onSkipVideo={skipVideo}
 						onReplayVideo={replayVideo}
 						onTogglePlay={togglePlay}
 						onToggleMute={toggleMute}
