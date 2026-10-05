@@ -551,4 +551,136 @@ test("Stage 2 exhale: real-time exhalation progression pauses when exhalation st
 	assert.equal(passed, true, "Exhalation accumulation must resume and complete");
 });
 
+test("Stage 2 exhale: realistic resting human face (normWidth=0.52, mar=0.015) with subtle head sway NEVER passes", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+	});
+
+	// Realistic human resting face:
+	// eyeSpan = 0.24, mouthWidth = 0.125 -> normWidth = 0.52
+	// lips closed: mouthHeight = 0.002 -> mar = 0.016
+	// protrusion = 0, blendshapes = null
+	const restingHumanFace = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
+	restingHumanFace[33] = { x: 0.38, y: 0.30, z: 0 };
+	restingHumanFace[263] = { x: 0.62, y: 0.30, z: 0 };
+	restingHumanFace[61] = { x: 0.44, y: 0.45, z: 0 };
+	restingHumanFace[291] = { x: 0.565, y: 0.45, z: 0 };
+	restingHumanFace[13] = { x: 0.50, y: 0.45, z: 0 };
+	restingHumanFace[14] = { x: 0.50, y: 0.452, z: 0 };
+	restingHumanFace[0] = { x: 0.50, y: 0.44, z: 0 };
+	restingHumanFace[17] = { x: 0.50, y: 0.465, z: 0 };
+
+	let passed = false;
+	for (let t = 0; t <= 6000; t += 100) {
+		// Simulate natural subtle human head sway (jitter ±0.01)
+		const swayX = 0.50 + 0.008 * Math.sin(t / 500);
+		const swayPose = [
+			{ x: swayX, y: 0.25, visibility: 0.99 }, // nose
+			...Array(10).fill({ x: 0.5, y: 0.5, visibility: 0.5 }),
+			{ x: 0.35, y: 0.55, visibility: 0.99 }, // left shoulder
+			{ x: 0.65, y: 0.55, visibility: 0.99 }, // right shoulder
+		];
+
+		const det = detector.detect({
+			poseLandmarks: swayPose,
+			faceLandmarks: restingHumanFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.mouthPursed, false);
+		assert.equal(det.exhaling, false);
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, false, "Realistic resting face with natural head sway must NEVER pass Stage 2");
+});
+
+test("Stage 2 exhale: MediaPipe mouthPucker blendshape triggers pursed exhalation and passes", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+	});
+
+	const steadyPose = makePose(0.55);
+	const restingFace = makeFaceMesh({ pursed: false });
+	const blendshapes = [
+		{ categoryName: "mouthPucker", score: 0.65 },
+		{ categoryName: "mouthFunnel", score: 0.42 },
+		{ categoryName: "jawOpen", score: 0.02 },
+	];
+
+	let passed = false;
+	for (let t = 0; t <= 3000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: restingFace,
+			faceBlendshapes: blendshapes,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		assert.equal(det.mouthPursed, true);
+		assert.equal(det.exhaling, true);
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "MediaPipe mouthPucker blendshape must pass Stage 2");
+});
+
+test("Stage 2 exhale: 3D forward protrusion (puckering lips forward towards camera) passes", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 2,
+	});
+
+	const steadyPose = makePose(0.55);
+	// 3D forward puckered face:
+	// Lips protrude towards camera (negative z in MediaPipe coordinates)
+	const puckered3DFace = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
+	puckered3DFace[33] = { x: 0.35, y: 0.30, z: 0 };
+	puckered3DFace[263] = { x: 0.65, y: 0.30, z: 0 };
+	puckered3DFace[61] = { x: 0.43, y: 0.45, z: 0.015 }; // mouth corners farther back
+	puckered3DFace[291] = { x: 0.57, y: 0.45, z: 0.015 };
+	puckered3DFace[13] = { x: 0.50, y: 0.44, z: -0.015 }; // lip center forward (protrusion = 0.030)
+	puckered3DFace[14] = { x: 0.50, y: 0.46, z: -0.015 };
+	puckered3DFace[0] = { x: 0.50, y: 0.43, z: -0.015 };
+	puckered3DFace[17] = { x: 0.50, y: 0.47, z: -0.015 };
+
+	let passed = false;
+	for (let t = 0; t <= 3000; t += 100) {
+		const det = detector.detect({
+			poseLandmarks: steadyPose,
+			faceLandmarks: puckered3DFace,
+			mouthPoint: { x: 0.5, y: 0.45 },
+			timestamp: t,
+		});
+
+		assert.equal(det.ready, true);
+		assert.equal(det.mouthPursed, true);
+		assert.equal(det.exhaling, true);
+
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, true, "3D forward lip protrusion must pass Stage 2");
+});
+
+
 

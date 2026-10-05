@@ -265,6 +265,7 @@ export function useDetectionLoop({
 						const pr = poseResult as {
 							pose?: Landmark[];
 							face?: Landmark[];
+							faceBlendshapes?: Array<{ categoryName: string; score: number }>;
 							hands?: Landmark[];
 						} | null;
 						const hand = pr?.hands ?? null;
@@ -404,6 +405,7 @@ export function useDetectionLoop({
 												detect: (arg: {
 													poseLandmarks?: unknown;
 													faceLandmarks?: unknown;
+													faceBlendshapes?: unknown;
 													mouthPoint?: unknown;
 													device?: unknown;
 													timestamp?: number;
@@ -420,6 +422,7 @@ export function useDetectionLoop({
 											const res = step.detect({
 												poseLandmarks: pr?.pose,
 												faceLandmarks: pr?.face,
+												faceBlendshapes: pr?.faceBlendshapes,
 												mouthPoint,
 												device,
 												timestamp: now,

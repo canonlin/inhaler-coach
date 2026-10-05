@@ -17,7 +17,8 @@ export const SHOULDER_THRESHOLDS = {
 	stabilityMaxStep: 0.04,
 	exhaleHeadDistThreshold: 0.040,
 	exhaleDropThreshold: 0.040,
-	exhaleHeadTurnThreshold: 0.045,
+	exhaleHeadTurnThreshold: 0.050,
+	exhaleHeadTurnAbsoluteThreshold: 0.085,
 	exhaleProminentDropThreshold: 0.065,
 	exhaleMaxHorizontalDrift: 0.18,
 	historyWindowMs: 3500,
@@ -351,9 +352,10 @@ export class ShoulderKinematicsTracker {
 		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 頭偏 (Head Turned/Tilted):
 		// 1. 頭偏 (Head Turned / Tilted Exhale):
 		//    User turns head to the side to exhale away from inhaler (clinical guideline).
-		//    Distinct lateral head rotation excursion away from chest midline:
+		//    Must be ACTUALLY turned to the side (headTurn >= 0.085) with turning excursion (headTurnRange >= 0.050):
 		const isHeadTurnExhale =
-			headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.045) &&
+			headTurn >= (this.cfg.exhaleHeadTurnAbsoluteThreshold || 0.085) &&
+			headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.050) &&
 			!isElevated;
 
 		// 2. 頭正 (Head Straight Exhale):
@@ -373,18 +375,24 @@ export class ShoulderKinematicsTracker {
 
 		// Sustained exhalation posture:
 		// Either user maintains lowered shoulders ((smoothedY - minY) / span >= 0.020)
-		// or user is turning head away from the inhaler (isHeadTurnExhale).
+		// or user is holding head turned away from the inhaler (headTurn >= 0.075).
 		const isMaintainingExhale =
-			isHeadTurnExhale || (this.smoothedY - minY) / span >= 0.020;
+			(isHeadTurnExhale && headTurn >= 0.075) ||
+			((isHeadStraightExhale || isProminentDrop) &&
+				(this.smoothedY - minY) / span >= 0.020);
 
 		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop or head turn.
 		const isStill =
-			yDrop < 0.025 && headDistRange < 0.030 && headTurnRange < 0.035;
+			yDrop < 0.025 &&
+			headDistRange < 0.030 &&
+			headTurn < 0.075 &&
+			headTurnRange < 0.040;
 
 		// Exhale active: has dropped or turned head, is maintaining posture,
-		// not elevated/shrugging, and not swaying horizontally.
+		// not elevated/shrugging, not motionless still, and not swaying horizontally.
 		const exhaleActive =
 			!isElevated &&
+			!isStill &&
 			hasExhaledDrop &&
 			isMaintainingExhale &&
 			xRange <= this.cfg.exhaleMaxHorizontalDrift;

@@ -79,7 +79,7 @@ export class MediaPipeBackend extends DetectionBackend {
 					minFaceDetectionConfidence: 0.5,
 					minFacePresenceConfidence: 0.5,
 					minTrackingConfidence: 0.5,
-					outputFaceBlendshapes: false,
+					outputFaceBlendshapes: true,
 				}),
 				HandLandmarker.createFromOptions(vision, {
 					baseOptions: {
@@ -102,7 +102,7 @@ export class MediaPipeBackend extends DetectionBackend {
 
 	async processFrame(canvas, timestamp, needs = ALL_SIGNALS) {
 		if (!this.isInitialized) {
-			return { pose: null, face: null, hands: null };
+			return { pose: null, face: null, faceBlendshapes: null, hands: null };
 		}
 
 		// detectForVideo requires strictly increasing timestamps per landmarker.
@@ -122,6 +122,7 @@ export class MediaPipeBackend extends DetectionBackend {
 		return {
 			pose: poseResult?.landmarks?.[0] || null,
 			face: faceResult?.faceLandmarks?.[0] || null,
+			faceBlendshapes: faceResult?.faceBlendshapes?.[0]?.categories || null,
 			hands: handResult?.landmarks?.[0] || null,
 		};
 	}
