@@ -32,9 +32,17 @@ export class ExhaleDetector {
 	 * @param {Object} [input.mouthPoint]
 	 * @param {Array}  [input.poseLandmarks]
 	 * @param {Array}  [input.faceLandmarks]
+	 * @param {Array}  [input.faceBlendshapes]
 	 * @param {number} [input.timestamp]
 	 */
-	detect({ device = null, mouthPoint = null, poseLandmarks = null, faceLandmarks = null, timestamp = 0 } = {}) {
+	detect({
+		device = null,
+		mouthPoint = null,
+		poseLandmarks = null,
+		faceLandmarks = null,
+		faceBlendshapes = null,
+		timestamp = 0,
+	} = {}) {
 		if (mouthPoint) {
 			this.faceAcquired = true;
 			this.lastMouthPoint = { ...mouthPoint };
@@ -50,7 +58,7 @@ export class ExhaleDetector {
 		let faceFeatures = null;
 		if (faceLandmarks) {
 			this.faceAcquired = true;
-			faceFeatures = extractFaceFeatures(faceLandmarks);
+			faceFeatures = extractFaceFeatures(faceLandmarks, faceBlendshapes);
 			mouthPursed = Boolean(faceFeatures?.pursedLips);
 		}
 

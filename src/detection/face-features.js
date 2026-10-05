@@ -38,7 +38,16 @@ function isLipSealed(landmarks) {
 	return dist2D(upperLip, lowerLip) < 0.02;
 }
 
-export function isPursedLips(landmarks) {
+export function isPursedLips(landmarks, blendshapes = null) {
+	// 1. Direct neural classification via MediaPipe FaceBlendshapes (Google ARKit 52 blendshapes):
+	// Highly robust across real webcams, lighting, and diverse human facial morphologies.
+	if (Array.isArray(blendshapes)) {
+		const pucker = blendshapes.find((c) => c.categoryName === "mouthPucker");
+		const funnel = blendshapes.find((c) => c.categoryName === "mouthFunnel");
+		const score = Math.max(pucker?.score || 0, funnel?.score || 0);
+		if (score >= 0.22) return true;
+	}
+
 	if (!landmarks || landmarks.length < 292) return false;
 	const lc = lm(landmarks, 61);
 	const rc = lm(landmarks, 291);
@@ -60,18 +69,41 @@ export function isPursedLips(landmarks) {
 	}
 	const normWidth = mouthWidth / eyeSpan;
 
-	// Pursed lips (縮唇呼氣 / puckered lips blowing):
-	// Clinical pursed-lip breathing contracts the mouth corners inwards (normWidth < 0.72)
-	// and blows out air through a small slit or puckered aperture (mar >= 0.025).
-	// Normal resting mouth has normWidth >= 0.75 and closed lips (mar < 0.02).
-	const isPuckeredSlit = normWidth < 0.72 && mar >= 0.025 && mar <= 0.55;
-	const isPuckeredNarrow = normWidth < 0.62 && mar <= 0.60;
-	const isWhistle = mar >= 0.18 && normWidth < 0.80;
+	// 3D forward protrusion (嘟嘴向前突出):
+	// In MediaPipe 3D coordinates, z decreases (more negative) towards camera.
+	// When lips pucker, lip center protrudes forward relative to mouth corners.
+	const cornerZ = (lc.z + rc.z) / 2;
+	const lipCenterZ = (topLip.z + botLip.z) / 2;
+	const protrusion = cornerZ - lipCenterZ;
 
-	return Boolean(isPuckeredSlit || isPuckeredNarrow || isWhistle);
+	// Outer lip vermilion aspect ratio (outer apex 0 to 17):
+	const upperApex = lm(landmarks, 0);
+	const lowerApex = lm(landmarks, 17);
+	const outerHeight =
+		upperApex && lowerApex ? dist2D(upperApex, lowerApex) : mouthHeight;
+	const outerAspect = mouthWidth > 0 ? outerHeight / mouthWidth : 0;
+
+	// Pursed lips (縮唇呼氣 / puckered lips blowing):
+	// Must distinguish active pursing/blowing from resting neutral face (which has normWidth ~0.52-0.67, mar < 0.03, protrusion <= 0.005):
+	// A. 3D forward protrusion: lips puckered towards camera
+	const is3DProtrusion =
+		protrusion >= 0.010 && (outerAspect >= 0.25 || mar >= 0.025);
+	// B. Narrow puckered contraction (mouth width contracted relative to face)
+	const isNarrowPucker = normWidth < 0.48 && mar <= 0.50;
+	// C. Whistle / round blowing mouth: pronounced vertical-to-horizontal aspect
+	const isWhistle = outerAspect >= 0.40 && normWidth < 0.65;
+	// D. Puckered slit blowing: deliberate slit opening with contracted mouth or protrusion
+	const isPuckeredSlit =
+		mar >= 0.04 &&
+		mar <= 0.35 &&
+		(normWidth < 0.58 || protrusion >= 0.008);
+
+	return Boolean(
+		is3DProtrusion || isNarrowPucker || isWhistle || isPuckeredSlit,
+	);
 }
 
-export function extractFaceFeatures(landmarks) {
+export function extractFaceFeatures(landmarks, blendshapes = null) {
 	if (!landmarks || landmarks.length < 292) return null;
 
 	const mar = computeMAR(landmarks);
@@ -79,7 +111,7 @@ export function extractFaceFeatures(landmarks) {
 		mar,
 		lipSealed: isLipSealed(landmarks),
 		jawOpen: mar > 0.6,
-		pursedLips: isPursedLips(landmarks),
+		pursedLips: isPursedLips(landmarks, blendshapes),
 	};
 }
 
