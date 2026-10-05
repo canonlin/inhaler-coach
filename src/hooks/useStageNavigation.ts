@@ -1,12 +1,7 @@
 import { useCallback, useState } from "react";
-import { STAGES } from "../config/stages.js";
+import { STAGES, getInitialStageIdx } from "../config/stages.js";
 
-export function getInitialStageIdx(search = window.location.search): number {
-	const raw = new URLSearchParams(search).get("stage");
-	if (raw === null) return 0;
-	const n = Number.parseInt(raw, 10);
-	return Number.isNaN(n) ? 0 : Math.max(0, Math.min(n, STAGES.length - 1));
-}
+export { getInitialStageIdx };
 
 export function useStageNavigation() {
 	const [screen, setScreen] = useState<"intro" | "stage" | "success">(() =>

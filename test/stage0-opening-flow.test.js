@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { STAGES } from "../src/config/stages.js";
-import { getInitialStageIdx } from "../src/hooks/useStageNavigation.ts";
+import { STAGES, getInitialStageIdx } from "../src/config/stages.js";
 
 test("Stage 0 opening educational video (開場介紹) configuration contract", () => {
 	const stage0 = STAGES[0];
