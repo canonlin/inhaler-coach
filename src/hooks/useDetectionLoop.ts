@@ -431,7 +431,7 @@ export function useDetectionLoop({
 											if (frameCount % 30 === 0) {
 												console.log(
 													"  step2:",
-													`ready:${res?.ready} exhaling:${res?.exhaling} pursed:${res?.mouthPursed} shrugging:${res?.shrugging}`,
+													`ready:${res?.ready} exhaling:${res?.exhaling} shrugging:${res?.shrugging}`,
 												);
 											}
 										}

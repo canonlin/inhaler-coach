@@ -1,15 +1,14 @@
 import { ShoulderKinematicsTracker } from "../detection/shoulder-kinematics.js";
-import { extractFaceFeatures } from "../detection/face-features.js";
 
 /**
  * Stage 2: Exhalation (吐氣)
  *
  * Clinical objective:
  * - Patient must exhale fully away from the inhaler mouthpiece before inhalation.
- * - Monitored via Pose & Face Mesh landmarks:
+ * - Monitored via Pose & Shoulder Kinematics:
  *   1. Must NOT shrug shoulders (indicates tension or premature inhalation).
  *   2. Must exhibit active respiratory excursion (head-shoulder distance change and shoulder relaxation drop)
- *      OR active pursed-lip breathing (縮唇吐氣吹氣).
+ *      OR lateral head-turn exhalation (偏頭向外吐氣).
  *   3. Inhaler must NOT be at the mouth during exhalation.
  *   4. Normal tidal breathing / sitting still must NOT pass without active exhalation.
  */
@@ -53,15 +52,6 @@ export class ExhaleDetector {
 		const shoulder = this.shoulderTracker.update(poseLandmarks, timestamp);
 		const ready = shoulder.valid && shoulder.framed;
 
-		// Face Mesh: Pursed-lip breathing detection (縮唇呼氣)
-		let mouthPursed = false;
-		let faceFeatures = null;
-		if (faceLandmarks) {
-			this.faceAcquired = true;
-			faceFeatures = extractFaceFeatures(faceLandmarks, faceBlendshapes);
-			mouthPursed = Boolean(faceFeatures?.pursedLips);
-		}
-
 		// Check: is an inhaler accidentally placed directly in front of the mouth?
 		let atMouth = false;
 		const mouthIsRecent =
@@ -74,15 +64,15 @@ export class ExhaleDetector {
 		const shrugging = shoulder.valid && shoulder.isElevated;
 
 		// Signal Hierarchy (臨床與工程訊號分級):
-		// 1. 強訊號 (Primary Strong Signal): 雙肩生理姿態與縮唇呼吸運動
+		// 1. 強訊號 (Primary Strong Signal): 雙肩生理姿態與頭部轉動運動學
 		//    - 雙肩完整入鏡未被邊界裁切 (ready: shoulder.valid && shoulder.framed)
-		//    - 吐氣時雙肩自然放鬆下沉 (shoulder.exhaleActive) 或 縮唇呼氣 (mouthPursed)
+		//    - 吐氣時雙肩自然放鬆下沉 或 偏頭向外吐氣 (shoulder.exhaleActive)
 		//    - 未聳肩緊繃 (shrugging = false)
 		// 2. 弱（次）訊號 (Secondary Weak Signal): 手上有無拿吸入器
 		//    - 不要求必須持拿吸入器 (deviceInHand 是次要狀態，不阻礙吐氣通關)
 		//    - 負向防呆：僅在吸入器明確貼近嘴唇時提示移開，避免含著吸嘴吐氣
 		const deviceInHand = Boolean(device?.present);
-		const isExhaling = ready && !shrugging && !atMouth && (shoulder.exhaleActive || mouthPursed);
+		const isExhaling = ready && !shrugging && !atMouth && shoulder.exhaleActive;
 
 		const phase = !ready
 			? "acquire-posture"
@@ -105,8 +95,6 @@ export class ExhaleDetector {
 			shrugging,
 			atMouth,
 			shoulder,
-			mouthPursed,
-			faceFeatures,
 			deviceInHand,
 			phase,
 			confidence: ready ? shoulder.confidence : 0,

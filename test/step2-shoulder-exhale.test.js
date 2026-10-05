@@ -346,7 +346,7 @@ function makeFaceMesh({ pursed = false } = {}) {
 	return face;
 }
 
-test("Stage 2 exhale: detects 縮唇呼氣 (Pursed-lip breathing) via FaceMesh without requiring shoulder drop", () => {
+test("Stage 2 exhale: quiet sitting motionless does NOT pass without exhalation action", () => {
 	const detector = new ExhaleDetector();
 	const evaluator = new CoachingStageEvaluator({
 		stageIdx: 2,
@@ -354,51 +354,16 @@ test("Stage 2 exhale: detects 縮唇呼氣 (Pursed-lip breathing) via FaceMesh w
 	});
 
 	const steadyPose = makePose(0.55);
-	const pursedFace = makeFaceMesh({ pursed: true });
-
-	let passed = false;
-	for (let t = 0; t <= 4000; t += 100) {
-		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: pursedFace,
-			mouthPoint: { x: 0.5, y: 0.45 },
-			timestamp: t,
-		});
-
-		assert.equal(det.ready, true);
-		assert.equal(det.mouthPursed, true);
-		assert.equal(det.exhaling, true);
-
-		const evalRes = evaluator.evaluate(det, t);
-		if (evalRes.ok) {
-			passed = true;
-			break;
-		}
-	}
-	assert.equal(passed, true, "Pursed-lip breathing alone must accumulate exhalation progress and pass");
-});
-
-test("Stage 2 exhale: quiet sitting with resting mouth does NOT pass without exhalation action", () => {
-	const detector = new ExhaleDetector();
-	const evaluator = new CoachingStageEvaluator({
-		stageIdx: 2,
-		passSeconds: 3,
-	});
-
-	const steadyPose = makePose(0.55);
-	const restingFace = makeFaceMesh({ pursed: false });
 
 	let passed = false;
 	for (let t = 0; t <= 10000; t += 100) {
 		const det = detector.detect({
 			poseLandmarks: steadyPose,
-			faceLandmarks: restingFace,
 			mouthPoint: { x: 0.5, y: 0.45 },
 			timestamp: t,
 		});
 
 		assert.equal(det.ready, true);
-		assert.equal(det.mouthPursed, false);
 		assert.equal(det.exhaling, false);
 
 		const evalRes = evaluator.evaluate(det, t);
@@ -407,46 +372,7 @@ test("Stage 2 exhale: quiet sitting with resting mouth does NOT pass without exh
 			break;
 		}
 	}
-	assert.equal(passed, false, "Resting mouth quiet breathing must never pass Stage 2");
-});
-
-test("Stage 2 exhale: detects 縮唇吹氣 (pursed-lip blowing with small slit opening matching live camera)", () => {
-	const detector = new ExhaleDetector();
-	const evaluator = new CoachingStageEvaluator({
-		stageIdx: 2,
-		passSeconds: 2,
-	});
-
-	const steadyPose = makePose(0.55);
-	// Slit opening pursed face: normWidth = 0.367, mar = 0.091 (narrow puckered mouth blowing air)
-	const face = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
-	face[33] = { x: 0.35, y: 0.30, z: 0 };
-	face[263] = { x: 0.65, y: 0.30, z: 0 };
-	face[61] = { x: 0.445, y: 0.45, z: 0 };
-	face[291] = { x: 0.555, y: 0.45, z: 0 };
-	face[13] = { x: 0.50, y: 0.445, z: 0 };
-	face[14] = { x: 0.50, y: 0.455, z: 0 };
-
-	let passed = false;
-	for (let t = 0; t <= 3000; t += 100) {
-		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: face,
-			mouthPoint: { x: 0.5, y: 0.45 },
-			timestamp: t,
-		});
-
-		assert.equal(det.ready, true);
-		assert.equal(det.mouthPursed, true, "Narrow slit blowing must be detected as pursed lips");
-		assert.equal(det.exhaling, true, "Narrow slit blowing must be detected as exhaling");
-
-		const evalRes = evaluator.evaluate(det, t);
-		if (evalRes.ok) {
-			passed = true;
-			break;
-		}
-	}
-	assert.equal(passed, true, "Narrow slit pursed-lip exhalation must pass Stage 2");
+	assert.equal(passed, false, "Quiet sitting motionless must never pass Stage 2");
 });
 
 test("Stage 2 exhale: detects 頭偏 (Head Turned/Tilted) exhalation without requiring shoulder drop", () => {
@@ -503,42 +429,43 @@ test("Stage 2 exhale: real-time exhalation progression pauses when exhalation st
 		dropoutGraceMs: 800,
 	});
 
-	const steadyPose = makePose(0.55);
-	const pursedFace = makeFaceMesh({ pursed: true });
-	const restingFace = makeFaceMesh({ pursed: false });
+	const normalPose = makePose(0.60);
+	const exhalePose = makePose(0.66);
 
-	// Phase 1: Exhale for 1.0 second (t=0 to 1000)
-	for (let t = 0; t <= 1000; t += 100) {
+	// Baseline warmup
+	for (let t = 0; t <= 500; t += 100) {
+		detector.detect({
+			poseLandmarks: normalPose,
+			timestamp: t,
+		});
+	}
+
+	// Phase 1: Exhale via shoulder relaxation drop for 1.0 second (t=600 to 1600)
+	for (let t = 600; t <= 1600; t += 100) {
 		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: pursedFace,
-			mouthPoint: { x: 0.5, y: 0.45 },
+			poseLandmarks: exhalePose,
 			timestamp: t,
 		});
 		const evalRes = evaluator.evaluate(det, t);
 		assert.equal(evalRes.ok, false);
-		assert.match(evalRes.msg, /放鬆雙肩慢慢吐氣/);
+		assert.match(evalRes.msg, /放鬆雙肩/);
 	}
 
-	// Phase 2: User pauses exhalation (closes mouth at t=1100 to t=1500, within dropout grace)
-	for (let t = 1100; t <= 1500; t += 100) {
+	// Phase 2: User pauses exhalation (shoulders back up at t=1700 to t=2100, within dropout grace)
+	for (let t = 1700; t <= 2100; t += 100) {
 		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: restingFace,
-			mouthPoint: { x: 0.5, y: 0.45 },
+			poseLandmarks: normalPose,
 			timestamp: t,
 		});
 		const evalRes = evaluator.evaluate(det, t);
 		assert.equal(evalRes.ok, false);
 	}
 
-	// Phase 3: User resumes pursed-lip blowing from t=1600 to t=3000 -> completes!
+	// Phase 3: User resumes shoulder drop exhalation from t=2200 to t=4000 -> completes!
 	let passed = false;
-	for (let t = 1600; t <= 3500; t += 100) {
+	for (let t = 2200; t <= 4000; t += 100) {
 		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: pursedFace,
-			mouthPoint: { x: 0.5, y: 0.45 },
+			poseLandmarks: exhalePose,
 			timestamp: t,
 		});
 		const evalRes = evaluator.evaluate(det, t);
@@ -551,30 +478,16 @@ test("Stage 2 exhale: real-time exhalation progression pauses when exhalation st
 	assert.equal(passed, true, "Exhalation accumulation must resume and complete");
 });
 
-test("Stage 2 exhale: realistic resting human face (normWidth=0.52, mar=0.015) with subtle head sway NEVER passes", () => {
+test("Stage 2 exhale: realistic resting human posture with subtle head sway NEVER passes", () => {
 	const detector = new ExhaleDetector();
 	const evaluator = new CoachingStageEvaluator({
 		stageIdx: 2,
-		passSeconds: 2,
+		passSeconds: 3,
 	});
-
-	// Realistic human resting face:
-	// eyeSpan = 0.24, mouthWidth = 0.125 -> normWidth = 0.52
-	// lips closed: mouthHeight = 0.002 -> mar = 0.016
-	// protrusion = 0, blendshapes = null
-	const restingHumanFace = Array(468).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }));
-	restingHumanFace[33] = { x: 0.38, y: 0.30, z: 0 };
-	restingHumanFace[263] = { x: 0.62, y: 0.30, z: 0 };
-	restingHumanFace[61] = { x: 0.44, y: 0.45, z: 0 };
-	restingHumanFace[291] = { x: 0.565, y: 0.45, z: 0 };
-	restingHumanFace[13] = { x: 0.50, y: 0.45, z: 0 };
-	restingHumanFace[14] = { x: 0.50, y: 0.452, z: 0 };
-	restingHumanFace[0] = { x: 0.50, y: 0.44, z: 0 };
-	restingHumanFace[17] = { x: 0.50, y: 0.465, z: 0 };
 
 	let passed = false;
 	for (let t = 0; t <= 6000; t += 100) {
-		// Simulate natural subtle human head sway (jitter ±0.01)
+		// Simulate natural subtle human head sway (jitter ±0.008)
 		const swayX = 0.50 + 0.008 * Math.sin(t / 500);
 		const swayPose = [
 			{ x: swayX, y: 0.25, visibility: 0.99 }, // nose
@@ -585,12 +498,10 @@ test("Stage 2 exhale: realistic resting human face (normWidth=0.52, mar=0.015) w
 
 		const det = detector.detect({
 			poseLandmarks: swayPose,
-			faceLandmarks: restingHumanFace,
 			mouthPoint: { x: 0.5, y: 0.45 },
 			timestamp: t,
 		});
 
-		assert.equal(det.mouthPursed, false);
 		assert.equal(det.exhaling, false);
 
 		const evalRes = evaluator.evaluate(det, t);
@@ -599,83 +510,7 @@ test("Stage 2 exhale: realistic resting human face (normWidth=0.52, mar=0.015) w
 			break;
 		}
 	}
-	assert.equal(passed, false, "Realistic resting face with natural head sway must NEVER pass Stage 2");
-});
-
-test("Stage 2 exhale: MediaPipe mouthPucker blendshape triggers pursed exhalation and passes", () => {
-	const detector = new ExhaleDetector();
-	const evaluator = new CoachingStageEvaluator({
-		stageIdx: 2,
-		passSeconds: 2,
-	});
-
-	const steadyPose = makePose(0.55);
-	const restingFace = makeFaceMesh({ pursed: false });
-	const blendshapes = [
-		{ categoryName: "mouthPucker", score: 0.65 },
-		{ categoryName: "mouthFunnel", score: 0.42 },
-		{ categoryName: "jawOpen", score: 0.02 },
-	];
-
-	let passed = false;
-	for (let t = 0; t <= 3000; t += 100) {
-		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: restingFace,
-			faceBlendshapes: blendshapes,
-			mouthPoint: { x: 0.5, y: 0.45 },
-			timestamp: t,
-		});
-
-		assert.equal(det.ready, true);
-		assert.equal(det.mouthPursed, true);
-		assert.equal(det.exhaling, true);
-
-		const evalRes = evaluator.evaluate(det, t);
-		if (evalRes.ok) {
-			passed = true;
-			break;
-		}
-	}
-	assert.equal(passed, true, "MediaPipe mouthPucker blendshape must pass Stage 2");
-});
-
-test("Stage 2 exhale: MediaPipe mouthFunnel blendshape triggers pursed exhalation and passes", () => {
-	const detector = new ExhaleDetector();
-	const evaluator = new CoachingStageEvaluator({
-		stageIdx: 2,
-		passSeconds: 3,
-	});
-
-	const steadyPose = makePose(0.55);
-	const restingFace = makeFaceMesh({ pursed: false });
-	const blendshapes = [
-		{ categoryName: "mouthPucker", score: 0.05 },
-		{ categoryName: "mouthFunnel", score: 0.58 },
-		{ categoryName: "jawOpen", score: 0.03 },
-	];
-
-	let passed = false;
-	for (let t = 0; t <= 4000; t += 100) {
-		const det = detector.detect({
-			poseLandmarks: steadyPose,
-			faceLandmarks: restingFace,
-			faceBlendshapes: blendshapes,
-			mouthPoint: { x: 0.5, y: 0.45 },
-			timestamp: t,
-		});
-
-		assert.equal(det.ready, true);
-		assert.equal(det.mouthPursed, true);
-		assert.equal(det.exhaling, true);
-
-		const evalRes = evaluator.evaluate(det, t);
-		if (evalRes.ok) {
-			passed = true;
-			break;
-		}
-	}
-	assert.equal(passed, true, "MediaPipe mouthFunnel blendshape must pass Stage 2");
+	assert.equal(passed, false, "Realistic resting posture with natural head sway must NEVER pass Stage 2");
 });
 
 
