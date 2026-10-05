@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import test from "node:test";
 import { chromium } from "playwright";
 
 test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async () => {
 	const distDir = path.resolve("dist");
+	if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, "index.html"))) {
+		execSync("VITE_BASE=/ npx vite build", { stdio: "inherit" });
+	}
 	assert.ok(fs.existsSync(distDir), "dist directory must exist for smoke test");
 
 	const server = http.createServer((req, res) => {

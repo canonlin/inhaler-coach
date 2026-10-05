@@ -1,5 +1,5 @@
 {
-  "buildCommand": "VITE_BASE=/ bun run build",
+  "buildCommand": "tsc --noEmit && VITE_BASE=/ bun run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "headers": [
