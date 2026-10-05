@@ -2,10 +2,14 @@
   "minConfidence": 0.4,
   "elevationThreshold": 0.04,
   "stabilityMaxStep": 0.04,
-  "exhaleHeadDistThreshold": 0.055,
-  "exhaleDropThreshold": 0.035,
-  "exhaleMaxHorizontalDrift": 0.045,
-  "historyWindowMs": 3500,
+  "exhaleHeadDistThreshold": 0.045,
+  "exhaleDropThreshold": 0.055,
+  "exhaleProminentDropThreshold": 0.075,
+  "exhaleHeadTurnAbsoluteThreshold": 0.22,
+  "exhaleHeadTurnThreshold": 0.06,
+  "exhaleHeadTurnDynamic": 0.15,
+  "exhaleMaxHorizontalDrift": 0.12,
+  "historyWindowMs": 5000,
   "baselineAlpha": 0.2,
   "smoothAlpha": 0.35
 }

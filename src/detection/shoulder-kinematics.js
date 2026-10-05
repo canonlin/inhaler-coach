@@ -15,13 +15,14 @@ export const SHOULDER_THRESHOLDS = {
 	minConfidence: 0.4,
 	elevationThreshold: 0.04,
 	stabilityMaxStep: 0.04,
-	exhaleHeadDistThreshold: 0.040,
-	exhaleDropThreshold: 0.040,
-	exhaleHeadTurnThreshold: 0.050,
-	exhaleHeadTurnAbsoluteThreshold: 0.085,
-	exhaleProminentDropThreshold: 0.065,
-	exhaleMaxHorizontalDrift: 0.18,
-	historyWindowMs: 3500,
+	exhaleHeadDistThreshold: 0.045,
+	exhaleDropThreshold: 0.055,
+	exhaleProminentDropThreshold: 0.075,
+	exhaleHeadTurnAbsoluteThreshold: 0.22,
+	exhaleHeadTurnThreshold: 0.06,
+	exhaleHeadTurnDynamic: 0.15,
+	exhaleMaxHorizontalDrift: 0.12,
+	historyWindowMs: 5000,
 	baselineAlpha: 0.20,
 	smoothAlpha: 0.35,
 };
@@ -352,41 +353,44 @@ export class ShoulderKinematicsTracker {
 		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 頭偏 (Head Turned/Tilted):
 		// 1. 頭偏 (Head Turned / Tilted Exhale):
 		//    User turns head to the side to exhale away from inhaler (clinical guideline).
-		//    Must be ACTUALLY turned to the side (headTurn >= 0.085) with turning excursion (headTurnRange >= 0.050):
+		//    Either held sideways (headTurn >= 0.22) or turned dynamically (headTurn >= 0.15 && headTurnRange >= 0.06):
 		const isHeadTurnExhale =
-			headTurn >= (this.cfg.exhaleHeadTurnAbsoluteThreshold || 0.085) &&
-			headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.050) &&
+			(headTurn >= (this.cfg.exhaleHeadTurnAbsoluteThreshold || 0.22) ||
+				(headTurn >= (this.cfg.exhaleHeadTurnDynamic || 0.15) &&
+					headTurnRange >= (this.cfg.exhaleHeadTurnThreshold || 0.06))) &&
 			!isElevated;
 
 		// 2. 頭正 (Head Straight Exhale):
-		//    User faces camera, relaxes chest and drops shoulders.
-		//    2D head distance excursion and shoulder relaxation drop:
+		//    User faces camera, relaxes chest and drops shoulders deeply.
+		//    Deep 2D head distance excursion and shoulder relaxation drop:
 		const isHeadStraightExhale =
-			yDrop >= this.cfg.exhaleDropThreshold &&
-			headDistRange >= this.cfg.exhaleHeadDistThreshold;
+			(yDrop >= (this.cfg.exhaleDropThreshold || 0.065) &&
+				headDistRange >= (this.cfg.exhaleHeadDistThreshold || 0.050)) ||
+			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.080);
 
 		// 3. 顯著深吐氣 (Prominent Exhale):
 		const isProminentDrop =
-			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.065) ||
-			headDistRange >= (this.cfg.exhaleProminentDropThreshold || 0.065) + 0.005;
+			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.080) ||
+			headDistRange >= (this.cfg.exhaleProminentDropThreshold || 0.080);
 
 		const hasExhaledDrop =
 			isHeadTurnExhale || isHeadStraightExhale || isProminentDrop;
 
 		// Sustained exhalation posture:
-		// Either user maintains lowered shoulders ((smoothedY - minY) / span >= 0.020)
-		// or user is holding head turned away from the inhaler (headTurn >= 0.075).
+		// Either user maintains lowered shoulders ((smoothedY - minY) / span >= 0.035)
+		// or user is holding head turned away from the inhaler (headTurn >= 0.15).
 		const isMaintainingExhale =
-			(isHeadTurnExhale && headTurn >= 0.075) ||
+			(isHeadTurnExhale && headTurn >= 0.15) ||
 			((isHeadStraightExhale || isProminentDrop) &&
-				(this.smoothedY - minY) / span >= 0.020);
+				(this.smoothedY - minY) / span >= 0.035);
 
 		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop or head turn.
+		// Resting forward posture or small natural movements must NEVER be considered exhaling.
 		const isStill =
-			yDrop < 0.025 &&
-			headDistRange < 0.030 &&
-			headTurn < 0.075 &&
-			headTurnRange < 0.040;
+			yDrop < (this.cfg.exhaleDropThreshold || 0.045) &&
+			headDistRange < (this.cfg.exhaleHeadDistThreshold || 0.045) &&
+			headTurn < (this.cfg.exhaleHeadTurnDynamic || 0.15) &&
+			headTurnRange < (this.cfg.exhaleHeadTurnThreshold || 0.05);
 
 		// Exhale active: has dropped or turned head, is maintaining posture,
 		// not elevated/shrugging, not motionless still, and not swaying horizontally.
@@ -410,6 +414,10 @@ export class ShoulderKinematicsTracker {
 			isDropping,
 			isStill,
 			exhaleActive,
+			yDrop,
+			headTurn,
+			headTurnRange,
+			headDistRange,
 			shoulderY: this.smoothedY,
 			shoulderSpan: span,
 			confidence: conf,

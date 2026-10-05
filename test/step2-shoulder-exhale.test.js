@@ -303,15 +303,15 @@ test("Stage 2 exhale: detects 頭正 (Head Straight) exhalation facing camera fo
 		});
 	}
 
-	// 2. User exhales facing camera (頭正: nose stays centered x=0.50, shoulders drop y=0.553, yDrop = 0.013 / 0.25 = 0.052 spans >= 0.040)
+	// 2. User exhales facing camera (頭正: nose stays centered x=0.50, shoulders drop y=0.558, yDrop = 0.018 / 0.25 = 0.072 spans >= 0.065)
 	let passed = false;
 	for (let t = 1000; t <= 5000; t += 100) {
 		const det = detector.detect({
-			poseLandmarks: makeHeadPose(0.553, 0.50, 0.30),
+			poseLandmarks: makeHeadPose(0.558, 0.50, 0.30),
 			timestamp: t,
 		});
 		assert.equal(det.ready, true);
-		if (t >= 1300) {
+		if (t >= 1500) {
 			assert.equal(det.exhaling, true, `Should detect exhaleActive during head straight at t=${t}`);
 		}
 
@@ -511,6 +511,41 @@ test("Stage 2 exhale: realistic resting human posture with subtle head sway NEVE
 		}
 	}
 	assert.equal(passed, false, "Realistic resting posture with natural head sway must NEVER pass Stage 2");
+});
+
+test("Stage 2 exhale: seated at desk with slight angle and tidal breathing NEVER passes Stage 2", () => {
+	const detector = new ExhaleDetector();
+	const evaluator = new CoachingStageEvaluator({
+		stageIdx: 2,
+		passSeconds: 3,
+	});
+
+	let passed = false;
+	const span = 0.28;
+	for (let t = 0; t <= 10000; t += 100) {
+		// Natural desk posture: user slightly off-center (nose offset 0.025 = 0.09 span),
+		// breathing causes subtle shoulder wave (amplitude 0.006 = 0.021 span)
+		const noseX = 0.525 + 0.003 * Math.sin(t / 800);
+		const shoulderY = 0.55 + 0.006 * Math.sin(t / 1200);
+
+		const lm = Array(33).fill(null);
+		lm[0] = { x: noseX, y: 0.25, visibility: 0.99 };
+		lm[11] = { x: 0.50 - span / 2, y: shoulderY, visibility: 0.99 };
+		lm[12] = { x: 0.50 + span / 2, y: shoulderY, visibility: 0.99 };
+
+		const det = detector.detect({
+			poseLandmarks: lm,
+			timestamp: t,
+		});
+
+		assert.equal(det.exhaling, false, `Must never trigger exhaling at t=${t}`);
+		const evalRes = evaluator.evaluate(det, t);
+		if (evalRes.ok) {
+			passed = true;
+			break;
+		}
+	}
+	assert.equal(passed, false, "Sitting quietly at desk must never pass Stage 2");
 });
 
 
