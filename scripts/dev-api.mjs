@@ -25,6 +25,11 @@ const ROUTES = {
 	"GET /api/reference": "reference",
 	"GET /api/followups": "followups",
 	"GET /api/sessions/pending": "pendingSession",
+	"POST /api/line/link": "lineLink",
+	"GET /api/line/plan": "linePlan",
+	"POST /api/line/send": "lineSend",
+	"POST /api/line/event": "lineEvent",
+	"GET /api/line/engagement": "lineEngagement",
 };
 
 const port = Number(process.env.PORT ?? 4183);

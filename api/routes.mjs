@@ -9,6 +9,8 @@ import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { hashMrn, mrnTail } from "./db.mjs";
+import { makeLineService } from "./line/service.mjs";
+import { createLiveTransport, createRecordingTransport } from "./line/transport.mjs";
 import { pareto, stepErrorRates, summarise } from "./metrics.mjs";
 
 class HttpError extends Error {
@@ -47,7 +49,27 @@ const ROW_SQL = `
 /**
  * @param {{query: Function, salt: string}} deps
  */
-export function makeRoutes({ query, salt }) {
+export function makeRoutes({ query, salt, lineTransport }) {
+	/**
+	 * How LINE messages leave.
+	 *
+	 * Defaults to recording. A deploy without a token must never be able to
+	 * message a patient, so reaching a real phone needs both a token and
+	 * LINE_SEND_ENABLED — one switch, or the account alone would be enough.
+	 */
+	const line = makeLineService({
+		query,
+		transport:
+			lineTransport ??
+			(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_SEND_ENABLED === "true"
+				? createLiveTransport({ token: process.env.LINE_CHANNEL_ACCESS_TOKEN })
+				: createRecordingTransport({
+						insert: async () => {
+							// Plan-only callers never send, so nothing to capture here.
+						},
+					})),
+	});
+
 	const countCases = async () => {
 		const { rows } = await query("SELECT count(*)::int AS n FROM cases");
 		return rows[0].n;
@@ -150,7 +172,7 @@ export function makeRoutes({ query, salt }) {
 			   FROM ins_c WHERE $25::text IS NOT NULL
 			   RETURNING 1
 			 )
-			 SELECT ins_c.record_id, ins_p.mrn_tail,
+			 SELECT ins_c.id, ins_c.record_id, ins_p.mrn_tail,
 			        (SELECT count(*) FROM ins_s)::int AS steps,
 			        (SELECT count(*) FROM ins_k)::int AS knowledge,
 			        (SELECT count(*) FROM ins_m)::int AS measures,
@@ -359,7 +381,82 @@ export function makeRoutes({ query, salt }) {
 		};
 	}
 
-	return { health, createCase, listCases, summary, recordSession, reference, followups, pendingSession };
+	/**
+	 * POST /api/line/link — bind a LINE account to a patient and record consent.
+	 *
+	 * The record number is hashed here and nowhere else, so a plain identifier
+	 * never reaches the LINE layer.
+	 */
+	async function lineLink(body) {
+		if (!body?.mrn || !body?.lineUserId) bad("mrn and lineUserId are required");
+		return line.link({ mrn: hashMrn(String(body.mrn), salt), lineUserId: String(body.lineUserId) });
+	}
+
+	/** GET /api/line/plan?case_id= — what would be sent, and what it costs. */
+	async function linePlan({ case_id }) {
+		if (!case_id) bad("case_id is required");
+		return line.plan({ caseId: String(case_id) });
+	}
+
+	/**
+	 * POST /api/line/send — deliver one planned touch.
+	 *
+	 * Refuses unless the patient has both consented and a linked account, so a
+	 * missing consent cannot be routed around by calling this directly.
+	 */
+	async function lineSend(body) {
+		const { rows } = await query(
+			`SELECT p.id, li.line_user_id FROM patients p
+			 JOIN line_identities li ON li.patient_id = p.id
+			 WHERE p.mrn_hash = $1 AND p.consent_line`,
+			[hashMrn(String(body?.mrn ?? ""), salt)],
+		);
+		if (!rows[0]) throw new HttpError(403, "no consented LINE account for this patient");
+		return line.send({
+			patientId: rows[0].id,
+			lineUserId: rows[0].line_user_id,
+			touch: String(body.touch),
+			kind: String(body.kind),
+			message: body.message,
+			sentOn: String(body.sentOn),
+		});
+	}
+
+	/** POST /api/line/event — the webhook. LINE retries, so dedupe on the event id. */
+	async function lineEvent(body) {
+		for (const ev of body?.events ?? []) {
+			await line.recordEvent({
+				eventId: ev.webhookEventId,
+				type: ev.type,
+				stepCode: ev.stepCode,
+				payload: ev,
+				lineUserId: ev.source?.userId,
+			});
+		}
+		return { ok: true, received: body?.events?.length ?? 0 };
+	}
+
+	/** GET /api/line/engagement?since= — did the channel actually work. */
+	async function lineEngagement({ since }) {
+		return line.engagement({ since: since ?? "1970-01-01" });
+	}
+
+	return {
+		health,
+		createCase,
+		listCases,
+		summary,
+		recordSession,
+		reference,
+		followups,
+		pendingSession,
+		lineLink,
+		linePlan,
+		lineSend,
+		lineEvent,
+		lineEngagement,
+		lineChannel: line.channel,
+	};
 }
 
 function addDays(iso, n) {

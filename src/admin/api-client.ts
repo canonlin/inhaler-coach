@@ -135,6 +135,7 @@ export async function createCase(body: NewCase) {
 		throw new Error(json.error ?? `HTTP ${res.status}`);
 	return json as {
 		ok: true;
+		id: string;
 		record_id: string;
 		mrn_tail: string;
 		steps: number;

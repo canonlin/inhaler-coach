@@ -165,3 +165,49 @@ CREATE TABLE IF NOT EXISTS followups (
 );
 
 CREATE INDEX IF NOT EXISTS followups_open_idx ON followups (status, due_start);
+-- ── LINE ────────────────────────────────────────────────────────────────────
+-- Reachability after the encounter. Every table here is written without a LINE
+-- account: the recording transport captures the exact payload instead of
+-- sending it, so the whole chain is verifiable before launch.
+
+-- Consent lives on the patient, not on the LINE link, so it survives unlinking.
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS consent_line boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS line_identities (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id  uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  line_user_id text NOT NULL UNIQUE,
+  added_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- One row per message the system sent or would have sent. `channel` says which:
+-- 'recording' is a dry run, 'live' actually reached a phone.
+CREATE TABLE IF NOT EXISTS line_deliveries (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NOT NULL: a message is never delivered to someone we cannot identify.
+  patient_id  uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  line_user_id text NOT NULL,
+  case_id     uuid REFERENCES cases(id) ON DELETE SET NULL,
+  touch       text NOT NULL,
+  sent_on     date NOT NULL,
+  kind        text NOT NULL CHECK (kind IN ('push', 'reply', 'welcome')),
+  channel     text NOT NULL DEFAULT 'recording' CHECK (channel IN ('live', 'recording')),
+  payload     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- touch is unique per recipient per day, so a retried cron cannot double send.
+CREATE UNIQUE INDEX IF NOT EXISTS line_deliveries_once_idx
+  ON line_deliveries (line_user_id, touch, sent_on);
+
+-- LINE redelivers webhooks on failure. line_event_id makes the retry a no-op
+-- rather than a second counted response.
+CREATE TABLE IF NOT EXISTS line_events (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id    uuid REFERENCES patients(id) ON DELETE SET NULL,
+  line_event_id text UNIQUE,
+  event_type    text NOT NULL,
+  step_code     text,
+  payload       jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
