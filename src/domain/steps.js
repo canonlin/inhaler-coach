@@ -109,7 +109,14 @@ const DEVICE_LIST = [
  * @returns {Step}
  */
 function s(device, char, text, critical, condition) {
-	return { device, code: `${device}_${char}`, char, text, critical, ...(condition ? { condition } : {}) };
+	return {
+		device,
+		code: `${device}_${char}`,
+		char,
+		text,
+		critical,
+		...(condition ? { condition } : {}),
+	};
 }
 
 /** @type {Record<DeviceKind, Device>} */
@@ -119,10 +126,14 @@ export const DEVICES = Object.fromEntries(DEVICE_LIST.map((d) => [d.kind, d]));
 export const DEVICE_KINDS = DEVICE_LIST.map((d) => d.kind);
 
 /** @type {Record<DeviceKind, Step[]>} */
-export const STEPS_BY_DEVICE = Object.fromEntries(DEVICE_LIST.map((d) => [d.kind, d.steps]));
+export const STEPS_BY_DEVICE = Object.fromEntries(
+	DEVICE_LIST.map((d) => [d.kind, d.steps]),
+);
 
 /** @type {string[]} */
-export const ALL_STEP_CODES = DEVICE_LIST.flatMap((d) => d.steps.map((st) => st.code));
+export const ALL_STEP_CODES = DEVICE_LIST.flatMap((d) =>
+	d.steps.map((st) => st.code),
+);
 
 /** @type {string[]} */
 export const CRITICAL_STEP_CODES = DEVICE_LIST.flatMap((d) =>
@@ -157,4 +168,51 @@ export function applicableSteps(kind, drug) {
  */
 export function isCritical(code) {
 	return STEP_BY_CODE[code]?.critical ?? false;
+}
+/**
+ * Which steps the camera can judge on its own.
+ *
+ * The AI coaching flow (src/config/stages.js) has four scored stages:
+ *   振搖 → MDI_搖
+ *   吐氣 → MDI_吐
+ *   壓吸＋憋氣 → MDI_壓, MDI_吸, MDI_閉
+ *   漱口 → MDI_漱
+ *
+ * Opening the mouthpiece cap and sealing the lips are not judged by anything
+ * today, so they stay with the pharmacist. This mapping is why the pharmacist
+ * only assesses two of the eight pMDI steps rather than eight.
+ *
+ * Only pMDI has AI coverage. DPI and SMI have no coaching flow yet, so their
+ * steps are pharmacist-judged in full.
+ *
+ * @type {Record<DeviceKind, string[]>}
+ */
+export const AI_JUDGED_STEPS = {
+	MDI: ["MDI_搖", "MDI_吐", "MDI_壓", "MDI_吸", "MDI_閉", "MDI_漱"],
+	RSP: [],
+	ELP: [],
+	BRZ: [],
+};
+
+/**
+ * Who has to look at this step: the camera or the pharmacist.
+ * @param {string} code
+ * @returns {'ai' | 'pharmacist'}
+ */
+export function stepReviewSource(code) {
+	return Object.values(AI_JUDGED_STEPS).some((list) => list.includes(code))
+		? "ai"
+		: "pharmacist";
+}
+
+/**
+ * The steps a pharmacist must judge by hand for this drug.
+ * @param {DeviceKind} kind
+ * @param {{hasIcs: boolean, needsShake: boolean}} drug
+ * @returns {Step[]}
+ */
+export function pharmacistSteps(kind, drug) {
+	return applicableSteps(kind, drug).filter(
+		(s) => stepReviewSource(s.code) === "pharmacist",
+	);
 }

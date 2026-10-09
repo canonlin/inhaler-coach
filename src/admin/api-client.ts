@@ -25,7 +25,12 @@ export interface Step {
 export interface Reference {
 	drugs: Drug[];
 	pharmacists: string[];
-	knowledge: { index: number; text: string; answer: "對" | "不對"; reversed: boolean }[];
+	knowledge: {
+		index: number;
+		text: string;
+		answer: "對" | "不對";
+		reversed: boolean;
+	}[];
 	steps: string[];
 }
 
@@ -61,7 +66,10 @@ export interface Summary {
 
 const base = import.meta.env.VITE_API_BASE ?? "";
 
-async function get<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+async function get<T>(
+	path: string,
+	params?: Record<string, string | number>,
+): Promise<T> {
 	const qs = params
 		? `?${new URLSearchParams(
 				Object.entries(params)
@@ -71,7 +79,8 @@ async function get<T>(path: string, params?: Record<string, string | number>): P
 		: "";
 	const res = await fetch(`${base}${path}${qs}`);
 	const json = await res.json();
-	if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
 	return json as T;
 }
 
@@ -106,6 +115,8 @@ export interface NewCase {
 	qccStage: string;
 	drug: string;
 	steps: Record<string, "正確" | "錯誤" | "na">;
+	/** Did the patient actually perform the step in front of the pharmacist. */
+	demonstrated?: Record<string, boolean>;
 	knowledge?: Record<string, "對" | "不對">;
 	factors?: string[];
 	caseType?: string;
@@ -120,6 +131,44 @@ export async function createCase(body: NewCase) {
 		body: JSON.stringify(body),
 	});
 	const json = await res.json();
-	if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as { ok: true; record_id: string; mrn_tail: string; steps: number; knowledge: number; measures: number };
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as {
+		ok: true;
+		record_id: string;
+		mrn_tail: string;
+		steps: number;
+		knowledge: number;
+		measures: number;
+		followup: number;
+	};
+}
+
+/** One step as the camera judged it. */
+export interface AiStep {
+	value: "正確" | "錯誤";
+	attempts: number;
+	confidence: number;
+}
+
+/** GET /api/sessions/pending — the pharmacist's reason to type the MRN. */
+export interface PendingSession {
+	ok: true;
+	found: boolean;
+	device?: string;
+	drug?: string;
+	steps: Record<string, AiStep>;
+}
+
+export async function fetchPendingSession(
+	mrn: string,
+): Promise<PendingSession> {
+	if (!mrn.trim()) return { ok: true, found: false, steps: {} };
+	const res = await fetch(
+		`${base}/api/sessions/pending?mrn=${encodeURIComponent(mrn.trim())}`,
+	);
+	const json = await res.json();
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as PendingSession;
 }

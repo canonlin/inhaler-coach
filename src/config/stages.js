@@ -118,7 +118,9 @@ export const VIDEO_LOCK_SECONDS = {
 	4: 13,
 };
 
-export function getInitialStageIdx(search = (typeof window !== "undefined" ? window.location.search : "")) {
+export function getInitialStageIdx(
+	search = typeof window !== "undefined" ? window.location.search : "",
+) {
 	const raw = new URLSearchParams(search).get("stage");
 	if (raw === null) return 0;
 	const n = Number.parseInt(raw, 10);

@@ -10,20 +10,15 @@
  */
 import { useEffect, useState } from "react";
 
-import { fetchReference, fetchSummary, type Reference, type Summary } from "./api-client";
+import { fetchSummary, type Summary } from "./api-client";
 import { StepTable } from "./components/StepTable";
 import { Verdict } from "./components/Verdict";
 import "./admin.css";
 
 export function Admin() {
 	const [data, setData] = useState<Summary | null>(null);
-	const [reference, setReference] = useState<Reference | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [stage, setStage] = useState("");
-
-	useEffect(() => {
-		fetchReference().then(setReference).catch(() => setReference(null));
-	}, []);
 
 	useEffect(() => {
 		let live = true;
@@ -73,12 +68,17 @@ export function Admin() {
 				</label>
 			</header>
 
-			<Verdict baseline={data.baseline} after={data.after} enrolment={data.enrolment} />
+			<Verdict
+				baseline={data.baseline}
+				after={data.after}
+				enrolment={data.enrolment}
+			/>
 
 			<section className="block">
 				<h2>還是錯在這裡</h2>
 				<p className="hint">
-					依錯誤次數排序（佔最多錯誤的排最前）。★ 關鍵步驟，錯了這一次藥大多到不了肺部。
+					依錯誤次數排序（佔最多錯誤的排最前）。★
+					關鍵步驟，錯了這一次藥大多到不了肺部。
 					最右欄為累積佔比：前幾個步驟修好，就能涵蓋 80% 的錯誤。
 				</p>
 				<StepTable rates={data.stepRates} pareto={data.pareto} />

@@ -5,13 +5,14 @@
  */
 import { useEffect, useState } from "react";
 
-import { fetchFollowups, type Followup } from "../../admin/api-client.js";
+import { type Followup, fetchFollowups } from "../../admin/api-client.js";
 
-const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> = {
-	P1: { label: "逾期或今日到期", rank: 0 },
-	P2: { label: "3 天內到期", rank: 1 },
-	P3: { label: "排程中", rank: 2 },
-};
+const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> =
+	{
+		P1: { label: "逾期或今日到期", rank: 0 },
+		P2: { label: "3 天內到期", rank: 1 },
+		P3: { label: "排程中", rank: 2 },
+	};
 
 export function FollowupList() {
 	const [rows, setRows] = useState<Followup[] | null>(null);
@@ -38,7 +39,11 @@ export function FollowupList() {
 	const sorted = [...rows].sort((a, b) => {
 		const ra = a.overdue ? 0 : a.dueSoon ? 1 : 2;
 		const rb = b.overdue ? 0 : b.dueSoon ? 1 : 2;
-		return ra - rb || PRIORITY[a.priority].rank - PRIORITY[b.priority].rank || a.due_end.localeCompare(b.due_end);
+		return (
+			ra - rb ||
+			PRIORITY[a.priority].rank - PRIORITY[b.priority].rank ||
+			a.due_end.localeCompare(b.due_end)
+		);
 	});
 
 	return (
@@ -55,9 +60,14 @@ export function FollowupList() {
 			</thead>
 			<tbody>
 				{sorted.map((f) => (
-					<tr key={f.id} className={f.overdue ? "overdue" : f.dueSoon ? "soon" : undefined}>
+					<tr
+						key={f.id}
+						className={f.overdue ? "overdue" : f.dueSoon ? "soon" : undefined}
+					>
 						<td>
-							<span className={`pri ${f.priority.toLowerCase()}`}>{PRIORITY[f.priority].label}</span>
+							<span className={`pri ${f.priority.toLowerCase()}`}>
+								{PRIORITY[f.priority].label}
+							</span>
 						</td>
 						<td className="mono">…{f.mrn_tail}</td>
 						<td>{f.drug ?? "—"}</td>

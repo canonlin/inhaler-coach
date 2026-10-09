@@ -260,4 +260,41 @@ if (!URL) {
 			assert.equal(after.rows[0].n, before.rows[0].n);
 		});
 	});
+
+	describe("pending AI session", () => {
+		it("returns the camera's verdicts so the pharmacist does not re-enter them", async () => {
+			await api.recordSession({
+				mrn: "T900900900",
+				device: "MDI",
+				completed: true,
+				stages: {
+					"1": { a: 2, c: 0.88, p: "correct", passed: true },
+					"2": { a: 4, c: 0.61, p: "incorrect", passed: false },
+					"3": { a: 3, c: 0.79, p: "correct", passed: true },
+				},
+			});
+			const r = await api.pendingSession({ mrn: "T900900900" });
+			assert.equal(r.ok, true);
+			assert.equal(r.found, true);
+			assert.equal(r.steps["MDI_搖"].value, "正確");
+			assert.equal(r.steps["MDI_吐"].value, "錯誤", "stage 2 failed");
+			// Stage 3 covers three checklist steps.
+			assert.equal(r.steps["MDI_壓"].value, "正確");
+			assert.equal(r.steps["MDI_吸"].value, "正確");
+			assert.equal(r.steps["MDI_閉"].value, "正確");
+			assert.equal(r.steps["MDI_漱"], undefined, "stage 4 was not recorded");
+		});
+
+		it("never invents a verdict for a stage the camera did not score", async () => {
+			const r = await api.pendingSession({ mrn: "T900900900" });
+			assert.equal(r.steps["MDI_漱"], undefined);
+		});
+
+		it("reports not found rather than an error when the patient has not practised", async () => {
+			const r = await api.pendingSession({ mrn: "NOPRACTICE" });
+			assert.equal(r.ok, true);
+			assert.equal(r.found, false);
+			assert.deepEqual(r.steps, {});
+		});
+	});
 }

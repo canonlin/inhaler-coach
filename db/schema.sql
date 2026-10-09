@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS case_steps (
   step_code  text NOT NULL,
   value      text NOT NULL CHECK (value IN ('正確', '錯誤', 'na')),
   note       text NOT NULL DEFAULT '',
+  -- Did the patient actually perform this step in front of the pharmacist?
+  -- Hearing it is not the same as being able to do it, and this is the
+  -- distinction the whole follow-up design rests on.
+  demonstrated boolean NOT NULL DEFAULT false,
   PRIMARY KEY (case_id, step_code)
 );
 
@@ -125,6 +129,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   patient_id  uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   case_id     uuid REFERENCES cases(id) ON DELETE SET NULL,
   device      text NOT NULL DEFAULT 'MDI' CHECK (device IN ('MDI', 'RSP', 'ELP', 'BRZ')),
+  -- Which product the patient practised with. Without it the pharmacist cannot
+  -- tell which checklist steps apply, and the camera result is unusable.
+  drug        text,
   started_at  timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
 );

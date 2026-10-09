@@ -14,13 +14,13 @@ import * as ort from "onnxruntime-web/wasm";
  */
 
 const origin =
-	typeof location !== "undefined" && location.origin
-		? location.origin
-		: "";
+	typeof location !== "undefined" && location.origin ? location.origin : "";
 const basePath = import.meta.env.BASE_URL || "/";
 const base = origin ? new URL(basePath, origin).href : basePath;
 
-ort.env.wasm.wasmPaths = origin ? new URL("ort/", base).href : `${basePath}ort/`;
+ort.env.wasm.wasmPaths = origin
+	? new URL("ort/", base).href
+	: `${basePath}ort/`;
 ort.env.wasm.numThreads = 1;
 
 const MODEL_URL = origin

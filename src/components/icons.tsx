@@ -147,11 +147,7 @@ export function IconVolume({ className = "w-4 h-4" }: { className?: string }) {
 	);
 }
 
-export function IconVolumeX({
-	className = "w-4 h-4",
-}: {
-	className?: string;
-}) {
+export function IconVolumeX({ className = "w-4 h-4" }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"

@@ -131,17 +131,13 @@ export class CoachingStageEvaluator {
 			return {
 				ok: remainingMs === 0,
 				msg:
-					remainingMs === 0
-						? "壓吸步驟完成，憋氣倒數也完成了！"
-						: holdGuidance,
+					remainingMs === 0 ? "壓吸步驟完成，憋氣倒數也完成了！" : holdGuidance,
 			};
 		}
 
-		const isActuating = (observation.pressing ?? false) || (observation.inhaling ?? false);
-		const progress = this.inhaleGate.update(
-			isActuating,
-			timestamp,
-		);
+		const isActuating =
+			(observation.pressing ?? false) || (observation.inhaling ?? false);
+		const progress = this.inhaleGate.update(isActuating, timestamp);
 		if (progress.passed) this.holdStartedAt = timestamp;
 
 		return {

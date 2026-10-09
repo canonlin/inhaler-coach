@@ -74,6 +74,9 @@ export async function sendSessionData() {
 		return { sent: true, record: json };
 	} catch (e) {
 		state.sessionDataSent = false;
-		return { sent: false, why: e instanceof Error ? e.message : "network error" };
+		return {
+			sent: false,
+			why: e instanceof Error ? e.message : "network error",
+		};
 	}
 }

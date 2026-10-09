@@ -30,7 +30,9 @@ export function Verdict({
 						<p className="verdict-number">
 							{pct(baseline.errorRate)}
 							<span className="arrow">→</span>
-							<span className={delta && delta > 0 ? "good" : "flat"}>{pct(after.errorRate)}</span>
+							<span className={delta && delta > 0 ? "good" : "flat"}>
+								{pct(after.errorRate)}
+							</span>
 						</p>
 						<p className="verdict-note">
 							{delta && delta > 0
@@ -43,14 +45,19 @@ export function Verdict({
 					</>
 				) : (
 					<p className="verdict-note">
-						需要同時有改善前與改善後資料才能比較。目前改善前 {baseline.cases} 例、改善後{" "}
-						{after.cases} 例。
+						需要同時有改善前與改善後資料才能比較。目前改善前 {baseline.cases}{" "}
+						例、改善後 {after.cases} 例。
 					</p>
 				)}
 			</div>
 
 			<div className="verdict-side">
-				<Metric label="關鍵錯誤率" before={baseline.criticalRate} after={after.criticalRate} delta={critDelta} />
+				<Metric
+					label="關鍵錯誤率"
+					before={baseline.criticalRate}
+					after={after.criticalRate}
+					delta={critDelta}
+				/>
 				<Metric
 					label="收案數"
 					before={baseline.cases}
@@ -94,7 +101,9 @@ function Metric({
 			<span className="metric-value">
 				{show(before)}
 				<span className="arrow">→</span>
-				<span className={same ? "flat" : better ? "good" : "bad"}>{show(after)}</span>
+				<span className={same ? "flat" : better ? "good" : "bad"}>
+					{show(after)}
+				</span>
 			</span>
 			{delta != null && !same && (
 				<span className="metric-delta">

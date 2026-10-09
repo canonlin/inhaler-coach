@@ -23,6 +23,7 @@ const ROUTES = {
 	"POST /api/sessions": "recordSession",
 	"GET /api/reference": "reference",
 	"GET /api/followups": "followups",
+	"GET /api/sessions/pending": "pendingSession",
 };
 
 export default async function handler(req, res) {

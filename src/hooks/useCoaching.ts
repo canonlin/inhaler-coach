@@ -6,7 +6,7 @@ import { useWebcamStream } from "./useWebcamStream";
 import { useYouTubePlayer } from "./useYouTubePlayer";
 
 export type ModelState = "idle" | "loading" | "ready" | "error";
- 
+
 const MODEL_LOAD_TIMEOUT_MS = 60_000;
 const CAMERA_START_TIMEOUT_MS = 15_000;
 
@@ -191,9 +191,7 @@ export function useCoaching() {
 	const showRetry = nav.stagePassed && nav.phase === "ai";
 	const showNext = nav.stagePassed && nav.stageIdx === 0;
 	const nextBtnText =
-		nav.stageIdx === 0
-			? (stageConfig.manualBtnText || "開始闖關")
-			: "進入下一關";
+		nav.stageIdx === 0 ? stageConfig.manualBtnText || "開始闖關" : "進入下一關";
 
 	useEffect(() => {
 		if (nav.screen !== "stage") {

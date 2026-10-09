@@ -35,9 +35,7 @@ export class MediaPipeBackend extends DetectionBackend {
 		}
 
 		const origin =
-			typeof location !== "undefined" && location.origin
-				? location.origin
-				: "";
+			typeof location !== "undefined" && location.origin ? location.origin : "";
 		const basePath = import.meta.env.BASE_URL || "/";
 		const base = origin ? new URL(basePath, origin).href : basePath;
 
@@ -56,43 +54,42 @@ export class MediaPipeBackend extends DetectionBackend {
 
 		const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
-		const [poseLandmarker, faceLandmarker, handLandmarker] =
-			await Promise.all([
-				PoseLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath: posePath,
-						delegate: "CPU",
-					},
-					runningMode: "VIDEO",
-					numPoses: 1,
-					minPoseDetectionConfidence: 0.5,
-					minPosePresenceConfidence: 0.5,
-					minTrackingConfidence: 0.5,
-				}),
-				FaceLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath: facePath,
-						delegate: "CPU",
-					},
-					runningMode: "VIDEO",
-					numFaces: 1,
-					minFaceDetectionConfidence: 0.5,
-					minFacePresenceConfidence: 0.5,
-					minTrackingConfidence: 0.5,
-					outputFaceBlendshapes: true,
-				}),
-				HandLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath: handPath,
-						delegate: "CPU",
-					},
-					runningMode: "VIDEO",
-					numHands: 1,
-					minHandDetectionConfidence: 0.5,
-					minHandPresenceConfidence: 0.5,
-					minTrackingConfidence: 0.5,
-				}),
-			]);
+		const [poseLandmarker, faceLandmarker, handLandmarker] = await Promise.all([
+			PoseLandmarker.createFromOptions(vision, {
+				baseOptions: {
+					modelAssetPath: posePath,
+					delegate: "CPU",
+				},
+				runningMode: "VIDEO",
+				numPoses: 1,
+				minPoseDetectionConfidence: 0.5,
+				minPosePresenceConfidence: 0.5,
+				minTrackingConfidence: 0.5,
+			}),
+			FaceLandmarker.createFromOptions(vision, {
+				baseOptions: {
+					modelAssetPath: facePath,
+					delegate: "CPU",
+				},
+				runningMode: "VIDEO",
+				numFaces: 1,
+				minFaceDetectionConfidence: 0.5,
+				minFacePresenceConfidence: 0.5,
+				minTrackingConfidence: 0.5,
+				outputFaceBlendshapes: true,
+			}),
+			HandLandmarker.createFromOptions(vision, {
+				baseOptions: {
+					modelAssetPath: handPath,
+					delegate: "CPU",
+				},
+				runningMode: "VIDEO",
+				numHands: 1,
+				minHandDetectionConfidence: 0.5,
+				minHandPresenceConfidence: 0.5,
+				minTrackingConfidence: 0.5,
+			}),
+		]);
 
 		this.poseLandmarker = poseLandmarker;
 		this.faceLandmarker = faceLandmarker;

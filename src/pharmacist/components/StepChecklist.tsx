@@ -1,6 +1,7 @@
 /**
- * The checklist. Steps and their wording come from the spine, so this component
- * decides nothing about which steps exist or which are critical.
+ * The steps nothing else can judge. For pMDI that is two — opening the cap and
+ * sealing the lips. Everything the camera covers is confirmed as a block
+ * elsewhere, so this list stays short on purpose.
  */
 import type { Drug } from "../../admin/api-client";
 import type { Step } from "../../domain/steps.js";
@@ -10,35 +11,37 @@ export function StepChecklist({
 	drug,
 	value,
 	onChange,
+	demonstrated,
+	onDemonstrate,
 }: {
 	steps: Step[];
 	drug: Drug | null;
 	value: Record<string, "正確" | "錯誤">;
 	onChange: (next: Record<string, "正確" | "錯誤">) => void;
+	demonstrated: Record<string, boolean>;
+	onDemonstrate: (next: Record<string, boolean>) => void;
 }) {
-	if (!drug) {
-		return <p className="empty">先選擇吸入劑，這裡會列出該品項適用的操作步驟。</p>;
-	}
-	if (!steps.length) {
-		return <p className="empty">這個品項沒有可評的步驟。</p>;
-	}
-
+	if (!drug || !steps.length) return null;
 	const done = steps.filter((s) => value[s.code]).length;
 
 	return (
 		<div className="checklist">
 			<div className="checklist-head">
-				<h2>{drug.label}</h2>
-				<span className="chip">{drug.hasIcs ? "含類固醇 · 需漱口" : "不含類固醇"}</span>
-				<span className="chip">{DEVICES_LABEL[drug.device] ?? drug.device}</span>
-				<span className="muted">{done}／{steps.length}</span>
+				<h2>請你看這 {steps.length} 步</h2>
+				<span className="muted">
+					{done}／{steps.length}
+				</span>
 			</div>
+			<p className="hint">相機看不到這幾步。請病人當場示範，再記結果。</p>
 
 			<ol className="ck-list">
 				{steps.map((step) => {
 					const picked = value[step.code];
 					return (
-						<li key={step.code} className={`ck${picked ? " done" : ""}${picked === "錯誤" ? " wrong" : ""}`}>
+						<li
+							key={step.code}
+							className={`ck${picked ? " done" : ""}${picked === "錯誤" ? " wrong" : ""}`}
+						>
 							<span className="ck-char" aria-hidden="true">
 								{step.char}
 							</span>
@@ -50,7 +53,7 @@ export function StepChecklist({
 									</span>
 								)}
 							</span>
-							<span className="seg" role="group" aria-label={`${step.char} 判定`}>
+							<span className="seg">
 								<button
 									type="button"
 									className="ok"
@@ -68,6 +71,19 @@ export function StepChecklist({
 									錯誤
 								</button>
 							</span>
+							<label className="demo">
+								<input
+									type="checkbox"
+									checked={Boolean(demonstrated[step.code])}
+									onChange={(e) =>
+										onDemonstrate({
+											...demonstrated,
+											[step.code]: e.target.checked,
+										})
+									}
+								/>
+								示範過
+							</label>
 						</li>
 					);
 				})}
@@ -75,10 +91,3 @@ export function StepChecklist({
 		</div>
 	);
 }
-
-const DEVICES_LABEL: Record<string, string> = {
-	MDI: "定量噴霧",
-	RSP: "軟霧",
-	ELP: "乾粉 Ellipta",
-	BRZ: "乾粉 Breezhaler",
-};

@@ -5,6 +5,7 @@
  * PHI rule: a response may carry mrn_tail, never mrn_hash.
  */
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
+import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { hashMrn, mrnTail } from "./db.mjs";
@@ -74,9 +75,14 @@ export function makeRoutes({ query, salt }) {
 		if (!PHARMACISTS.includes(body.pharmacist)) bad(`unknown pharmacist ${body.pharmacist}`);
 
 		const steps = body.steps ?? {};
+		const demonstrated = body.demonstrated ?? {};
 		for (const code of Object.keys(steps)) {
 			if (!ALL_STEP_CODES.includes(code)) bad(`unknown step ${code}`);
 			if (!["正確", "錯誤", "na"].includes(steps[code])) bad(`bad value for ${code}`);
+		}
+		for (const code of Object.keys(demonstrated)) {
+			if (!ALL_STEP_CODES.includes(code)) bad(`unknown step ${code}`);
+			if (typeof demonstrated[code] !== "boolean") bad(`demonstrated must be boolean for ${code}`);
 		}
 		const knowledge = body.knowledge ?? {};
 		for (const [k, v] of Object.entries(knowledge)) {
@@ -118,8 +124,9 @@ export function makeRoutes({ query, salt }) {
 			   -- mrn_tail: a sibling CTE reading the cases table sees the old snapshot.
 			   RETURNING id, patient_id, record_id, case_date
 			 ), ins_s AS (
-			   INSERT INTO case_steps (case_id, step_code, value, note)
-			   SELECT ins_c.id, e.key, e.value, COALESCE($22::jsonb ->> e.key, '')
+			   INSERT INTO case_steps (case_id, step_code, value, note, demonstrated)
+			   SELECT ins_c.id, e.key, e.value, COALESCE($22::jsonb ->> e.key, ''),
+			          COALESCE(($29::jsonb ->> e.key)::boolean, false)
 			   FROM ins_c, jsonb_each_text($21::jsonb) AS e(key, value)
 			   RETURNING 1
 			 ), ins_k AS (
@@ -180,6 +187,7 @@ export function makeRoutes({ query, salt }) {
 				// A routine window ends six weeks after the critical-error one.
 				followup ? (hasCritical ? 14 : 42) : 0,
 				followup?.priority ?? null,
+				JSON.stringify(demonstrated),
 			],
 		);
 
@@ -245,6 +253,10 @@ export function makeRoutes({ query, salt }) {
 		for (const k of Object.keys(stages)) {
 			if (!/^[0-4]$/.test(k)) bad(`stage must be 0-4, got ${k}`);
 		}
+		// The drug must be the spreadsheet key. Storing a display label here
+		// would leave the pharmacist's checklist unable to resolve it, so it is
+		// rejected rather than stored and silently ignored later.
+		if (body.drug != null && body.drug !== "") drugOf(body.drug);
 		const { rows } = await query(
 			`WITH ins_p AS (
 			   INSERT INTO patients (mrn_hash, mrn_tail, age_band)
@@ -252,8 +264,8 @@ export function makeRoutes({ query, salt }) {
 			   ON CONFLICT (mrn_hash) DO UPDATE SET age_band = patients.age_band
 			   RETURNING id
 			 ), ins_s AS (
-			   INSERT INTO sessions (patient_id, device, completed_at)
-			   SELECT id,$4,CASE WHEN $5 THEN now() END FROM ins_p RETURNING id
+			   INSERT INTO sessions (patient_id, device, drug, completed_at)
+			   SELECT id,$4,$7,CASE WHEN $5 THEN now() END FROM ins_p RETURNING id
 			 ), ins_st AS (
 			   INSERT INTO session_stages (session_id, stage, attempts, ai_confidence,
 			                              pharmacist, passed)
@@ -274,6 +286,7 @@ export function makeRoutes({ query, salt }) {
 				body.device ?? "MDI",
 				Boolean(body.completed),
 				JSON.stringify(stages),
+				body.drug ?? null,
 			],
 		);
 		return { ok: true, ...rows[0] };
@@ -282,6 +295,46 @@ export function makeRoutes({ query, salt }) {
 	/** GET /api/reference — the spine, so a client never hardcodes it. */
 	async function reference() {
 		return { ok: true, drugs: ALL_DRUGS, pharmacists: PHARMACISTS, knowledge: KNOWLEDGE, steps: ALL_STEP_CODES };
+	}
+
+	/**
+	 * GET /api/sessions/pending?mrn= — the pharmacist types the record number and
+	 * the camera's results come back already filled in. This is what removes the
+	 * eight taps from the form.
+	 */
+	async function pendingSession(q = {}) {
+		const mrn = String(q.mrn ?? "").trim();
+		if (!mrn) bad("mrn is required");
+		const { rows } = await query(
+			`SELECT s.id, s.device, s.drug, s.started_at,
+			        COALESCE(jsonb_object_agg(st.stage,
+			          jsonb_build_object('passed', st.passed,
+			                             'attempts', st.attempts,
+			                             'ai_confidence', st.ai_confidence))
+			        FILTER (WHERE st.stage IS NOT NULL), '{}'::jsonb) AS stages
+			 FROM sessions s
+			 JOIN patients p ON p.id = s.patient_id
+			 LEFT JOIN session_stages st ON st.session_id = s.id
+			 WHERE p.mrn_hash = $1
+			 GROUP BY s.id
+			 ORDER BY s.started_at DESC
+			 LIMIT 1`,
+			[hashMrn(mrn, salt)],
+		);
+		if (!rows[0]) return { ok: true, found: false, steps: {} };
+
+		const steps = {};
+		for (const [stage, result] of Object.entries(rows[0].stages)) {
+			Object.assign(steps, stageVerdicts(Number(stage), result));
+		}
+		return {
+			ok: true,
+			found: true,
+			device: rows[0].device,
+			drug: rows[0].drug ?? undefined,
+			startedAt: rows[0].started_at,
+			steps,
+		};
 	}
 
 	/** GET /api/followups — the pharmacist's open queue. */
@@ -306,7 +359,7 @@ export function makeRoutes({ query, salt }) {
 		};
 	}
 
-	return { health, createCase, listCases, summary, recordSession, reference, followups };
+	return { health, createCase, listCases, summary, recordSession, reference, followups, pendingSession };
 }
 
 function addDays(iso, n) {

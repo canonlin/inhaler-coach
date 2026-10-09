@@ -429,7 +429,8 @@ export function useDetectionLoop({
 											});
 											stepResult = evaluator.evaluate(res, now);
 											if (frameCount % 30 === 0) {
-												const s = (res?.shoulder as Record<string, unknown>) || {};
+												const s =
+													(res?.shoulder as Record<string, unknown>) || {};
 												console.log(
 													"  step2:",
 													`ready:${res?.ready} exhaling:${res?.exhaling} isStill:${s.isStill} yDrop:${typeof s.yDrop === "number" ? s.yDrop.toFixed(3) : s.yDrop} yaw:${typeof s.headTurn === "number" ? s.headTurn.toFixed(3) : s.headTurn} turned:${s.isHeadTurned} shrugging:${res?.shrugging}`,

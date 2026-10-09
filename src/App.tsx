@@ -1,6 +1,6 @@
 import { Admin } from "./admin/Admin";
-import { Pharmacist } from "./pharmacist/Pharmacist";
 import { useCoaching } from "./hooks/useCoaching";
+import { Pharmacist } from "./pharmacist/Pharmacist";
 import { IntroScreen } from "./screens/IntroScreen";
 import { StageScreen } from "./screens/StageScreen";
 import { SuccessScreen } from "./screens/SuccessScreen";
@@ -9,13 +9,17 @@ const baseUrl = import.meta.env.BASE_URL;
 const introBackground = `${baseUrl}inhaler_bg.jpg?v=20260818_left_nozzle_final`;
 
 export function App() {
+	// Every hook runs before any early return. Returning first would make the
+	// hook count depend on the route, which React treats as a hooks violation.
+	const c = useCoaching();
+
 	// The pharmacist and management ends sit on their own paths so the patient
 	// coaching loop keeps its zero-install, zero-login entry at "/".
-	const route = window.location.pathname.replace(baseUrl, "").replace(/\/+$/, "");
+	const route = window.location.pathname
+		.replace(baseUrl, "")
+		.replace(/\/+$/, "");
 	if (route === "admin") return <Admin />;
 	if (route === "pharmacist") return <Pharmacist />;
-
-	const c = useCoaching();
 
 	if (c.screen === "intro") {
 		return (

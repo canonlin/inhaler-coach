@@ -104,7 +104,6 @@ export class ExhaleDetector {
 		};
 	}
 
-
 	reset() {
 		this.shoulderTracker.reset();
 		this.faceAcquired = false;

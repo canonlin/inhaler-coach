@@ -72,7 +72,9 @@ function d(name, label, device, hasIcs, needsShake, doses, note) {
 }
 
 /** @type {Record<string, Drug>} */
-export const DRUG_BY_NAME = Object.fromEntries(ALL_DRUGS.map((x) => [x.name, x]));
+export const DRUG_BY_NAME = Object.fromEntries(
+	ALL_DRUGS.map((x) => [x.name, x]),
+);
 
 /**
  * @param {string} name spreadsheet key

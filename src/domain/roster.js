@@ -3,7 +3,14 @@
  */
 
 /** @type {string[]} */
-export const PHARMACISTS = ["黃永成", "林家薐", "黃詩婷", "林亭君", "曾彥哲", "劉士宏"];
+export const PHARMACISTS = [
+	"黃永成",
+	"林家薐",
+	"黃詩婷",
+	"林亭君",
+	"曾彥哲",
+	"劉士宏",
+];
 
 /** @type {string[]} */
 export const CAMPUSES = ["虎尾", "斗六"];

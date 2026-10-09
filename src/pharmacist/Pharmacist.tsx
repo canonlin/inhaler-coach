@@ -22,13 +22,12 @@ export function Pharmacist() {
 
 	return (
 		<div className="rx">
-			<nav className="rx-tabs" role="tablist" aria-label="藥師工作區">
+			<nav className="rx-tabs" aria-label="藥師工作區">
 				{TABS.map((t) => (
 					<button
 						key={t.id}
-						role="tab"
 						type="button"
-						aria-selected={tab === t.id}
+						aria-current={tab === t.id ? "page" : undefined}
 						onClick={() => setTab(t.id)}
 					>
 						{t.label}

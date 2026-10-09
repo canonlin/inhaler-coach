@@ -7,10 +7,17 @@
  * QCC reviewer can go from "this step is bad" to "fixing these six covers 80%"
  * without scrolling to a second block.
  */
-import type { StepRate } from "../api-client";
-import { STEP_BY_CODE } from "../../domain/steps.js";
 
-export function StepTable({ rates, pareto }: { rates: StepRate[]; pareto: StepRate[] }) {
+import { STEP_BY_CODE } from "../../domain/steps.js";
+import type { StepRate } from "../api-client";
+
+export function StepTable({
+	rates,
+	pareto,
+}: {
+	rates: StepRate[];
+	pareto: StepRate[];
+}) {
 	if (!rates.length) return <p className="empty">尚無資料。</p>;
 
 	// Ordered by COUNT, matching the cumulative column. Sorting by rate while
@@ -51,8 +58,12 @@ export function StepTable({ rates, pareto }: { rates: StepRate[]; pareto: StepRa
 										★
 									</span>
 								)}
-								<span className="step-char">{r.stepCode.split("_")[1] ?? r.stepCode}</span>
-								<span className="step-text">{STEP_BY_CODE[r.stepCode]?.text ?? ""}</span>
+								<span className="step-char">
+									{r.stepCode.split("_")[1] ?? r.stepCode}
+								</span>
+								<span className="step-text">
+									{STEP_BY_CODE[r.stepCode]?.text ?? ""}
+								</span>
 							</th>
 							<td className="num">{Math.round(r.errorRate * 100)}%</td>
 							<td className="num muted">

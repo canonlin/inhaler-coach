@@ -23,7 +23,9 @@ export function SuccessScreen({ onRestart }: SuccessScreenProps) {
 	// Report the coaching result once, when the patient finishes. Failure is
 	// silent by design: the patient already succeeded, and a blocked network
 	// must not turn that into an error screen.
-	const [reportState, setReportState] = useState<"idle" | "sent" | "skipped">("idle");
+	const [reportState, setReportState] = useState<"idle" | "sent" | "skipped">(
+		"idle",
+	);
 
 	useEffect(() => {
 		let live = true;

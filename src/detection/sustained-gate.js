@@ -33,7 +33,7 @@ export class SustainedGate {
 				? 0
 				: Math.max(
 						0,
-						(active ? timestamp : this.lastActiveAt ?? timestamp) -
+						(active ? timestamp : (this.lastActiveAt ?? timestamp)) -
 							this.startedAt,
 					);
 		return {

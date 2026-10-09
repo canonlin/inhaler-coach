@@ -23,7 +23,7 @@ export const SHOULDER_THRESHOLDS = {
 	exhaleHeadTurnDynamic: 0.15,
 	exhaleMaxHorizontalDrift: 0.12,
 	historyWindowMs: 5000,
-	baselineAlpha: 0.20,
+	baselineAlpha: 0.2,
 	smoothAlpha: 0.35,
 };
 
@@ -281,7 +281,7 @@ export class ShoulderKinematicsTracker {
 		const rawSpan = Math.hypot(ls.x - rs.x, ls.y - rs.y);
 
 		// Span boundary check:
-		if (rawSpan < 0.10) {
+		if (rawSpan < 0.1) {
 			return {
 				valid: true,
 				framed: false,
@@ -333,7 +333,8 @@ export class ShoulderKinematicsTracker {
 		this.smoothedX =
 			lastSmoothX === null
 				? rawX
-				: lastSmoothX * (1 - this.cfg.smoothAlpha) + rawX * this.cfg.smoothAlpha;
+				: lastSmoothX * (1 - this.cfg.smoothAlpha) +
+					rawX * this.cfg.smoothAlpha;
 
 		const stepDiff =
 			lastSmooth === null ? 0 : Math.abs(this.smoothedY - lastSmooth) / span;
@@ -439,11 +440,7 @@ export class ShoulderKinematicsTracker {
 		const isStable = stepDiff <= this.cfg.stabilityMaxStep;
 		const isDropping = dropFromPeak >= this.cfg.exhaleDropThreshold;
 
-		const headYaw = calculateHeadYaw(
-			poseLandmarks,
-			this.smoothedX,
-			span,
-		);
+		const headYaw = calculateHeadYaw(poseLandmarks, this.smoothedX, span);
 
 		// Physiological exhalation dynamics supporting both 頭正 (Head Straight) and 偏頭向側 (Head Turned to Side):
 		// 1. 偏頭向側 (Head Turned Sideways Exhale - 藥師衛教影片那樣，轉向側面吐氣避開吸入器):
@@ -457,7 +454,7 @@ export class ShoulderKinematicsTracker {
 			!headYaw.isTurned &&
 			((yDrop >= (this.cfg.exhaleDropThreshold || 0.055) &&
 				headDistRange >= (this.cfg.exhaleHeadDistThreshold || 0.045)) ||
-			yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.075)) &&
+				yDrop >= (this.cfg.exhaleProminentDropThreshold || 0.075)) &&
 			!isElevated;
 
 		// 3. 顯著深吐氣 (Prominent Exhale):
@@ -473,7 +470,7 @@ export class ShoulderKinematicsTracker {
 		const isMaintainingExhale =
 			(isHeadTurnExhale && headYaw.isTurned) ||
 			((isHeadStraightExhale || isProminentDrop) &&
-				(this.smoothedY - minY) / span >= 0.030);
+				(this.smoothedY - minY) / span >= 0.03);
 
 		// Motionless baseline: user is motionless at resting baseline with NO exhalation drop and NOT turned.
 		// Resting forward posture or tilting head ("偏著頭") must NEVER be considered exhaling.

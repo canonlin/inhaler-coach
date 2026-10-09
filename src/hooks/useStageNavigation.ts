@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { STAGES, getInitialStageIdx } from "../config/stages.js";
+import { getInitialStageIdx, STAGES } from "../config/stages.js";
 
 export { getInitialStageIdx };
 

@@ -40,7 +40,13 @@ export class PressInhaleDetector {
 	 * @param {Array<{x:number, y:number, visibility?:number}>|null} [params.poseLandmarks]
 	 * @param {number} [params.timestamp=0]
 	 */
-	detect({ device, mouthPoint, handPoint = null, poseLandmarks = null, timestamp = 0 }) {
+	detect({
+		device,
+		mouthPoint,
+		handPoint = null,
+		poseLandmarks = null,
+		timestamp = 0,
+	}) {
 		if (mouthPoint != null) {
 			this.lastMouthPoint = mouthPoint;
 			this.lastMouthTimestamp = timestamp;
@@ -110,9 +116,7 @@ export class PressInhaleDetector {
 			this.shoulderTracker.lockBaseline();
 		}
 
-		const steady = present
-			? (device?.steadiness ?? 0) >= MIN_STEADY
-			: atMouth;
+		const steady = present ? (device?.steadiness ?? 0) >= MIN_STEADY : atMouth;
 
 		// Correct actuation: device or hand at mouth, with shoulder elevation confirmation or steady position
 		const pressing = atMouth && (steady || shoulder.isElevated);

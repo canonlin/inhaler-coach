@@ -82,9 +82,9 @@ export function isPursedLips(landmarks, blendshapes = null) {
 	// z-coordinates CANNOT be used without baseline subtraction.
 	// Active pursed-lip blowing strictly requires:
 	// A. Strong horizontal contraction (corners pulled inwards)
-	const isNarrowPucker = normWidth < 0.42 && mar <= 0.50;
+	const isNarrowPucker = normWidth < 0.42 && mar <= 0.5;
 	// B. Whistle / round blowing mouth: narrow mouth with pronounced vertical aperture
-	const isWhistle = outerAspect >= 0.45 && normWidth < 0.50 && mar >= 0.10;
+	const isWhistle = outerAspect >= 0.45 && normWidth < 0.5 && mar >= 0.1;
 	// C. Puckered slit blowing: deliberate blowing slit with contracted mouth width
 	const isPuckeredSlit = mar >= 0.04 && mar <= 0.35 && normWidth < 0.42;
 
@@ -102,4 +102,3 @@ export function extractFaceFeatures(landmarks, blendshapes = null) {
 		pursedLips: isPursedLips(landmarks, blendshapes),
 	};
 }
-
