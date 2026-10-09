@@ -60,3 +60,16 @@ hosts the research data collector.
 
 Live sheet URLs, deployment ids, session transcripts, and study media live
 outside the repository. Record the URL and the date consulted, not the content.
+
+## Task records
+
+The handoff record and the acceptance table are task-local, so they live outside
+the repository, under the session's temporary directory:
+
+```
+${TMPDIR}opencode/inhaler-v2/
+```
+
+`progress.md` there is the continuity record for this project; read it first when
+resuming. `checks.md` there carries one row per requirement with its evidence.
+Durable facts belong in this file instead. Do not commit either file.

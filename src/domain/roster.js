@@ -2,17 +2,20 @@
  * Who collects the cases, and what the pharmacist asks the patient.
  */
 
-/** Pharmacists who record cases at NTUH Yunlin. Display name only, no staff id. */
+/** @type {string[]} */
 export const PHARMACISTS = ["黃永成", "林家薐", "黃詩婷", "林亭君", "曾彥哲", "劉士宏"];
 
-/** Campuses the QCC covers. */
+/** @type {string[]} */
 export const CAMPUSES = ["虎尾", "斗六"];
+
+/** @typedef {{code: string, label: string}} Factor */
 
 /**
  * Patient factors that change the intervention. The `code` is what the
  * database stores; `label` is what the pharmacist picks. Order is the
  * display order.
  */
+/** @type {Factor[]} */
 export const FACTORS = [
 	{ code: "hand", label: "手部無力／關節問題" },
 	{ code: "cog", label: "記憶或認知退化" },
@@ -102,6 +105,7 @@ export const KNOWLEDGE = [
  * Languages the education task card offers. 繁體中文 and 台語 have written
  * guidance; the other three point at the society's video library.
  */
+/** @type {{code: string, label: string}[]} */
 export const LANGUAGES = [
 	{ code: "zh", label: "國語" },
 	{ code: "tw", label: "台語" },

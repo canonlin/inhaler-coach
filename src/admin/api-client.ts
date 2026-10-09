@@ -96,3 +96,30 @@ export interface Followup {
 	overdue: boolean;
 	dueSoon: boolean;
 }
+/** POST /api/cases — one transaction for the case and all of its results. */
+export interface NewCase {
+	mrn: string;
+	caseDate: string;
+	pharmacist: string;
+	campus: string;
+	timepoint: string;
+	qccStage: string;
+	drug: string;
+	steps: Record<string, "正確" | "錯誤" | "na">;
+	knowledge?: Record<string, "對" | "不對">;
+	factors?: string[];
+	caseType?: string;
+	stepNotes?: Record<string, string>;
+	measurements?: Record<string, string | number>;
+}
+
+export async function createCase(body: NewCase) {
+	const res = await fetch(`${base}/api/cases`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	const json = await res.json();
+	if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as { ok: true; record_id: string; mrn_tail: string; steps: number; knowledge: number; measures: number };
+}

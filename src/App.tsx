@@ -1,4 +1,5 @@
 import { Admin } from "./admin/Admin";
+import { Pharmacist } from "./pharmacist/Pharmacist";
 import { useCoaching } from "./hooks/useCoaching";
 import { IntroScreen } from "./screens/IntroScreen";
 import { StageScreen } from "./screens/StageScreen";
@@ -8,11 +9,11 @@ const baseUrl = import.meta.env.BASE_URL;
 const introBackground = `${baseUrl}inhaler_bg.jpg?v=20260818_left_nozzle_final`;
 
 export function App() {
-	// The management end sits on its own path so the patient coaching loop keeps
-	// its zero-install, zero-login entry at "/".
-	if (window.location.pathname.replace(baseUrl, "").replace(/\/+$/, "") === "admin") {
-		return <Admin />;
-	}
+	// The pharmacist and management ends sit on their own paths so the patient
+	// coaching loop keeps its zero-install, zero-login entry at "/".
+	const route = window.location.pathname.replace(baseUrl, "").replace(/\/+$/, "");
+	if (route === "admin") return <Admin />;
+	if (route === "pharmacist") return <Pharmacist />;
 
 	const c = useCoaching();
 

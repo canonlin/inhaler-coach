@@ -118,13 +118,13 @@ export const DEVICES = Object.fromEntries(DEVICE_LIST.map((d) => [d.kind, d]));
 /** @type {DeviceKind[]} */
 export const DEVICE_KINDS = DEVICE_LIST.map((d) => d.kind);
 
-/** Every step, grouped by device. */
+/** @type {Record<DeviceKind, Step[]>} */
 export const STEPS_BY_DEVICE = Object.fromEntries(DEVICE_LIST.map((d) => [d.kind, d.steps]));
 
-/** All 33 step codes. */
+/** @type {string[]} */
 export const ALL_STEP_CODES = DEVICE_LIST.flatMap((d) => d.steps.map((st) => st.code));
 
-/** Codes of the ★ critical steps. */
+/** @type {string[]} */
 export const CRITICAL_STEP_CODES = DEVICE_LIST.flatMap((d) =>
 	d.steps.filter((st) => st.critical).map((st) => st.code),
 );
