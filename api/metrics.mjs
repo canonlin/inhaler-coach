@@ -87,9 +87,14 @@ export function stepErrorRates(rows) {
 /**
  * Pareto over step-level errors: the few steps that cause most of the wrong
  * steps. `share` is the cumulative fraction, so the 80% line is readable.
+ *
+ * Sorted by COUNT, not by rate. A cumulative curve over rows ordered by
+ * something else is not a Pareto, and the 80% reading becomes meaningless.
  */
 export function pareto(rows) {
-	const rates = stepErrorRates(rows);
+	const rates = stepErrorRates(rows)
+		.filter((r) => r.wrong > 0)
+		.sort((a, b) => b.wrong - a.wrong || a.stepCode.localeCompare(b.stepCode));
 	const total = rates.reduce((n, r) => n + r.wrong, 0);
 	let cumulative = 0;
 	return rates.map((r) => {

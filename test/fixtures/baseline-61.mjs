@@ -127,28 +127,33 @@ export const BASELINE_WRONG = Object.values(BASELINE.steps).reduce((n, s) => n +
  * Rows in the shape the metrics module consumes, synthesised from the observed
  * per-step counts. Deterministic: no RNG, so a failing test is reproducible.
  *
- * Case `k` is assessed on step `c` exactly when `k < c.a`, and gets that step
+ * Each case uses exactly one device, because a patient takes one inhaler. Within
+ * a device, case `k` is assessed on step `c` exactly when `k < c.a` and gets it
  * wrong when `k < c.w`. That reproduces every per-step count and the cohort size
  * by construction, without inventing a per-case history that was never published.
  *
  * @returns {{qccStage: string, device: string, drug: string, steps: Record<string,string>}[]}
  */
 export function baselineRows() {
-	const rows = Array.from({ length: BASELINE.n }, () => ({
-		qccStage: "改善前",
-		device: "",
-		drug: "",
-		steps: {},
-	}));
+	// byDevice is keyed by the clinical family (MDI/SMI/DPI); step codes use the
+	// device code (MDI/RSP/ELP). Map once, here.
+	const CASES = { MDI: BASELINE.byDevice.MDI, RSP: BASELINE.byDevice.SMI, ELP: BASELINE.byDevice.DPI };
+	const byDevice = {};
+	const rows = [];
+	for (const [device, n] of Object.entries(CASES)) {
+		byDevice[device] = [];
+		for (let k = 0; k < n; k += 1) {
+			const row = { qccStage: "改善前", device, drug: device, steps: {} };
+			rows.push(row);
+			byDevice[device].push(row);
+		}
+	}
 
 	for (const [stepCode, { a, w }] of Object.entries(BASELINE.steps)) {
 		if (a === 0) continue;
-		const device = stepCode.split("_")[0];
+		const bucket = byDevice[stepCode.split("_")[0]] ?? [];
 		for (let k = 0; k < a; k += 1) {
-			const row = rows[k];
-			row.device ||= device;
-			row.drug ||= device;
-			row.steps[stepCode] = k < w ? "錯誤" : "正確";
+			if (bucket[k]) bucket[k].steps[stepCode] = k < w ? "錯誤" : "正確";
 		}
 	}
 	return rows;

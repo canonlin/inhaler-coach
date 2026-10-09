@@ -21,7 +21,12 @@
     "prepush": "npm run check:all",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
-    "format": "biome format --write src/"
+    "format": "biome format --write src/",
+    "test:api": "node --test test/api-integration.test.js",
+    "test:db": "node scripts/migrate.mjs",
+    "dev:api": "node scripts/dev-api.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "render:admin": "node scripts/render-admin.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
@@ -40,6 +45,7 @@
     "lucide-react": "^1.31.0",
     "motion": "^13.1.0",
     "onnxruntime-web": "^1.27.0",
+    "pg": "^8.23.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0"

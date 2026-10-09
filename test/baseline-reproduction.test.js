@@ -161,12 +161,19 @@ describe("acceptance: what the step counts cannot pin down", () => {
 		assert.equal(s.totalSteps, 457, "step-level counts are fully determined");
 		assert.equal(s.wrongSteps, 93, "step-level counts are fully determined");
 
-		// The nesting used here concentrates errors, so the case-level figures
-		// differ from the published ones. Both are legitimate arrangements of
-		// the same step-level data; this asserts the gap is real, not a bug.
+		// Device-coherent rows land at 30 cases with a critical error against the
+		// published 38, and 29 fully correct against 40: close enough to show the
+		// construction is realistic, not equal, so the published case-level
+		// figures stay underdetermined by the step-level data.
 		const critCases = rows.filter((r) => scoreCase(r).critErrors.length > 0).length;
-		assert.equal(critCases, 14);
-		assert.equal(BASELINE.published.criticalError, 38);
+		const clean = rows.filter((r) => {
+			const x = scoreCase(r);
+			return x.total > 0 && x.correct === x.total;
+		}).length;
+		assert.equal(critCases, 30);
+		assert.equal(clean, 29);
+		assert.notEqual(critCases, BASELINE.published.criticalError);
+		assert.notEqual(clean, BASELINE.published.techniqueOk);
 
 		// Headroom proving 38 is achievable: 93 wrong steps could touch at most
 		// 93 distinct cases, and there are only 61.

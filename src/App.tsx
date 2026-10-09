@@ -1,3 +1,4 @@
+import { Admin } from "./admin/Admin";
 import { useCoaching } from "./hooks/useCoaching";
 import { IntroScreen } from "./screens/IntroScreen";
 import { StageScreen } from "./screens/StageScreen";
@@ -7,6 +8,12 @@ const baseUrl = import.meta.env.BASE_URL;
 const introBackground = `${baseUrl}inhaler_bg.jpg?v=20260818_left_nozzle_final`;
 
 export function App() {
+	// The management end sits on its own path so the patient coaching loop keeps
+	// its zero-install, zero-login entry at "/".
+	if (window.location.pathname.replace(baseUrl, "").replace(/\/+$/, "") === "admin") {
+		return <Admin />;
+	}
+
 	const c = useCoaching();
 
 	if (c.screen === "intro") {
