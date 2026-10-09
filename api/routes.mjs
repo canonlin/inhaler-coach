@@ -4,7 +4,7 @@
  *
  * PHI rule: a response may carry mrn_tail, never mrn_hash.
  */
-import { ALL_STEP_CODES } from "../src/domain/steps.js";
+import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { hashMrn, mrnTail } from "./db.mjs";
@@ -87,6 +87,19 @@ export function makeRoutes({ query, salt }) {
 
 		const recordId = body.recordId ?? cryptoRandomId();
 
+		// A case with a critical error comes back. This is the prototype's
+		// 燈號 rule: ★ critical error -> re-check within 2 weeks; any other
+		// error -> the routine M1 window; all correct -> no follow-up.
+		const wrongCodes = Object.entries(steps)
+			.filter(([, v]) => v === "錯誤")
+			.map(([code]) => code);
+		const hasCritical = wrongCodes.some((c) => isCritical(c));
+		const followup = hasCritical
+			? { task: "有關鍵錯誤：2 週內再評估", days: 14, priority: "P1" }
+			: wrongCodes.length
+				? { task: `${timepoint === "M0" ? "M1" : timepoint} 評估`, days: 14, priority: "P2" }
+				: null;
+
 		const { rows } = await query(
 			`WITH ins_p AS (
 			   INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, study_id)
@@ -101,7 +114,9 @@ export function makeRoutes({ query, salt }) {
 			                      pharmacist, device, drug, has_ics, needs_shake, case_type,
 			                      factors, use_qcc, use_research, record_id)
 			   SELECT id,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20 FROM ins_p
-			   RETURNING id, patient_id, record_id
+			   -- case_date comes back via RETURNING for the same reason as
+			   -- mrn_tail: a sibling CTE reading the cases table sees the old snapshot.
+			   RETURNING id, patient_id, record_id, case_date
 			 ), ins_s AS (
 			   INSERT INTO case_steps (case_id, step_code, value, note)
 			   SELECT ins_c.id, e.key, e.value, COALESCE($22::jsonb ->> e.key, '')
@@ -119,10 +134,20 @@ export function makeRoutes({ query, salt }) {
 			   FROM ins_c, jsonb_each_text($24::jsonb) AS e(key, value)
 			   RETURNING 1
 			 )
+			 , ins_f AS (
+			   INSERT INTO followups (patient_id, case_id, task, due_start, due_end, priority)
+			   SELECT ins_c.patient_id, ins_c.id, $25::text,
+			          (ins_c.case_date + $26::int)::date,
+			          (ins_c.case_date + $27::int)::date,
+			          $28::text
+			   FROM ins_c WHERE $25::text IS NOT NULL
+			   RETURNING 1
+			 )
 			 SELECT ins_c.record_id, ins_p.mrn_tail,
 			        (SELECT count(*) FROM ins_s)::int AS steps,
 			        (SELECT count(*) FROM ins_k)::int AS knowledge,
-			        (SELECT count(*) FROM ins_m)::int AS measures
+			        (SELECT count(*) FROM ins_m)::int AS measures,
+			        (SELECT count(*) FROM ins_f)::int AS followup
 			 FROM ins_c JOIN ins_p ON ins_p.id = ins_c.patient_id`,
 			[
 				hashMrn(mrn, salt),
@@ -150,6 +175,11 @@ export function makeRoutes({ query, salt }) {
 				JSON.stringify(body.stepNotes ?? {}),
 				JSON.stringify(knowledge),
 				JSON.stringify(body.measurements ?? {}),
+				followup?.task ?? null,
+				followup ? followup.days : 0,
+				// A routine window ends six weeks after the critical-error one.
+				followup ? (hasCritical ? 14 : 42) : 0,
+				followup?.priority ?? null,
 			],
 		);
 

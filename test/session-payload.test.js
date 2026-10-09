@@ -52,3 +52,29 @@ describe("session payload", () => {
 		assert.equal(stages["4"].p, "not_recorded");
 	});
 });
+describe("session reporting", () => {
+	it("refuses to send without a patient id rather than sending an empty one", async () => {
+		const { sendSessionData } = await import("../src/core/data-logger.js");
+		resetSessionData();
+		state.patientId = "";
+		const r = await sendSessionData();
+		assert.equal(r.sent, false);
+		assert.equal(r.why, "no patient id");
+	});
+
+	it("holds back the send until the pharmacist has judged every stage", async () => {
+		const { sendSessionData } = await import("../src/core/data-logger.js");
+		resetSessionData();
+		state.patientId = "A123456789";
+		state.stagePharmacist = { 1: "correct", 2: "", 3: "correct", 4: "correct" };
+		const r = await sendSessionData();
+		assert.equal(r.sent, false);
+		assert.match(r.why, /stage 2/);
+	});
+
+	it("posts to the v2 API path, not the retired Apps Script", async () => {
+		const { SESSION_ENDPOINT } = await import("../src/core/data-logger.js");
+		assert.match(SESSION_ENDPOINT, /\/api\/sessions$/);
+		assert.ok(!SESSION_ENDPOINT.includes("script.google.com"));
+	});
+});

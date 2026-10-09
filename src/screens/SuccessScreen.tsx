@@ -1,4 +1,8 @@
+import { useEffect, useState } from "react";
+
 import { IconArrowRight, IconCheck } from "../components/icons";
+import { sendSessionData } from "../core/data-logger";
+import { state } from "../core/state";
 
 type SuccessScreenProps = {
 	onRestart: () => void;
@@ -16,6 +20,25 @@ const completedSteps = [
 ];
 
 export function SuccessScreen({ onRestart }: SuccessScreenProps) {
+	// Report the coaching result once, when the patient finishes. Failure is
+	// silent by design: the patient already succeeded, and a blocked network
+	// must not turn that into an error screen.
+	const [reportState, setReportState] = useState<"idle" | "sent" | "skipped">("idle");
+
+	useEffect(() => {
+		let live = true;
+		if (!state.patientId) {
+			setReportState("skipped");
+			return;
+		}
+		sendSessionData().then((r) => {
+			if (live) setReportState(r.sent ? "sent" : "skipped");
+		});
+		return () => {
+			live = false;
+		};
+	}, []);
+
 	return (
 		<main className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto bg-slate-50 text-slate-900">
 			<div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-rose-600" />
@@ -25,6 +48,13 @@ export function SuccessScreen({ onRestart }: SuccessScreenProps) {
 				<section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-900/10 sm:p-10 lg:p-12">
 					<div className="flex flex-col gap-8 lg:grid lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-12">
 						<header>
+							<p className="sr-only" role="status">
+								{reportState === "sent"
+									? "練習結果已送出"
+									: reportState === "skipped"
+										? "練習結果未送出"
+										: "正在送出練習結果"}
+							</p>
 							<div className="mb-5 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 font-mono text-xs font-bold tracking-[0.14em] text-rose-800">
 								<span className="h-2 w-2 rounded-full bg-rose-600" />
 								INHALER COACH

@@ -37,6 +37,15 @@ export function createPool(url = process.env.DATABASE_URL) {
 	});
 }
 
+/**
+ * Return DATE columns as plain `YYYY-MM-DD` strings.
+ *
+ * pg's default parser builds a JS Date in the server's local timezone, so a
+ * follow-up due 2026-07-15 reads back as 2026-07-14T16:00Z from Taipei. A
+ * clinical date must never shift with the machine it was read on.
+ */
+pg.types.setTypeParser(pg.types.builtins.DATE, (v) => v);
+
 let shared = null;
 
 /** Process-wide pool, created on first use. */

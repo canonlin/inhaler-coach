@@ -209,4 +209,55 @@ if (!URL) {
 			assert.equal(r.cases[0].timepoint, "M1");
 		});
 	});
+	describe("follow-up enqueue", () => {
+		it("enqueues a P1 follow-up within 2 weeks for a critical error", async () => {
+			await api.createCase({
+				mrn: "C777888999",
+				caseDate: "2026-07-01",
+				pharmacist: "劉士宏",
+				drug: "Symbicort",
+				steps: { MDI_搖: "錯誤", MDI_開: "正確" }, // MDI_搖 is critical
+			});
+			const { rows } = await pool.query(
+				`SELECT f.task, f.due_start, f.due_end, f.priority
+				 FROM followups f JOIN patients p ON p.id = f.patient_id
+				 WHERE p.mrn_tail = '99'`,
+			);
+			assert.equal(rows.length, 1);
+			assert.equal(rows[0].priority, "P1");
+			assert.equal(rows[0].due_start, "2026-07-15", "two weeks after the case");
+			assert.equal(rows[0].due_end, "2026-07-15");
+		});
+
+		it("enqueues a routine M1 follow-up for a non-critical error", async () => {
+			await api.createCase({
+				mrn: "D111222333",
+				caseDate: "2026-07-01",
+				pharmacist: "曾彥哲",
+				drug: "Symbicort",
+				steps: { MDI_開: "錯誤" }, // MDI_開 is not critical
+			});
+			const { rows } = await pool.query(
+				`SELECT f.priority, f.due_end
+				 FROM followups f JOIN patients p ON p.id = f.patient_id
+				 WHERE p.mrn_tail = '33'`,
+			);
+			assert.equal(rows.length, 1);
+			assert.equal(rows[0].priority, "P2");
+			assert.equal(rows[0].due_end, "2026-08-12", "six weeks: the routine window");
+		});
+
+		it("does not enqueue a follow-up when every step was correct", async () => {
+			const before = await pool.query("SELECT count(*)::int AS n FROM followups");
+			await api.createCase({
+				mrn: "E444555666",
+				caseDate: "2026-07-01",
+				pharmacist: "林亭君",
+				drug: "Symbicort",
+				steps: { MDI_搖: "正確", MDI_開: "正確" },
+			});
+			const after = await pool.query("SELECT count(*)::int AS n FROM followups");
+			assert.equal(after.rows[0].n, before.rows[0].n);
+		});
+	});
 }
