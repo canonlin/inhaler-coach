@@ -33,6 +33,10 @@ public/mediapipe/
 public/models/mediapipe/
 .playwright-cli/
 
+# Playwright run artifacts (failure traces, error-context.md, last-run)
+test-results/
+playwright-report/
+
 # Python test/training bytecode
 __pycache__/
 *.py[cod]
