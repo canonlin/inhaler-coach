@@ -31,6 +31,7 @@ const bad = (msg) => {
 const ROW_SQL = `
 	SELECT c.id, c.case_date, c.timepoint, c.qcc_stage, c.device, c.drug,
 	       c.pharmacist, c.campus, c.record_id, c.has_ics, c.needs_shake,
+	       c.patient_id,
 	       p.mrn_tail,
 	       -- ::int matters: count() returns bigint, which pg hands back as a
 	       -- string, and knowledgeStats rejects a non-integer score.
@@ -576,6 +577,9 @@ function cryptoRandomId() {
 /** DB row → the shape metrics.mjs expects. */
 export function shape(r) {
 	return {
+		// Needed to pair a patient's before and after; the plan's design is
+		// single-group pre-post, so the analysis unit is the person, not the case.
+		patientId: r.patient_id ?? null,
 		timepoint: r.timepoint,
 		qccStage: r.qcc_stage,
 		device: r.device,

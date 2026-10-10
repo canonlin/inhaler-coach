@@ -4,7 +4,7 @@
  * This is the only question this view exists to answer, so it gets the top of
  * the page alone. Two numbers, one comparison, no decoration.
  */
-import type { TechniqueStats } from "../../api-client";
+import type { PairedResult, TechniqueStats } from "../../api-client";
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
@@ -12,10 +12,12 @@ export function Verdict({
 	baseline,
 	after,
 	enrolment,
+	paired,
 }: {
 	baseline: TechniqueStats;
 	after: TechniqueStats;
 	enrolment: { target: number; after: number };
+	paired?: PairedResult;
 }) {
 	const hasBoth = baseline.cases > 0 && after.cases > 0;
 	const delta = hasBoth ? baseline.errorRate - after.errorRate : null;
@@ -24,7 +26,7 @@ export function Verdict({
 	return (
 		<div className="verdict">
 			<div className="verdict-main">
-				<span className="eyebrow">操作錯誤率</span>
+				<span className="eyebrow">操作錯誤率（以人為單位）</span>
 				{hasBoth ? (
 					<>
 						<p className="verdict-number">
@@ -42,6 +44,11 @@ export function Verdict({
 								? ` · 收案 ${enrolment.after}/${enrolment.target}`
 								: " · 已達收案目標"}
 						</p>
+						<p className="verdict-note muted">
+							{baseline.peopleWithError}/{baseline.cases} 人至少錯一步
+							{after.cases > 0 && `，改善後 ${after.peopleWithError}/${after.cases} 人`}
+						</p>
+						<PairedNote paired={paired} />
 					</>
 				) : (
 					<p className="verdict-note">
@@ -73,6 +80,33 @@ export function Verdict({
 				/>
 			</div>
 		</div>
+	);
+}
+
+/**
+ * The plan's design is single-group pre-post, so the same people are counted
+ * twice. Showing before-and-after rates without saying how many people were
+ * measured both times invites reading a cohort change as an effect.
+ */
+function PairedNote({ paired }: { paired?: PairedResult }) {
+	if (!paired || paired.paired === 0) {
+		return (
+			<p className="verdict-note muted">
+				尚無同時完成前後測的病人，無法做配對比較。
+			</p>
+		);
+	}
+	const significant = paired.p !== null && paired.p < 0.05;
+	return (
+		<p className="verdict-note muted">
+			前後測配對中，改變 {paired.b + paired.c} 人：改善 {paired.b} 人、退步 {paired.c} 人。
+			{paired.p !== null && (
+				<>
+					{" "}McNemar 精確檢定 p = {paired.p}
+					{significant ? "（顯著）" : "（未達顯著）"}。
+				</>
+			)}
+		</p>
 	);
 }
 

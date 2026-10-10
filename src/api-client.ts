@@ -36,13 +36,28 @@ export interface Reference {
 	steps: string[];
 }
 
+export interface PairedResult {
+	paired: number;
+	b: number;
+	c: number;
+	p: number | null;
+}
+
 export interface TechniqueStats {
+	/** People with at least one assessed step. */
 	cases: number;
-	totalSteps: number;
-	wrongSteps: number;
+	/** People with at least one wrong step — the plan's numerator. */
+	peopleWithError: number;
+	/** People with at least one wrong ★ step. */
+	peopleWithCritical: number;
+	/** Per person, per the plan: 有任一錯誤的人 ÷ 完成評估的人。 */
 	errorRate: number;
 	criticalRate: number;
 	correctRate: number;
+	/** Step-level, kept for diagnosing which steps to fix. */
+	totalSteps: number;
+	wrongSteps: number;
+	stepErrorRate: number;
 }
 
 export interface StepRate {
@@ -60,6 +75,7 @@ export interface Summary {
 	total: number;
 	baseline: TechniqueStats;
 	after: TechniqueStats;
+	paired?: PairedResult;
 	knowledge: { cases: number; mean: number };
 	topSteps: StepRate[];
 	stepRates: StepRate[];

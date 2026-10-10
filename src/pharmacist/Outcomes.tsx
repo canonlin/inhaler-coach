@@ -73,6 +73,7 @@ export function Outcomes() {
 				baseline={data.baseline}
 				after={data.after}
 				enrolment={data.enrolment}
+				paired={data.paired}
 			/>
 
 			<section className="block">

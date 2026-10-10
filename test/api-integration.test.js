@@ -138,7 +138,12 @@ if (false) {
 			// 2 cases, 5 assessed steps, 1 wrong.
 			assert.equal(r.total, 2);
 			assert.equal(r.after.wrongSteps, 1);
-			assert.ok(Math.abs(r.after.errorRate - 1 / 5) < 1e-12);
+			// Per the plan the rate is per person: one of the two cases has at
+			// least one wrong step. The step-level figure is kept separately
+			// because it answers a different question.
+			assert.equal(r.after.peopleWithError, 1);
+			assert.equal(r.after.errorRate, 0.5);
+			assert.ok(Math.abs(r.after.stepErrorRate - 1 / 5) < 1e-12);
 		});
 
 		it("excludes an unrecorded step from the denominator", async () => {

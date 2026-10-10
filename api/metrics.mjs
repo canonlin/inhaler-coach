@@ -39,23 +39,99 @@ export function hasCriticalError(row) {
 /**
  * Technique rates for one group of rows.
  *
- * errorRate is step-weighted: total wrong steps / total assessed steps.
- * criticalRate is case-weighted: cases with a ★ error / cases.
- * The two differ on purpose — one says "how often is a step wrong",
- * the other says "how many people are at risk of the drug not reaching the lung".
+ * The plan defines the error rate per person:
+ *   操作錯誤率 = 發生任一操作錯誤人數 ÷ 完成操作評估人數
+ * A patient who fails five steps is one patient with a problem, not five
+ * problems. The step-weighted figure is kept as `stepErrorRate` because it
+ * answers a different question — which steps to fix — and because showing only
+ * one of them hides the difference: on the 61-case baseline the step-weighted
+ * rate reads 20% while 52.5% of patients had at least one error. The smaller
+ * number is the one that would go into a QCC report, and it is the wrong one.
+ *
+ * A row with no assessed steps is not a person who was assessed correctly; it
+ * is an absence of measurement, so it stays out of the denominator.
  */
 export function techniqueStats(rows) {
+	const measured = rows.filter((r) => scoreCase(r).total > 0);
 	const totalSteps = rows.reduce((n, r) => n + scoreCase(r).total, 0);
 	const wrongSteps = rows.reduce((n, r) => n + (scoreCase(r).total - scoreCase(r).correct), 0);
-	const withCrit = rows.filter(hasCriticalError).length;
+
+	const withAnyError = measured.filter((r) => scoreCase(r).total - scoreCase(r).correct > 0);
+	const withCrit = measured.filter(hasCriticalError);
+	const n = measured.length;
+
 	return {
-		cases: rows.length,
+		cases: n,
+		// People, per the plan's unit of analysis.
+		peopleWithError: withAnyError.length,
+		errorRate: n ? withAnyError.length / n : 0,
+		peopleWithCritical: withCrit.length,
+		criticalRate: n ? withCrit.length / n : 0,
+		correctRate: n ? 1 - withAnyError.length / n : 0,
+		// Step-level, kept for diagnosing which steps to fix and for the Pareto.
 		totalSteps,
 		wrongSteps,
-		errorRate: totalSteps ? wrongSteps / totalSteps : 0,
-		criticalRate: rows.length ? withCrit / rows.length : 0,
-		correctRate: totalSteps ? 1 - wrongSteps / totalSteps : 0,
+		stepErrorRate: totalSteps ? wrongSteps / totalSteps : 0,
 	};
+}
+
+/**
+ * McNemar, exact binomial, on patients measured both before and after.
+ *
+ * The plan calls for McNemar because the design is single-group pre/post: the
+ * same people are counted twice, so an unpaired comparison would double-count
+ * them and ignore the pairing. With a cohort this small the chi-square
+ * approximation is not safe, so the exact test is used instead.
+ *
+ * Only discordant pairs carry information. If everybody improved, or nobody
+ * changed, the test cannot distinguish that from no evidence.
+ *
+ * @param {Array<object>} pairedRows rows carrying a patientId
+ * @returns {{paired: number, b: number, c: number, p: number|null}}
+ */
+export function mcnemar(pairedRows) {
+	/** patientId -> qccStage -> wrong? */
+	const byPatient = new Map();
+	for (const r of pairedRows) {
+		if (!r.patientId) continue;
+		const s = scoreCase(r);
+		if (s.total === 0) continue;
+		const wrong = s.total - s.correct > 0;
+		const stage = r.qccStage;
+		const entry = byPatient.get(r.patientId) ?? {};
+		entry[stage] = wrong;
+		byPatient.set(r.patientId, entry);
+	}
+
+	let b = 0;
+	let c = 0;
+	for (const entry of byPatient.values()) {
+		if (entry["改善前"] === undefined || entry["改善後"] === undefined) continue;
+		if (entry["改善前"] && !entry["改善後"]) b += 1;
+		else if (!entry["改善前"] && entry["改善後"]) c += 1;
+	}
+	const paired = b + c;
+	if (paired === 0) return { paired: 0, b, c, p: null };
+	// Two-sided exact binomial under H0: discordant pairs split 50/50.
+	const k = Math.min(b, c);
+	const p = Math.min(1, 2 * binomialCdf(k, paired, 0.5));
+	return { paired, b, c, p: Math.round(p * 10000) / 10000 };
+}
+
+/** P(X <= k) for X ~ Binomial(n, p). */
+function binomialCdf(k, n, p) {
+	let sum = 0;
+	for (let i = 0; i <= k; i += 1) {
+		sum += binom(n, i) * p ** i * (1 - p) ** (n - i);
+	}
+	return sum;
+}
+
+/** Exact binomial coefficient; n here is a cohort, so the loop is safe. */
+function binom(n, k) {
+	let r = 1;
+	for (let i = 0; i < k; i += 1) r = (r * (n - i)) / (i + 1);
+	return Math.round(r);
 }
 
 /**
@@ -130,7 +206,7 @@ export function stubbornSteps(baselineRows, afterRows, threshold = 0.25) {
 		.map((r) => ({ ...r, before: before.get(r.stepCode)?.errorRate ?? 0 }));
 }
 
-/** Group the admin actually opens the dashboard for. */
+/** Group the pharmacist actually opens the outcomes tab for. */
 export function summarise(rows) {
 	const baseline = rows.filter((r) => r.qccStage === "改善前");
 	const after = rows.filter((r) => r.qccStage === "改善後");
@@ -138,6 +214,8 @@ export function summarise(rows) {
 		total: rows.length,
 		baseline: techniqueStats(baseline),
 		after: techniqueStats(after),
+		// Paired pre-post on the people measured twice, which is the plan's design.
+		paired: mcnemar(rows),
 		byDevice: { before: statsByDevice(baseline), after: statsByDevice(after) },
 		knowledge: knowledgeStats(rows),
 		topSteps: stepErrorRates(rows).slice(0, 5),

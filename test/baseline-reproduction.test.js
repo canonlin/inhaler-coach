@@ -65,8 +65,20 @@ describe("acceptance: reproduce the published step-level figures", () => {
 
 	it("reports a step error rate of 93/457", () => {
 		const s = techniqueStats(rows);
-		assert.ok(Math.abs(s.errorRate - 93 / 457) < 1e-12);
-		assert.ok(Math.abs(s.correctRate - 364 / 457) < 1e-12);
+		// Step-level, kept because it answers "which steps to fix".
+		assert.ok(Math.abs(s.stepErrorRate - 93 / 457) < 1e-12);
+		assert.ok(Math.abs(1 - s.stepErrorRate - 364 / 457) < 1e-12);
+	});
+
+	it("reports the plan's person-level rate: 32 of 61 patients had an error", () => {
+		const s = techniqueStats(rows);
+		// The headline number the plan defines. On this baseline it is 52.5%,
+		// against 20.4% for the same data weighted by step — the step version
+		// understates how many patients are affected by more than half.
+		assert.equal(s.cases, 61);
+		assert.equal(s.peopleWithError, 32);
+		assert.ok(Math.abs(s.errorRate - 32 / 61) < 1e-12);
+		assert.ok(Math.abs(s.correctRate - 29 / 61) < 1e-12);
 	});
 
 	it("reproduces every per-step assessed and wrong count", () => {
@@ -213,9 +225,12 @@ describe("metrics behaviour", () => {
 			{ steps: { MDI_搖: "正確" } }, // clean
 		];
 		const s = techniqueStats(rows);
-		// 4 assessed, 3 wrong → step-weighted.
-		assert.equal(s.errorRate, 3 / 4);
-		// 1 of 3 cases has a critical error → case-weighted.
+		// 4 assessed, 3 wrong → step-level.
+		assert.equal(s.stepErrorRate, 3 / 4);
+		// 2 of 3 patients have at least one error → the plan's rate.
+		assert.equal(s.errorRate, 2 / 3);
+		assert.equal(s.peopleWithError, 2);
+		// 1 of 3 cases has a critical error → also per person.
 		assert.equal(s.criticalRate, 1 / 3);
 	});
 
