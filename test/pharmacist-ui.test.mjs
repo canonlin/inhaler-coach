@@ -192,7 +192,7 @@ describe("pharmacist tabs", () => {
 		const after = await page.$$eval(".ck-table tbody tr", (n) => n.length);
 		assert.equal(after, before - 1, "the row must leave the queue");
 
-		const banner = (await page.textContent(".rx-status.good")) ?? "";
+		const banner = (await page.textContent(".fu-tally")) ?? "";
 		assert.match(banner, /今天已完成 1 件/);
 	});
 

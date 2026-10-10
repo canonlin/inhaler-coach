@@ -443,7 +443,7 @@ export function CaseEntry({
 						>
 							{ready
 								? "儲存收案"
-								: `還差 ${missingCount(manual, steps, questions, knowledge)}`}
+								: `${missingLabel(manual, steps, questions, knowledge)}`}
 						</button>
 						{status && (
 							<p className={`rx-status ${status.tone}`} role="status">
@@ -457,15 +457,23 @@ export function CaseEntry({
 	);
 }
 
-/** What is still missing, as a count the pharmacist can act on. */
-function missingCount(
+/**
+ * What is still missing, phrased as the next action.
+ *
+ * "還差 4" told the pharmacist a number and nothing else; they still had to read
+ * the progress line above to find out whether it was two steps, two questions,
+ * or one of each. Saying which removes that second read.
+ */
+function missingLabel(
 	manual: { code: string }[],
 	steps: Record<string, string>,
 	questions: KnowledgeQuestion[],
 	knowledge: Record<string, string>,
-): number {
-	return (
-		manual.filter((s) => !steps[s.code]).length +
-		questions.filter((q) => !knowledge[String(q.index)]).length
-	);
+): string {
+	const pendingSteps = manual.filter((s) => !steps[s.code]).length;
+	const pendingQs = questions.filter((q) => !knowledge[String(q.index)]).length;
+	const parts: string[] = [];
+	if (pendingSteps) parts.push(`${pendingSteps} 個步驟`);
+	if (pendingQs) parts.push(`${pendingQs} 題`);
+	return `還差 ${parts.join(" + ")}`;
 }
