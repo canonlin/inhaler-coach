@@ -1,5 +1,5 @@
 /**
- * Admin: ONE job — 有沒有變好.
+ * Outcomes: ONE job — 有沒有變好.
  *
  * This replaces the prototype's renderDash(), which put 11 panels on one page
  * (per-device bars, step heatmap, drug × step heatmap, knowledge errors,
@@ -10,12 +10,12 @@
  */
 import { useEffect, useState } from "react";
 
-import { fetchSummary, type Summary } from "./api-client";
+import { fetchSummary, type Summary } from "../api-client";
 import { StepTable } from "./components/StepTable";
 import { Verdict } from "./components/Verdict";
-import "./admin.css";
+import "./outcomes.css";
 
-export function Admin() {
+export function Outcomes() {
 	const [data, setData] = useState<Summary | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [stage, setStage] = useState("");
@@ -37,7 +37,7 @@ export function Admin() {
 
 	if (error) {
 		return (
-			<div className="admin">
+			<div className="outcomes">
 				<p className="empty">讀不到資料：{error}</p>
 				<p className="hint">確認 API 已部署，並已設定 DATABASE_URL。</p>
 			</div>
@@ -45,15 +45,15 @@ export function Admin() {
 	}
 	if (!data) {
 		return (
-			<div className="admin">
+			<div className="outcomes">
 				<p className="empty">載入中…</p>
 			</div>
 		);
 	}
 
 	return (
-		<div className="admin">
-			<header className="admin-head">
+		<div className="outcomes">
+			<header className="out-head">
 				<div>
 					<span className="eyebrow">QCC 吸入劑 · 改善成效</span>
 					<h1>有沒有變好</h1>

@@ -9,7 +9,7 @@
  */
 
 import { STEP_BY_CODE } from "../../domain/steps.js";
-import type { StepRate } from "../api-client";
+import type { StepRate } from "../../api-client";
 
 export function StepTable({
 	rates,

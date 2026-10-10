@@ -1,20 +1,24 @@
 /**
- * Pharmacist end. Two tabs, matching the daily job:
- * 收案評估 (record a case) → 追蹤清單 (who to call).
+ * The pharmacist end. Three tabs, one person.
  *
- * There is deliberately no education tab. Education happens on the patient's
- * phone, and the follow-up happens over LINE — a tab here would be a dead end
- * that suggests the pharmacist has a step they do not actually have.
+ * 收案評估 records a case · 追蹤清單 says who to call · 成效 answers 有沒有變好.
+ *
+ * There is no separate management end. The pharmacist records the cases, so the
+ * pharmacist reads the outcomes; splitting them across two apps would invent a
+ * role that does not exist, and put a wall between the person who enters a
+ * number and the person who has to explain it.
  */
 import { useState } from "react";
 
 import { CaseEntry } from "./CaseEntry";
+import { Outcomes } from "./Outcomes";
 import { FollowupList } from "./components/FollowupList";
 import "./pharmacist.css";
 
 const TABS = [
 	{ id: "case", label: "收案評估" },
 	{ id: "follow", label: "追蹤清單" },
+	{ id: "outcomes", label: "成效" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -45,6 +49,7 @@ export function Pharmacist() {
 					<FollowupList />
 				</section>
 			)}
+			{tab === "outcomes" && <Outcomes />}
 		</div>
 	);
 }

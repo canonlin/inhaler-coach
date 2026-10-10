@@ -24,6 +24,7 @@ const ROUTES = {
 	"POST /api/sessions": "recordSession",
 	"GET /api/reference": "reference",
 	"GET /api/followups": "followups",
+	"POST /api/followups/close": "closeFollowup",
 	"GET /api/sessions/pending": "pendingSession",
 	"POST /api/line/link": "lineLink",
 	"GET /api/line/plan": "linePlan",

@@ -1,4 +1,3 @@
-import { Admin } from "./admin/Admin";
 import { useCoaching } from "./hooks/useCoaching";
 import { Pharmacist } from "./pharmacist/Pharmacist";
 import { IntroScreen } from "./screens/IntroScreen";
@@ -13,12 +12,13 @@ export function App() {
 	// hook count depend on the route, which React treats as a hooks violation.
 	const c = useCoaching();
 
-	// The pharmacist and management ends sit on their own paths so the patient
-	// coaching loop keeps its zero-install, zero-login entry at "/".
+	// The pharmacist end sits on its own path so the patient coaching loop keeps
+	// its zero-install, zero-login entry at "/". There is no separate management
+	// end: the pharmacist is the only person who records a case and the only one
+	// who reads the outcomes, so those are two views of one job.
 	const route = window.location.pathname
 		.replace(baseUrl, "")
 		.replace(/\/+$/, "");
-	if (route === "admin") return <Admin />;
 	if (route === "pharmacist") return <Pharmacist />;
 
 	if (c.screen === "intro") {

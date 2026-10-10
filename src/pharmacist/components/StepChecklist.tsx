@@ -3,7 +3,7 @@
  * sealing the lips. Everything the camera covers is confirmed as a block
  * elsewhere, so this list stays short on purpose.
  */
-import type { Drug } from "../../admin/api-client";
+import type { Drug } from "../../api-client";
 import type { Step } from "../../domain/steps.js";
 
 export function StepChecklist({

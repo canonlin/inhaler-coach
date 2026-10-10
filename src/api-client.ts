@@ -92,6 +92,29 @@ export const fetchReference = () => get<Reference>("/api/reference");
 export const fetchFollowups = () =>
 	get<{ followups: Followup[] }>("/api/followups");
 
+/**
+ * POST /api/followups/close — record that a follow-up was actually done.
+ *
+ * A queue that can be read but not closed cannot produce an M1. `by` is required
+ * server-side: an unattributed close cannot be audited, and an unattributed
+ * close is the same as no close.
+ */
+export async function closeFollowup(input: {
+	id: string;
+	by: string;
+	status?: "done" | "missed";
+	note?: string;
+}) {
+	const res = await fetch(`${base}/api/followups/close`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	const json = await res.json();
+	if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as { ok: true; id: string; status: string; completed_by: string };
+}
+
 export interface Followup {
 	id: string;
 	task: string;

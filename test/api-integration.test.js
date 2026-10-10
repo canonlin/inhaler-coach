@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { createPool } from "../api/db.mjs";
+import { createPool, hashMrn } from "../api/db.mjs";
 import { makeRoutes } from "../api/routes.mjs";
 
 // scripts/test.mjs refuses to start without this, so reaching here with no URL
@@ -264,6 +264,81 @@ if (false) {
 			});
 			const after = await pool.query("SELECT count(*)::int AS n FROM followups");
 			assert.equal(after.rows[0].n, before.rows[0].n);
+		});
+	});
+
+	describe("closing a follow-up", () => {
+		async function aCaseThatNeedsFollowup() {
+			return api.createCase({
+				mrn: "CLOSE0001",
+				caseDate: "2026-05-04",
+				pharmacist: "黃永成",
+				drug: "Symbicort",
+				// A critical step wrong is what enqueues a P1.
+				steps: { MDI_壓: "錯誤" },
+			});
+		}
+
+		async function openFollowupsFor(mrn) {
+			const { rows } = await pool.query(
+				`SELECT f.id FROM followups f JOIN patients p ON p.id = f.patient_id
+				 WHERE p.mrn_hash = $1 AND f.status = 'open'`,
+				[hashMrn(mrn, SALT)],
+			);
+			return rows;
+		}
+
+		it("enqueues a follow-up when a critical step is wrong", async () => {
+			await aCaseThatNeedsFollowup();
+			const open = await openFollowupsFor("CLOSE0001");
+			assert.equal(open.length, 1, "a wrong critical step must enqueue work");
+		});
+
+		it("closes it and records who closed it", async () => {
+			const [{ id }] = await openFollowupsFor("CLOSE0001");
+			const r = await api.closeFollowup({ id, by: "黃永成" });
+			assert.equal(r.ok, true);
+			assert.equal(r.status, "done");
+			assert.ok(r.completed_at, "a close must say when");
+			assert.equal(r.completed_by, "黃永成");
+			assert.equal((await openFollowupsFor("CLOSE0001")).length, 0);
+		});
+
+		it("refuses an unattributed close", async () => {
+			await aCaseThatNeedsFollowup();
+			const [{ id }] = await openFollowupsFor("CLOSE0001");
+			await assert.rejects(() => api.closeFollowup({ id }), /by is required/);
+		});
+
+		it("reports a second close as a conflict, not a silent success", async () => {
+			const [{ id }] = await openFollowupsFor("CLOSE0001");
+			await api.closeFollowup({ id, by: "黃永成" });
+			await assert.rejects(
+				() => api.closeFollowup({ id, by: "林怡君" }),
+				/already done by 黃永成/,
+			);
+		});
+
+		it("reports a missing follow-up as not found", async () => {
+			await assert.rejects(
+				() => api.closeFollowup({ id: "00000000-0000-0000-0000-000000000000", by: "x" }),
+				/not found/,
+			);
+		});
+
+		it("can record that a follow-up was missed", async () => {
+			await aCaseThatNeedsFollowup();
+			const [{ id }] = await openFollowupsFor("CLOSE0001");
+			const r = await api.closeFollowup({ id, by: "黃永成", status: "missed" });
+			assert.equal(r.status, "missed");
+		});
+
+		it("never lets the database hold a close with no timestamp", async () => {
+			const { rows } = await pool.query(
+				`SELECT count(*)::int AS n FROM followups
+				 WHERE (status = 'open') <> (completed_at IS NULL)`,
+			);
+			assert.equal(rows[0].n, 0, "the CHECK constraint should make this impossible");
 		});
 	});
 

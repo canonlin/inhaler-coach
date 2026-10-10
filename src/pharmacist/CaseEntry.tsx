@@ -24,7 +24,7 @@ import {
 	type AiStep,
 	createCase,
 	fetchPendingSession,
-} from "../admin/api-client.js";
+} from "../api-client.js";
 import { ALL_DRUGS, DRUG_BY_NAME, type Drug } from "../domain/drugs.js";
 import {
 	CAMPUSES,

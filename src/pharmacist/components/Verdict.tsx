@@ -1,10 +1,10 @@
 /**
  * The verdict: did the intervention work?
  *
- * This is the only question the admin exists to answer, so it gets the top of
+ * This is the only question this view exists to answer, so it gets the top of
  * the page alone. Two numbers, one comparison, no decoration.
  */
-import type { TechniqueStats } from "../api-client";
+import type { TechniqueStats } from "../../api-client";
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 

@@ -161,7 +161,13 @@ CREATE TABLE IF NOT EXISTS followups (
   priority    text NOT NULL CHECK (priority IN ('P1', 'P2', 'P3')),
   status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'missed')),
   completed_at timestamptz,
-  CHECK (due_end >= due_start)
+  -- Who closed it. A follow-up that nobody can be shown to have actioned is the
+  -- same as no follow-up, and that is exactly what the baseline shows.
+  completed_by text,
+  completed_note text,
+  CHECK (due_end >= due_start),
+  -- A closed task must say when, and by whom; an open one must not claim to.
+  CHECK ((status = 'open') = (completed_at IS NULL))
 );
 
 CREATE INDEX IF NOT EXISTS followups_open_idx ON followups (status, due_start);

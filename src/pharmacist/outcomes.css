@@ -1,7 +1,7 @@
-/* Admin. One accent hue, neutrals, no decoration that does not carry meaning.
+/* Outcomes. One accent hue, neutrals, no decoration that does not carry meaning.
    Sized for a projector in a pharmacy meeting room as well as a laptop. */
 
-.admin {
+.outcomes {
 	--ink: #0f172a;
 	--muted: #64748b;
 	--line: #e2e8f0;
@@ -19,7 +19,7 @@
 	background: var(--page);
 }
 
-.admin-head {
+.out-head {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 1rem;
@@ -29,7 +29,7 @@
 	border-block-end: 1px solid var(--line);
 }
 
-.admin-head h1 {
+.out-head h1 {
 	margin: 0;
 	font-size: 1.75rem;
 	font-weight: 800;

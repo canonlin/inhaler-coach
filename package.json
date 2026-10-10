@@ -26,7 +26,7 @@
     "test:db": "node scripts/test.mjs",
     "dev:api": "node scripts/dev-api.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
-    "render:admin": "node scripts/render-admin.mjs"
+    "render:outcomes": "node scripts/render-outcomes.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

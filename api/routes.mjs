@@ -382,6 +382,46 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	}
 
 	/**
+	 * POST /api/followups/close — record that a follow-up was actually done.
+	 *
+	 * The baseline had 62 cases at M0 and zero at M1. A queue that can be read
+	 * but not closed cannot produce an M1, so closing is a first-class action
+	 * rather than a database edit nobody makes.
+	 *
+	 * Re-closing is rejected rather than silently ignored: the second click is
+	 * either a double tap or two pharmacists disagreeing, and both deserve to be
+	 * visible.
+	 */
+	async function closeFollowup(body) {
+		const id = String(body?.id ?? "");
+		const by = String(body?.by ?? "").trim();
+		if (!id) bad("id is required");
+		if (!by) bad("by is required: an unattributed close cannot be audited");
+		const status = body?.status === "missed" ? "missed" : "done";
+
+		const { rows } = await query(
+			`UPDATE followups SET status = $2, completed_at = now(), completed_by = $3,
+			        completed_note = NULLIF($4, '')
+			 WHERE id = $1 AND status = 'open'
+			 RETURNING id, status, completed_at, completed_by`,
+			[id, status, by, String(body?.note ?? "").trim()],
+		);
+		if (rows[0]) return { ok: true, ...rows[0] };
+
+		// Distinguish "already closed" from "no such row": the first is a
+		// conflict the caller can show, the second is a bad id.
+		const { rows: existing } = await query(
+			"SELECT id, status, completed_by FROM followups WHERE id = $1",
+			[id],
+		);
+		if (!existing[0]) throw new HttpError(404, "follow-up not found");
+		throw new HttpError(
+			409,
+			`already ${existing[0].status}${existing[0].completed_by ? ` by ${existing[0].completed_by}` : ""}`,
+		);
+	}
+
+	/**
 	 * POST /api/line/link — bind a LINE account to a patient and record consent.
 	 *
 	 * The record number is hashed here and nowhere else, so a plain identifier
@@ -449,6 +489,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		recordSession,
 		reference,
 		followups,
+		closeFollowup,
 		pendingSession,
 		lineLink,
 		linePlan,

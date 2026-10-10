@@ -5,7 +5,7 @@
  * (★ 關鍵步驟 = 第三欄 1), cross-checked against the 胸腔暨重症加護醫學會
  * 《第一次使用吸入器就上手》2021 修訂版, 第 4 章.
  *
- * This file is the ONLY place a step is defined. The pharmacist app, the admin
+ * This file is the ONLY place a step is defined. The pharmacist app
  * dashboard and the API all read it. Do not copy a step list into a component.
  */
 
