@@ -11,8 +11,19 @@ create new branches. The remote branch `origin/feature/multimodal-v2` and
 `gitlab/feature/multimodal-v2` both track this work.
 
 Enforcement, not prose: `.github/workflows/ci.yml` runs only on `main` and
-`feature/multimodal-v2`, and `.git/hooks/pre-push` runs `npm run typecheck` and
-`npm test`. Both must be extended rather than trusted if the branch set changes.
+`feature/multimodal-v2`, and `.git/hooks/pre-push` runs `bun run typecheck` and
+`bun run test`. Both must be extended rather than trusted if the branch set changes.
+
+This is a **bun** project: `bun.lock` is the only lockfile and CI installs with
+`bun install --frozen-lockfile`. Use `bun run` / `bunx`, not `npm` / `npx` — a
+`package-lock.json` would diverge from CI.
+
+`bun run test` requires `DATABASE_URL`. The API, metrics and LINE tests query a
+real Postgres, and the gate exits non-zero without one rather than skipping. CI
+provides a `postgres:16-alpine` service for this; locally it is
+`postgres://postgres:devpw@localhost:55432/inhaler` in the `inhaler-pg`
+container. The suite runs with `--test-concurrency=1` because those files
+truncate shared tables.
 
 ## What this repository is
 

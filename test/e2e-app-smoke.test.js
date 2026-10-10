@@ -9,7 +9,7 @@ import { chromium } from "playwright";
 test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async () => {
 	const distDir = path.resolve("dist");
 	if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, "index.html"))) {
-		execSync("VITE_BASE=/ npm run build", { stdio: "inherit" });
+		execSync("VITE_BASE=/ bun run build", { stdio: "inherit" });
 	}
 	assert.ok(fs.existsSync(distDir), "dist directory must exist for smoke test");
 

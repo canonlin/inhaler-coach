@@ -210,29 +210,40 @@ export function CaseEntry({
 					</label>
 				)}
 
-				<div className="drug-pick">
-					{drugsByDevice.map(([device, list]) => (
-						<section key={device}>
-							<h2>{DEVICES[device].label}</h2>
-							<div className="chips">
-								{list.map((d) => (
-									<button
-										key={d.name}
-										type="button"
-										className="chip"
-										onClick={() => {
-											setDrugName(d.name);
-											setSteps({ ...(preset?.aiSteps ?? {}) });
-										}}
-									>
-										{d.label}
-										{d.hasIcs && <span className="ics">ICS</span>}
-									</button>
-								))}
-							</div>
-						</section>
-					))}
-				</div>
+				{/*
+				 * The product list waits until the record number is in.
+				 *
+				 * Offering seventeen products on the first screen invites the
+				 * pharmacist to skip the lookup, and skipping it is what made
+				 * this form cost twenty-five interactions. Most of these patients
+				 * have just practised with the camera, so the session already
+				 * knows the answer.
+				 */}
+				{askedMrn && (
+					<div className="drug-pick">
+						{drugsByDevice.map(([device, list]) => (
+							<section key={device}>
+								<h2>{DEVICES[device].label}</h2>
+								<div className="chips">
+									{list.map((d) => (
+										<button
+											key={d.name}
+											type="button"
+											className="chip"
+											onClick={() => {
+												setDrugName(d.name);
+												setSteps({ ...(preset?.aiSteps ?? {}) });
+											}}
+										>
+											{d.label}
+											{d.hasIcs && <span className="ics">ICS</span>}
+										</button>
+									))}
+								</div>
+							</section>
+						))}
+					</div>
+				)}
 			</div>
 		);
 	}

@@ -5,7 +5,7 @@
  * POST-body split — so what works here works in production. A dev server that
  * behaved differently from the adapter would hide bugs rather than find them.
  *
- * Run: DATABASE_URL=... npm run dev:api
+ * Run: DATABASE_URL=... bun run dev:api
  */
 import { createServer } from "node:http";
 

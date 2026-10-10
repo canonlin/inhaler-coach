@@ -1,7 +1,10 @@
 /**
- * Pharmacist end. Three tabs, matching the daily job:
- * 收案評估 (record a case) → 病人衛教 (teach) → 追蹤清單 (who to call).
- * The education screen is not built yet; see progress.md.
+ * Pharmacist end. Two tabs, matching the daily job:
+ * 收案評估 (record a case) → 追蹤清單 (who to call).
+ *
+ * There is deliberately no education tab. Education happens on the patient's
+ * phone, and the follow-up happens over LINE — a tab here would be a dead end
+ * that suggests the pharmacist has a step they do not actually have.
  */
 import { useState } from "react";
 
@@ -11,7 +14,6 @@ import "./pharmacist.css";
 
 const TABS = [
 	{ id: "case", label: "收案評估" },
-	{ id: "edu", label: "病人衛教" },
 	{ id: "follow", label: "追蹤清單" },
 ] as const;
 
@@ -41,18 +43,6 @@ export function Pharmacist() {
 					<h1>追蹤清單</h1>
 					<p className="hint">依逾期程度排序。逾期紅燈最優先。</p>
 					<FollowupList />
-				</section>
-			)}
-			{tab === "edu" && (
-				<section className="rx-main">
-					<h1>病人衛教</h1>
-					<p className="empty">
-						衛教投影片尚未實作。
-						<br />
-						<span className="muted">
-							需要多語言任務卡與呼吸練習曲線，屬下一階段。
-						</span>
-					</p>
 				</section>
 			)}
 		</div>

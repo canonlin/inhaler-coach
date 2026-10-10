@@ -18,11 +18,14 @@ import { CRITICAL_STEP_CODES } from "../src/domain/steps.js";
 const URL = process.env.DATABASE_URL;
 const SALT = "test-salt";
 
+// scripts/test.mjs refuses to start without this, so reaching here with no URL
+// means the file was invoked directly rather than through the gate.
 if (!URL) {
-	describe("line integration (skipped)", () => {
-		it("needs DATABASE_URL", { skip: "DATABASE_URL not set" }, () => assert.ok(true));
-	});
-} else {
+	console.error("DATABASE_URL is not set. Run via: bun run test");
+	process.exit(1);
+}
+
+if (true) {
 	let pool;
 	let api;
 	let line;

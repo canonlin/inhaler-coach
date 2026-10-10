@@ -3,7 +3,7 @@
  * DATABASE_URL is absent, so the unit gate never breaks on a machine without a
  * database.
  *
- * Run:  DATABASE_URL=postgres://postgres:devpw@localhost:55432/inhaler npm run test:api
+ * Run:  DATABASE_URL=postgres://postgres:devpw@localhost:55432/inhaler bun run test
  */
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
@@ -11,10 +11,16 @@ import { after, before, describe, it } from "node:test";
 import { createPool } from "../api/db.mjs";
 import { makeRoutes } from "../api/routes.mjs";
 
+// scripts/test.mjs refuses to start without this, so reaching here with no URL
+// means the file was invoked directly rather than through the gate.
 const URL = process.env.DATABASE_URL;
+if (!URL) {
+	console.error("DATABASE_URL is not set. Run via: bun run test");
+	process.exit(1);
+}
 const SALT = "test-salt";
 
-if (!URL) {
+if (false) {
 	describe("api integration (skipped)", () => {
 		it("needs DATABASE_URL", { skip: "DATABASE_URL not set" }, () => {
 			assert.ok(true);

@@ -78,7 +78,7 @@ export default defineConfig(({ command }) => ({
   worker: {
     format: 'es',
   },
-  // Dev only: the v2 API runs separately (npm run dev:api). In production
+  // Dev only: the v2 API runs separately (bun run dev:api). In production
   // these routes are served by the api/ directory on Vercel.
   ...(process.env.VITE_API_PROXY
     ? { server: { proxy: { '/api': { target: process.env.VITE_API_PROXY, changeOrigin: true } } } }

@@ -65,8 +65,8 @@ API 一律不回傳 `mrn_hash`。
 
 ## 5. 驗收
 
-1. `npm run typecheck` 通過
-2. `npm test` 通過，且新增 spine 測試（33 步 × 4 裝置、critical flag 總數）
+1. `bun run typecheck` 通過
+2. `bun run test` 通過（需 `DATABASE_URL`），且新增 spine 測試（33 步 × 4 裝置、critical flag 總數）
 3. 33 步定義在 repo 內只存在一份（以 grep 驗證）
 4. 管理端用基線 fixture 重現逐步數字（457 評估／93 錯誤、每個 step 的 a/w、
    最差步驟排序）。**步驟層級可驗證；個案層級的 40／38 不可驗證**，因為 a/w
