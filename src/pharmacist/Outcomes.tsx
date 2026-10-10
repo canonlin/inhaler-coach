@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchSummary, type Summary } from "../api-client";
+import { EngagementPanel } from "./components/EngagementPanel";
 import { StepTable } from "./components/StepTable";
 import { Verdict } from "./components/Verdict";
 import "./outcomes.css";
@@ -83,6 +84,8 @@ export function Outcomes() {
 				</p>
 				<StepTable rates={data.stepRates} pareto={data.pareto} />
 			</section>
+
+			<EngagementPanel e={data.engagement ?? null} />
 		</div>
 	);
 }

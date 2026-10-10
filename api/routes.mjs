@@ -242,6 +242,65 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		return { ok: true, cases: rows.map(present) };
 	}
 
+	/**
+	 * Is anyone actually using this?
+	 *
+	 * The technique metrics say whether the teaching worked. They say nothing
+	 * about whether people showed up, practised, or answered — and a platform
+	 * whose follow-up completion is zero can show a stable error rate for that
+	 * reason alone. A pharmacist asked to judge whether the system is heading
+	 * the right way needs both, so this is measured separately rather than
+	 * inferred from the step table.
+	 *
+	 * Every number here is currently zero on a fresh database. That is the point:
+	 * "nobody has used it" has to be visible, not an empty screen.
+	 */
+	async function engagement() {
+		const { rows } = await query(
+			`SELECT
+			   (SELECT count(DISTINCT patient_id) FROM cases)::int AS enrolled,
+			   (SELECT count(DISTINCT patient_id) FROM sessions)::int AS practised,
+			   (SELECT count(DISTINCT patient_id) FROM sessions
+			     WHERE completed_at IS NOT NULL)::int AS completed_practice,
+			   (SELECT count(DISTINCT patient_id) FROM line_identities)::int AS line_linked,
+			   (SELECT count(DISTINCT patient_id) FROM line_events)::int AS line_responded,
+			   (SELECT count(*) FROM followups WHERE status = 'open')::int AS fu_open,
+			   (SELECT count(*) FROM followups WHERE status = 'done')::int AS fu_done,
+			   (SELECT count(*) FROM followups WHERE status = 'missed')::int AS fu_missed,
+			   -- Activity is when something HAPPENED, not when the row was
+			   -- written. cases.created_at defaults to now(), so using it makes
+			   -- every historical case look like activity today: the 61-case
+			   -- baseline from April reported 61 people active in the last 7 days.
+			   (SELECT count(DISTINCT p.id) FROM patients p
+			     WHERE EXISTS (SELECT 1 FROM cases c WHERE c.patient_id = p.id
+			                   AND c.case_date >= current_date - 7)
+			        OR EXISTS (SELECT 1 FROM sessions s WHERE s.patient_id = p.id
+			                   AND s.started_at::date >= current_date - 7)
+			        OR EXISTS (SELECT 1 FROM line_events e WHERE e.patient_id = p.id
+			                   AND e.created_at::date >= current_date - 7)
+			        OR EXISTS (SELECT 1 FROM followups f WHERE f.patient_id = p.id
+			                   AND f.completed_at::date >= current_date - 7))::int AS active_7d`,
+		);
+		const e = rows[0];
+		// Only follow-ups whose window has actually arrived count. Counting a
+		// task enqueued today as "not yet due" is not the same as counting it as
+		// missed, and the plan's definition uses the due cohort.
+		const { rows: dueRows } = await query(
+			`SELECT
+			   count(*) FILTER (WHERE due_end <= current_date)::int AS due,
+			   count(*) FILTER (WHERE due_end <= current_date AND status = 'done')::int AS due_done
+			 FROM followups`,
+		);
+		const due = dueRows[0]?.due ?? 0;
+		const dueDone = dueRows[0]?.due_done ?? 0;
+		return {
+			...e,
+			followupDue: due,
+			followupDone: dueDone,
+			followupCompletionRate: due > 0 ? dueDone / due : null,
+		};
+	}
+
 	/** GET /api/metrics/summary — what the admin dashboard renders. */
 	async function summary(q = {}) {
 		const params = [];
@@ -261,6 +320,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				target: Number(q.target) || 61,
 				after: shaped.filter((r) => r.qccStage === "改善後").length,
 			},
+			engagement: await engagement(),
 		};
 	}
 

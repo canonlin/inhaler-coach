@@ -1,5 +1,7 @@
 /** Typed client for the v2 API. Keeps fetch concerns out of the components. */
 
+import type { Engagement } from "./pharmacist/components/EngagementPanel";
+
 export type DeviceKind = "MDI" | "RSP" | "ELP" | "BRZ";
 export type QccStage = "改善前" | "改善後";
 
@@ -53,6 +55,7 @@ export interface StepRate {
 }
 
 export interface Summary {
+	engagement?: Engagement;
 	ok: true;
 	total: number;
 	baseline: TechniqueStats;
