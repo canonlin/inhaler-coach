@@ -26,6 +26,10 @@
   --color-primary: #e11d48;
   --color-primary-dark: #be123c;
   --color-primary-foreground: #ffffff;
+  /* Selected navigation item. A tint rather than the solid brand colour: in a
+     sidebar the active row is the only thing lit, and tinting it keeps the
+     brand red available for the numbers that carry meaning. */
+  --color-primary-soft: #fff1f4;
   --color-success: #047857;
   --color-success-soft: #ecfdf5;
   --color-warning: #b45309;

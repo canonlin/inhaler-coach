@@ -38,6 +38,7 @@ import {
 } from "../domain/steps.js";
 import { cn } from "../lib/utils";
 import { StepChecklist } from "./components/StepChecklist.jsx";
+import { TodayQueue } from "./components/TodayQueue.jsx";
 import {
 	Badge,
 	Button,
@@ -50,6 +51,7 @@ import {
 	Td,
 	Th,
 } from "./components/ui";
+import { invalidateFollowupCount } from "./useFollowupCounts.js";
 
 /** Two questions, chosen by device. The device dictates what patients get wrong. */
 function targetedQuestions(device: string): KnowledgeQuestion[] {
@@ -173,6 +175,11 @@ export function CaseEntry({
 				tone: "good",
 				text: `已收案${res.followup ? "，已排入追蹤" : ""}`,
 			});
+			// Recording a case schedules a follow-up, so the navigation count is
+			// stale the moment this resolves. The badge is on screen right now —
+			// it is the sidebar — so leaving it to expire would show a queue that
+			// is one shorter than the one the pharmacist just added to.
+			invalidateFollowupCount();
 			setSteps({});
 			setDemonstrated({});
 			setKnowledge({});
@@ -188,16 +195,13 @@ export function CaseEntry({
 
 	if (!drug) {
 		return (
-			<div className="flex min-h-[calc(100dvh-9rem)] items-center justify-center py-8">
-				{/* A screen whose only job is to ask for one number is a focus state:
-				    centred, and sized for a hand holding a tablet at a counter. No
-				    header band — the heading introduces the field directly, and the
-				    divider between them only added a dead strip. */}
-				<div className="w-full max-w-2xl rounded-lg border border-border-subtle bg-surface px-10 py-10 shadow-sm">
-					<h1 className="text-2xl font-bold tracking-tight text-text">
+			<div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
+				{/* Left: the action this screen exists for. */}
+				<section className="rounded-lg border border-border-subtle bg-surface px-8 py-7">
+					<h2 className="text-xl font-bold tracking-tight text-text">
 						{askedMrn ? "這位病人用哪一種？" : "先輸入病歷號碼"}
-					</h1>
-					<p className="mt-2 text-base leading-relaxed text-text-secondary">
+					</h2>
+					<p className="mt-1.5 max-w-prose text-[15px] leading-relaxed text-text-secondary">
 						{askedMrn
 							? "若病人剛做過 AI 練習，這裡會自動帶入他練的那一支。"
 							: "輸入後系統會查有沒有 AI 練習紀錄，有的話直接帶入藥品與判定，你只需要看相機看不到的兩步。"}
@@ -205,7 +209,7 @@ export function CaseEntry({
 
 					{!askedMrn && (
 						<Field
-							className="mt-8"
+							className="mt-6"
 							label="病歷號碼"
 							htmlFor="mrn"
 							hint="病人領藥後輸入。"
@@ -223,7 +227,7 @@ export function CaseEntry({
 					)}
 
 					{askedMrn && mrn.trim() && (
-						<div className="mt-6">
+						<div className="mt-5">
 							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
 								{Object.keys(ai).length > 0
 									? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
@@ -267,7 +271,9 @@ export function CaseEntry({
 							))}
 						</div>
 					)}
-				</div>
+				</section>
+
+				<TodayQueue />
 			</div>
 		);
 	}

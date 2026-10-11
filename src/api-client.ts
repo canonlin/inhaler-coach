@@ -130,7 +130,8 @@ export async function closeFollowup(input: {
 		body: JSON.stringify(input),
 	});
 	const json = await res.json();
-	if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
 	return json as { ok: true; id: string; status: string; completed_by: string };
 }
 
@@ -144,6 +145,8 @@ export interface Followup {
 	drug: string | null;
 	device: DeviceKind | null;
 	pharmacist: string | null;
+	/** Step codes the linked case got wrong — what this follow-up is for. */
+	wrongSteps: string[];
 	overdue: boolean;
 	dueSoon: boolean;
 }

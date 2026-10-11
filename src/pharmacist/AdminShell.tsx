@@ -1,59 +1,67 @@
 /**
  * The pharmacist end's frame.
  *
- * The tabs used to float on an undifferentiated white page with the content
- * centred and unconstrained, which left most of the viewport empty and read as
- * a form rather than an application. The shell now does the work an application
- * frame does: a fixed product header with an identity, a real navigation strip,
- * and a content column with a reading measure and consistent gutters.
+ * This is the classic back-office shell: fixed left navigation, a top bar
+ * carrying the page's own context and actions, and a content column that fills
+ * whatever width is left. That is the documented default for internal and
+ * CRUD-heavy admin tools — it scales from five menu items to fifty, and it
+ * keeps the user oriented, which matters more here than saving pixels because
+ * this app has exactly three sections and a counter tablet.
  *
- * Audience mode is Operate — a completed task at a pharmacy counter. That means
- * state and scanability over decoration, and it is why the header names the
- * site and the section rather than carrying an eyebrow label.
+ * It replaces a centred column under a thin tab strip, which read as a web page
+ * with tabs rather than an application: there was no persistent frame saying
+ * "you are inside a tool", the navigation disappeared when the content grew,
+ * and the content was capped at 72rem in the middle of a wide screen, so a
+ * 37-row table could not use the room it needed.
+ *
+ * The content column is deliberately unconstrained. Text blocks carry their own
+ * reading measure; tables and grids take the full width, because narrowing a
+ * record list is what turns a back office back into a brochure.
  */
-
 import { cn } from "../lib/utils";
-import { TabNav } from "./TabNav";
+import { SideNav } from "./SideNav";
 
 export function AdminShell({
 	section,
+	actions,
 	children,
 }: {
 	section: string;
+	/** Per-screen controls, shown in the top bar rather than in a strip of
+	 *  their own — controls belong next to the page they belong to. */
+	actions?: React.ReactNode;
 	children?: React.ReactNode;
 }) {
 	return (
-		<div className="min-h-dvh bg-bg">
-			<header className="sticky top-0 z-10 border-b border-border-subtle bg-surface/95 backdrop-blur">
-				<div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-3">
-					<div className="flex min-w-0 items-baseline gap-3">
-						{/* The platform name, not a product name. Symbicort Rapihaler
-						    is the pilot device in the plan's title ("以…為例"), and the
-						    record screen picks from every device on the formulary —
-						    branding this "吸必擴" contradicted what the screen does. */}
-						<span className="text-lg font-bold tracking-tight text-primary">
-							智慧呼吸照護平台
-						</span>
-						<span className="truncate text-base text-text-secondary">
-							QCC 吸入劑衛教
-						</span>
+		<div className="flex min-h-dvh bg-bg">
+			<SideNav />
+
+			{/* The content region scrolls; the navigation does not, so the three
+			    sections stay reachable from anywhere in a long queue. */}
+			<div className="flex min-w-0 flex-1 flex-col">
+				<header className="sticky top-0 z-10 border-b border-border-subtle bg-surface/95 backdrop-blur">
+					<div className="flex min-h-14 flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-2.5">
+						<h1 className="text-xl font-bold tracking-tight text-text">
+							{section}
+						</h1>
+						{actions && (
+							<div className="flex flex-wrap items-center gap-3">{actions}</div>
+						)}
 					</div>
-					<span className="text-base font-semibold text-text-muted">
-						{section}
-					</span>
-				</div>
+				</header>
 
-				<TabNav />
-			</header>
-
-			<main className="mx-auto max-w-6xl px-6 pt-6 pb-16">{children}</main>
+				<main className="min-w-0 grow px-6 py-5">{children}</main>
+			</div>
 		</div>
 	);
 }
 
 /**
- * Page heading. One per screen, above the content it introduces, rather than
- * centred in the page.
+ * Page heading for a section within the content column.
+ *
+ * One per screen, directly above what it introduces. The description is capped
+ * to a reading measure rather than the full column width — a 900px paragraph
+ * is a wall of text, and a back office is not a reading surface.
  */
 export function PageTitle({
 	title,
@@ -66,12 +74,12 @@ export function PageTitle({
 }) {
 	return (
 		<div
-			className={cn("mb-6 flex flex-wrap items-start justify-between gap-4")}
+			className={cn("mb-5 flex flex-wrap items-start justify-between gap-4")}
 		>
 			<div className="min-w-0">
-				<h1 className="text-3xl font-bold tracking-tight text-text">{title}</h1>
+				<h2 className="text-lg font-bold tracking-tight text-text">{title}</h2>
 				{description && (
-					<p className="mt-2 max-w-prose text-base leading-relaxed text-text-secondary">
+					<p className="mt-1 max-w-prose text-[15px] leading-relaxed text-text-secondary">
 						{description}
 					</p>
 				)}

@@ -18,12 +18,12 @@ import { AdminShell } from "./pharmacist/AdminShell";
 import { CaseEntry } from "./pharmacist/CaseEntry";
 import { FollowupList } from "./pharmacist/components/FollowupList";
 import { Outcomes } from "./pharmacist/Outcomes";
-import { sectionFor } from "./pharmacist/TabNav";
+import { sectionFor } from "./pharmacist/SideNav";
 
 /**
- * The shell needs to know which tab it is showing so the header can name it.
- * Reading the location here rather than threading a prop through three routes
- * keeps the route table declarative.
+ * The shell needs to know which section it is showing so the top bar can name
+ * it. Reading the location here rather than threading a prop through three
+ * routes keeps the route table declarative.
  */
 function AdminFrame() {
 	return (
@@ -39,20 +39,7 @@ export const routes: RouteObject[] = [
 		element: <AdminFrame />,
 		children: [
 			{ index: true, element: <CaseEntry /> },
-			{
-				path: "followups",
-				element: (
-					<section>
-						<h1 className="mb-1 text-2xl font-bold tracking-tight text-text">
-							追蹤清單
-						</h1>
-						<p className="mb-6 max-w-prose text-sm text-text-secondary">
-							依逾期程度排序，逾期紅燈最優先。結案後立即從待辦移除。
-						</p>
-						<FollowupList />
-					</section>
-				),
-			},
+			{ path: "followups", element: <FollowupList /> },
 			{ path: "outcomes", element: <Outcomes /> },
 		],
 	},

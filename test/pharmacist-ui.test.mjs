@@ -159,10 +159,35 @@ after(async () => {
 });
 
 describe("pharmacist tabs", () => {
+	/*
+	 * Read the label element, not the link's whole text. The queue link carries
+	 * an open-count badge beside its name, so textContent is 「追蹤清單8」 and
+	 * comparing it against 「追蹤清單」 measures the badge rather than the
+	 * navigation. The badge is aria-hidden on purpose — assistive technology
+	 * announces the section name, and a bare number on every visit is noise.
+	 */
 	it("has one set of tabs, not two apps", async () => {
-		const tabs = await page.$$eval(NAV_A, (n) => n.map((x) => x.textContent.trim()));
+		const tabs = await page.$$eval(
+			`${NAV_A} > span:first-child`,
+			(n) => n.map((x) => x.textContent.trim()),
+		);
 		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效"]);
 		assert.equal(await page.$$eval(NAV, (n) => n.length), 1, "one nav, not two");
+	});
+
+	/* The queue count belongs in the navigation: a pharmacist should be able to
+	   see there is work waiting without opening the queue page. */
+	it("shows the open follow-up count on the queue section", async () => {
+		// The count arrives over the network, so waiting for it is the assertion
+		// rather than a detail: reading the nav immediately would pass on an
+		// absent badge and fail on a present one depending on timing.
+		await page.waitForSelector('[data-testid="queue-count"]', { timeout: 10_000 });
+		const badge = await page.textContent('[data-testid="queue-count"]');
+		assert.match(badge ?? "", /^\d+$/, `expected a count, got ${badge}`);
+		assert.ok(
+			Number(badge) >= 1,
+			`the seeded queue should not be empty, got ${badge}`,
+		);
 	});
 
 	it("shows the outcomes inside the pharmacist app", async () => {

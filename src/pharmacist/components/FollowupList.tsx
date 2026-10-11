@@ -17,7 +17,9 @@ import {
 	fetchFollowups,
 } from "../../api-client.js";
 import { PHARMACISTS } from "../../domain/roster.js";
+import { STEP_BY_CODE } from "../../domain/steps.js";
 import { cn } from "../../lib/utils";
+import { invalidateFollowupCount } from "../useFollowupCounts";
 import { Badge, Button, Card, DataTable, Select, Td, Th } from "./ui";
 
 const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> =
@@ -62,6 +64,10 @@ export function FollowupList() {
 		try {
 			await closeFollowup({ id: row.id, by: who, status });
 			setClosedToday((n) => n + 1);
+			// The sidebar's count is on screen right now; leaving it to expire
+			// would leave it one higher than the queue the pharmacist is looking
+			// at, on the screen where they are about to work.
+			invalidateFollowupCount();
 			await load();
 		} catch (e) {
 			// A 409 means someone already closed it. Show it rather than
@@ -173,17 +179,17 @@ export function FollowupList() {
 				</Card>
 			) : (
 				<Card className="overflow-hidden">
-					<DataTable data-testid="followup-queue">
+					<DataTable dense data-testid="followup-queue">
 						<caption className="sr-only">待追蹤清單</caption>
 						<thead>
 							<tr>
-								<Th className="w-24">優先</Th>
-								<Th className="w-24">病歷</Th>
+								<Th className="w-16">狀態</Th>
+								<Th className="w-20">病歷</Th>
 								<Th>藥品</Th>
 								<Th>任務</Th>
-								<Th className="w-32">期限</Th>
-								<Th className="w-28">原評估者</Th>
-								<Th className="w-52">結案</Th>
+								<Th className="w-28">期限</Th>
+								<Th className="w-24">原評估者</Th>
+								<Th className="w-44">結案</Th>
 							</tr>
 						</thead>
 						<tbody>
@@ -195,18 +201,47 @@ export function FollowupList() {
 										!f.overdue && f.dueSoon && "bg-warning-soft/50",
 									)}
 								>
+									{/*
+									 * Read from overdue/dueSoon, which are the fields that
+									 * actually say this, rather than from `priority`. That
+									 * field is P1/P2/P3 and its labels were the words
+									 * 逾期/近期/排程, so a column headed 優先 was displaying a
+									 * time window under a promise about ranking. Priority
+									 * still orders the queue, one line below.
+									 */}
 									<Td>
-										<Badge
-											tone={
-												f.overdue ? "danger" : f.dueSoon ? "warning" : "neutral"
-											}
-										>
-											{PRIORITY[f.priority].label}
-										</Badge>
+										{f.overdue || f.dueSoon ? (
+											<Badge tone={f.overdue ? "danger" : "warning"}>
+												{f.overdue ? "逾期" : "近期"}
+											</Badge>
+										) : (
+											<span className="text-text-muted">—</span>
+										)}
 									</Td>
 									<Td className="font-mono tabular-nums">…{f.mrn_tail}</Td>
 									<Td>{f.drug ?? "—"}</Td>
-									<Td className="text-text">{f.task}</Td>
+									{/*
+									 * What to re-check, in the pharmacist's words rather
+									 * than codes. The task text says a critical error
+									 * happened; this says which step it was, which is the
+									 * difference between a row that can be worked and one
+									 * that can only be acknowledged.
+									 */}
+									<Td>
+										<p className="whitespace-nowrap text-text">{f.task}</p>
+										{f.wrongSteps.length > 0 && (
+											<p className="mt-0.5 flex flex-wrap gap-1">
+												{f.wrongSteps.map((code) => (
+													<span
+														key={code}
+														className="rounded bg-danger-soft px-1.5 py-0.5 text-[13px] text-danger"
+													>
+														{STEP_BY_CODE[code]?.text ?? code}
+													</span>
+												))}
+											</p>
+										)}
+									</Td>
 									<Td className="font-mono tabular-nums">{f.due_end}</Td>
 									<Td className="text-text-secondary">{f.pharmacist ?? "—"}</Td>
 									<Td>

@@ -197,13 +197,29 @@ export function CardHeader({
 	);
 }
 
+/**
+ * Cell padding is a variable rather than a fixed class, so a record list can be
+ * dense without every table in the app becoming dense.
+ *
+ * The queue is a list the pharmacist scans and works through — at the default
+ * padding its thirty-seven rows ran to about two and a half screens and the
+ * task column wrapped on every row, which doubled the height again. The step
+ * checklist is a form they fill in and wants the room, so it keeps the default.
+ */
+const CELL_PADDING =
+	"[--cell-y:0.375rem] [--cell-x:0.75rem] sm:[--cell-y:0.5rem]";
+
 export const DataTable = React.forwardRef<
 	HTMLTableElement,
-	React.TableHTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
+	React.TableHTMLAttributes<HTMLTableElement> & { dense?: boolean }
+>(({ className, dense, ...props }, ref) => (
 	<table
 		ref={ref}
-		className={cn("w-full border-collapse text-left text-[15px]", className)}
+		className={cn(
+			"w-full border-collapse text-left text-[15px]",
+			dense ? CELL_PADDING : "[--cell-y:0.75rem] [--cell-x:1rem]",
+			className,
+		)}
 		{...props}
 	/>
 ));
@@ -216,7 +232,7 @@ export function Th({
 	return (
 		<th
 			className={cn(
-				"border-b border-border bg-surface-muted px-4 py-3 text-[13px] font-bold tracking-wide text-text-secondary",
+				"border-b border-border bg-surface-muted px-(--cell-x) py-(--cell-y) text-[13px] font-bold tracking-wide whitespace-nowrap text-text-secondary",
 				className,
 			)}
 			{...props}
@@ -231,7 +247,7 @@ export function Td({
 	return (
 		<td
 			className={cn(
-				"border-b border-border-subtle px-4 py-3 align-middle",
+				"border-b border-border-subtle px-(--cell-x) py-(--cell-y) align-middle",
 				className,
 			)}
 			{...props}

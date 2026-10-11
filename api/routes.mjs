@@ -88,8 +88,16 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	 * never be reachable.
 	 */
 	async function createCase(body) {
+		/*
+		 * `patientId` lets a follow-up closure attach the new assessment to the
+		 * patient the queue already points at. The queue carries only mrn_tail —
+		 * the full record number is hashed on the way in and is not recoverable
+		 * from a row — so the id is the only correct handle, and re-deriving it
+		 * from a tail would silently create a second patient.
+		 */
+		const patientId = body.patientId ?? null;
 		const mrn = String(body.mrn ?? "").trim();
-		if (!mrn) bad("mrn is required");
+		if (!mrn && !patientId) bad("mrn or patientId is required");
 		if (!body.caseDate) bad("caseDate is required");
 
 		const drug = drugOf(body.drug);
@@ -131,13 +139,25 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 		const { rows } = await query(
 			`WITH ins_p AS (
-			   INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, study_id)
+			   ${patientId
+				? `SELECT $1::uuid AS id,
+			             (SELECT mrn_tail FROM patients WHERE id = $1::uuid) AS mrn_tail,
+			             -- $2..$6 carry the record number and demographics, which an
+			             -- existing patient already has. They are projected so their
+			             -- types resolve: node-postgres sends every parameter
+			             -- untyped, and Postgres refuses the whole statement with
+			             -- 「could not determine data type of parameter」 for any
+			             -- placeholder it cannot infer from context. Referencing
+			             -- them here also keeps both branches on one numbering.
+			             $2::text AS _mrn, $3::text AS _age, $4::text AS _sex,
+			             $5::text AS _dx, $6::text AS _study`
+				: `INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, study_id)
 			   VALUES ($1,$2,$3,$4,$5,$6)
 			   ON CONFLICT (mrn_hash) DO UPDATE SET age_band = EXCLUDED.age_band
 			   -- mrn_tail comes back via RETURNING: a data-modifying CTE cannot
 			   -- re-read the row it just inserted by joining back to the patients
 			   -- table, because that read sees the pre-statement snapshot.
-			   RETURNING id, mrn_tail
+			   RETURNING id, mrn_tail`}
 			 ), ins_c AS (
 			   INSERT INTO cases (patient_id, case_date, timepoint, qcc_stage, campus,
 			                      pharmacist, device, drug, has_ics, needs_shake, case_type,
@@ -180,8 +200,10 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			        (SELECT count(*) FROM ins_f)::int AS followup
 			 FROM ins_c JOIN ins_p ON ins_p.id = ins_c.patient_id`,
 			[
-				hashMrn(mrn, salt),
-				mrnTail(mrn),
+				// $1 is the patient handle the branch above expects: the existing
+				// id when one was given, otherwise the hash of the record number.
+				patientId ?? hashMrn(mrn, salt),
+				patientId ? "" : mrnTail(mrn),
 				body.ageBand ?? "18-64歲",
 				body.sex ?? null,
 				body.diagnosis ?? null,
@@ -425,14 +447,32 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		};
 	}
 
-	/** GET /api/followups — the pharmacist's open queue. */
+	/**
+	 * GET /api/followups — the pharmacist's open queue.
+	 *
+	 * Carries the steps the original case got wrong. The queue used to say only
+	 * 「有關鍵錯誤：2 週內再評估」, which tells a pharmacist that something failed
+	 * but not what to re-check — the step codes were already in case_steps and
+	 * were being thrown away. A follow-up row that cannot say what to check
+	 * cannot be worked, which is consistent with a completion rate of zero.
+	 *
+	 * Aggregated in SQL rather than per row so the queue stays one request; a
+	 * follow-up row with no linked case (possible: the FK is ON DELETE SET NULL)
+	 * yields an empty list rather than dropping the row.
+	 */
 	async function followups() {
 		const { rows } = await query(
 			`SELECT f.id, f.task, f.due_start, f.due_end, f.priority, f.status,
-			        p.mrn_tail, c.drug, c.device, c.pharmacist
+			        p.mrn_tail, c.drug, c.device, c.pharmacist,
+			        COALESCE(w.steps, '[]'::json) AS wrong_steps
 			 FROM followups f
 			 JOIN patients p ON p.id = f.patient_id
 			 LEFT JOIN cases c ON c.id = f.case_id
+			 LEFT JOIN LATERAL (
+			     SELECT json_agg(cs.step_code) AS steps
+			     FROM case_steps cs
+			     WHERE cs.case_id = f.case_id AND cs.value = '錯誤'
+			 ) w ON true
 			 WHERE f.status = 'open'
 			 ORDER BY f.due_start`,
 		);
@@ -441,6 +481,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			ok: true,
 			followups: rows.map((r) => ({
 				...r,
+				wrongSteps: r.wrong_steps ?? [],
 				overdue: r.due_end < today,
 				dueSoon: r.due_end >= today && r.due_end <= addDays(today, 3),
 			})),
@@ -465,6 +506,45 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		if (!by) bad("by is required: an unattributed close cannot be audited");
 		const status = body?.status === "missed" ? "missed" : "done";
 
+		/*
+		 * An assessment on the close is the M1 evaluation, and it is the point of
+		 * the follow-up: closing used to record only who and when, so the queue
+		 * could be emptied without producing a single assessment row, and the
+		 * before/after the plan is built on could never gain a case from real
+		 * work. Thirty-seven open follow-ups and a 0% completion rate are the
+		 * same fact.
+		 *
+		 * The case is written first. If the assessment is invalid the whole
+		 * closure is rejected and the follow-up stays open, because a follow-up
+		 * marked done with no recorded assessment is exactly the dead end this
+		 * removes.
+		 */
+		let assessment = null;
+		if (body?.assessment && status === "done") {
+			const { rows: ctx } = await query(
+				`SELECT f.case_id, f.patient_id, c.drug, c.device, c.campus, c.timepoint
+				 FROM followups f LEFT JOIN cases c ON c.id = f.case_id
+				 WHERE f.id = $1 AND f.status = 'open'`,
+				[id],
+			);
+			if (!ctx[0]) throw new HttpError(404, "follow-up not found or already closed");
+			if (!ctx[0].drug)
+				bad("this follow-up has no linked case, so an assessment cannot be recorded against it");
+
+			assessment = await createCase({
+				patientId: ctx[0].patient_id,
+				caseDate: new Date().toISOString().slice(0, 10),
+				timepoint: "M1",
+				qccStage: "改善後",
+				campus: ctx[0].campus ?? "虎尾",
+				pharmacist: by,
+				drug: ctx[0].drug,
+				steps: body.assessment.steps ?? {},
+				knowledge: body.assessment.knowledge ?? {},
+				demonstrated: body.assessment.demonstrated ?? {},
+			});
+		}
+
 		const { rows } = await query(
 			`UPDATE followups SET status = $2, completed_at = now(), completed_by = $3,
 			        completed_note = NULLIF($4, '')
@@ -472,7 +552,14 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			 RETURNING id, status, completed_at, completed_by`,
 			[id, status, by, String(body?.note ?? "").trim()],
 		);
-		if (rows[0]) return { ok: true, ...rows[0] };
+		if (rows[0])
+			return {
+				ok: true,
+				...rows[0],
+				// Present only when an assessment was recorded, so a caller can
+				// tell "closed" from "closed and measured".
+				...(assessment ? { assessment } : {}),
+			};
 
 		// Distinguish "already closed" from "no such row": the first is a
 		// conflict the caller can show, the second is a bad id.
