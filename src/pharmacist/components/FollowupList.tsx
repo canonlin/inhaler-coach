@@ -1,41 +1,32 @@
 /**
  * Follow-up queue: who to contact now, and what to tick off.
  *
- * The prototype had three separate queues. This is one list ordered by what is
- * most overdue, because a pharmacist's day has one question: who do I contact
- * now.
- *
- * The close action is the point of this screen. The baseline had 62 cases at M0
- * and none at M1 — work was enqueued and never closed. A queue you can only read
- * produces that result exactly.
- *
  * Two things this screen deliberately does not do, both measured rather than
  * assumed. A previous version put a "who closed it" dropdown on every row: 37
  * rows meant 111 controls to scan, and the answer is the same person for all of
- * them, so it is one selector at the top. And it showed every open follow-up at
- * once: with 37 rows all overdue, "sorted by most overdue" sorts nothing, and the
- * pharmacist's actual question — what is due today — has no view. Both were fixed
- * because the numbers were counted on the running system, not reasoned about.
+ * them, so it is one selector above the table. And it showed every open
+ * follow-up at once: with 37 rows all overdue, "sorted by most overdue" sorts
+ * nothing, and the pharmacist's actual question — what is due today — had no
+ * view.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-	type Followup,
 	closeFollowup,
+	type Followup,
 	fetchFollowups,
 } from "../../api-client.js";
 import { PHARMACISTS } from "../../domain/roster.js";
+import { cn } from "../../lib/utils";
+import { Badge, Button, Card, DataTable, Select, Td, Th } from "./ui";
 
-// Short labels. The previous "逾期或今日到期" repeated 37 times down a column
-// said the same thing every row and the row colour already said it; the column
-// spent width and scan time carrying no information.
-const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> = {
-	P1: { label: "逾期", rank: 0 },
-	P2: { label: "近期", rank: 1 },
-	P3: { label: "排程", rank: 2 },
-};
+const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> =
+	{
+		P1: { label: "逾期", rank: 0 },
+		P2: { label: "近期", rank: 1 },
+		P3: { label: "排程", rank: 2 },
+	};
 
-/** Which slice of the queue is on screen. */
 const VIEWS = [
 	{ id: "today", label: "今日待辦" },
 	{ id: "all", label: "全部未完成" },
@@ -47,12 +38,11 @@ export function FollowupList() {
 	const [busy, setBusy] = useState<string | null>(null);
 	const [conflict, setConflict] = useState<string | null>(null);
 	const [closedToday, setClosedToday] = useState<number>(0);
-	// The pharmacist closing the task is whoever is on shift — one answer for the
-	// whole queue, so it is asked once rather than once per row.
+	// Asked once for the whole queue rather than once per row.
 	const [who, setWho] = useState(PHARMACISTS[0] ?? "");
 	const [view, setView] = useState<(typeof VIEWS)[number]["id"]>("today");
 
-	async function load() {
+	const load = useCallback(async () => {
 		try {
 			const d = await fetchFollowups();
 			setRows(d.followups);
@@ -60,11 +50,11 @@ export function FollowupList() {
 		} catch (e) {
 			setError((e as Error).message);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
-		load();
-	}, []);
+		void load();
+	}, [load]);
 
 	async function close(row: Followup, status: "done" | "missed") {
 		setBusy(row.id);
@@ -90,20 +80,21 @@ export function FollowupList() {
 		};
 	}, [rows]);
 
-	if (error) return <p className="empty">讀不到追蹤清單：{error}</p>;
-	if (!rows) return <p className="empty">載入中…</p>;
+	if (error)
+		return (
+			<Card className="p-6 text-sm text-danger">讀不到追蹤清單：{error}</Card>
+		);
+	if (!rows)
+		return <Card className="p-6 text-base text-text-secondary">載入中…</Card>;
 
-	// "Today" is what is overdue or due within three days. Everything else is
-	// scheduled work that cannot be actioned yet, and burying it under the
-	// actionable rows is what made the queue unreadable.
 	const visible =
 		view === "today" ? rows.filter((r) => r.overdue || r.dueSoon) : rows;
 
 	const sorted = [...visible].sort((a, b) => {
 		const ra = a.overdue ? 0 : a.dueSoon ? 1 : 2;
 		const rb = b.overdue ? 0 : b.dueSoon ? 1 : 2;
-		// With every row overdue the first term is constant, so priority and
-		// date do the actual ordering.
+		// With every row overdue the first term is constant, so the rest of the
+		// comparator is what actually orders the queue.
 		return (
 			ra - rb ||
 			PRIORITY[a.priority].rank - PRIORITY[b.priority].rank ||
@@ -113,105 +104,146 @@ export function FollowupList() {
 	});
 
 	return (
-		<>
+		<div className="space-y-4">
 			{conflict && (
-				<p className="rx-status bad" role="alert">
+				<div
+					role="alert"
+					className="rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger"
+				>
 					{conflict}
-				</p>
+				</div>
 			)}
 
-			<div className="fu-bar">
-				<nav className="fu-views" aria-label="追蹤範圍">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<fieldset className="inline-flex rounded-md border border-border-subtle bg-surface p-1">
+					<legend className="sr-only">追蹤範圍</legend>
 					{VIEWS.map((v) => (
 						<button
 							key={v.id}
 							type="button"
-							aria-current={view === v.id ? "true" : undefined}
+							aria-pressed={view === v.id}
 							onClick={() => setView(v.id)}
+							className={cn(
+								"inline-flex items-center gap-2 rounded px-3 py-1.5 text-sm font-semibold transition-colors",
+								view === v.id
+									? "bg-primary text-primary-foreground"
+									: "text-text-secondary hover:bg-surface-muted hover:text-text",
+							)}
 						>
 							{v.label}
-							<span className="count">{counts[v.id]}</span>
+							<span className="tabular-nums opacity-80">{counts[v.id]}</span>
 						</button>
 					))}
-				</nav>
+				</fieldset>
 
-				<label className="fu-who">
-					<span>結案者</span>
-					<select value={who} onChange={(e) => setWho(e.target.value)}>
+				<div className="flex items-center gap-2 text-base text-text-secondary">
+					<label htmlFor="closer">結案者</label>
+					<Select
+						id="closer"
+						value={who}
+						onChange={(e) => setWho(e.target.value)}
+						className="w-40"
+					>
 						{PHARMACISTS.map((p) => (
 							<option key={p}>{p}</option>
 						))}
-					</select>
-				</label>
+					</Select>
+				</div>
 			</div>
 
-			<p className="fu-tally" role="status">
+			<p
+				data-testid="followup-tally"
+				className="text-base text-text-secondary"
+				role="status"
+			>
 				{closedToday > 0
 					? `今天已完成 ${closedToday} 件。`
-					: `今天還沒完成任何一件。`}
+					: "今天還沒完成任何一件。"}
 			</p>
 
 			{!sorted.length ? (
-				<p className="empty">
-					{view === "today" ? "今天沒有到期或逾期的追蹤。" : "沒有待追蹤的個案。"}
+				<Card className="p-6 text-base text-text-secondary">
+					{view === "today"
+						? "今天沒有到期或逾期的追蹤。"
+						: "沒有待追蹤的個案。"}
 					<br />
-					<span className="muted">追蹤會在收案時依錯誤燈號自動排入。</span>
-				</p>
+					<span className="text-text-muted">
+						追蹤會在收案時依錯誤燈號自動排入。
+					</span>
+				</Card>
 			) : (
-				<table className="ck-table">
-					<caption className="sr-only">待追蹤清單</caption>
-					<thead>
-						<tr>
-							<th scope="col">優先</th>
-							<th scope="col">病歷</th>
-							<th scope="col">藥品</th>
-							<th scope="col">任務</th>
-							<th scope="col">期限</th>
-							<th scope="col">原評估者</th>
-							<th scope="col">結案</th>
-						</tr>
-					</thead>
-					<tbody>
-						{sorted.map((f) => (
-							<tr
-								key={f.id}
-								className={f.overdue ? "overdue" : f.dueSoon ? "soon" : undefined}
-							>
-								<td>
-									<span className={`pri ${f.priority.toLowerCase()}`}>
-										{PRIORITY[f.priority].label}
-									</span>
-								</td>
-								<td className="mono">…{f.mrn_tail}</td>
-								<td>{f.drug ?? "—"}</td>
-								<td>{f.task}</td>
-								<td className="mono">{f.due_end}</td>
-								<td className="muted">{f.pharmacist ?? "—"}</td>
-								<td>
-									<span className="seg">
-										<button
-											type="button"
-											className="ok"
-											disabled={busy === f.id}
-											onClick={() => close(f, "done")}
-										>
-											完成
-										</button>
-										<button
-											type="button"
-											className="ng"
-											disabled={busy === f.id}
-											onClick={() => close(f, "missed")}
-										>
-											未完成
-										</button>
-									</span>
-								</td>
+				<Card className="overflow-hidden">
+					<DataTable data-testid="followup-queue">
+						<caption className="sr-only">待追蹤清單</caption>
+						<thead>
+							<tr>
+								<Th className="w-24">優先</Th>
+								<Th className="w-24">病歷</Th>
+								<Th>藥品</Th>
+								<Th>任務</Th>
+								<Th className="w-32">期限</Th>
+								<Th className="w-28">原評估者</Th>
+								<Th className="w-52">結案</Th>
 							</tr>
-						))}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{sorted.map((f) => (
+								<tr
+									key={f.id}
+									className={cn(
+										f.overdue && "bg-danger-soft/40",
+										!f.overdue && f.dueSoon && "bg-warning-soft/50",
+									)}
+								>
+									<Td>
+										<Badge
+											tone={
+												f.overdue ? "danger" : f.dueSoon ? "warning" : "neutral"
+											}
+										>
+											{PRIORITY[f.priority].label}
+										</Badge>
+									</Td>
+									<Td className="font-mono tabular-nums">…{f.mrn_tail}</Td>
+									<Td>{f.drug ?? "—"}</Td>
+									<Td className="text-text">{f.task}</Td>
+									<Td className="font-mono tabular-nums">{f.due_end}</Td>
+									<Td className="text-text-secondary">{f.pharmacist ?? "—"}</Td>
+									<Td>
+										{/*
+											Named after the patient, not just the action. In a queue
+											of thirty-seven rows a button that reads only 「完成」
+											does not say which case it belongs to, and 「未完成」
+											contains 「完成」 as a substring, so assistive technology
+											and tests cannot tell the two apart.
+										 */}
+										<div className="flex gap-2">
+											<Button
+												size="sm"
+												variant="secondary"
+												disabled={busy === f.id}
+												aria-label={`將 …${f.mrn_tail} 的追蹤標記為完成`}
+												onClick={() => close(f, "done")}
+											>
+												完成
+											</Button>
+											<Button
+												size="sm"
+												variant="ghost"
+												disabled={busy === f.id}
+												aria-label={`將 …${f.mrn_tail} 的追蹤標記為未完成`}
+												onClick={() => close(f, "missed")}
+											>
+												未完成
+											</Button>
+										</div>
+									</Td>
+								</tr>
+							))}
+						</tbody>
+					</DataTable>
+				</Card>
 			)}
-		</>
+		</div>
 	);
 }

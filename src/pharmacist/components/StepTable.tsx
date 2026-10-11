@@ -1,17 +1,18 @@
 /**
  * The steps still failing, and how much of the whole problem each one carries.
  *
- * This is ONE table, not two. The prototype shipped a rate-ranked table and a
- * separate Pareto over the same steps, which meant reading the same six rows
- * twice. Here the rate and the cumulative share sit on the same row, so the
- * QCC reviewer can go from "this step is bad" to "fixing these six covers 80%"
- * without scrolling to a second block.
+ * ONE table, not two. The prototype shipped a rate-ranked table and a separate
+ * Pareto over the same steps, which meant reading the same six rows twice. Here
+ * the rate and the cumulative share sit on the same row.
+ *
+ * A table headed 「還是錯在這裡」 that then lists steps nobody got wrong is
+ * arguing with itself, so zero-error steps are behind a toggle. On the 61-case
+ * baseline they were more than half the rows.
  */
-
-import * as React from "react";
-
-import { STEP_BY_CODE } from "../../domain/steps.js";
+import { useState } from "react";
 import type { StepRate } from "../../api-client";
+import { STEP_BY_CODE } from "../../domain/steps.js";
+import { Badge, Button, DataTable, Td, Th } from "./ui";
 
 export function StepTable({
 	rates,
@@ -20,7 +21,12 @@ export function StepTable({
 	rates: StepRate[];
 	pareto: StepRate[];
 }) {
-	if (!rates.length) return <p className="empty">尚無資料。</p>;
+	// Before the early return: a hook after one makes the hook count depend on
+	// whether data has loaded, which React treats as a violation.
+	const [showClean, setShowClean] = useState(false);
+
+	if (!rates.length)
+		return <p className="p-6 text-[15px] text-text-secondary">尚無資料。</p>;
 
 	// Ordered by COUNT, matching the cumulative column. Sorting by rate while
 	// showing cumulative makes the column non-monotonic and unreadable.
@@ -30,95 +36,91 @@ export function StepTable({
 		(a, b) => (order.get(a.stepCode) ?? 999) - (order.get(b.stepCode) ?? 999),
 	);
 
-	// A table headed 「還是錯在這裡」 that then lists steps nobody got wrong is
-	// arguing with itself. Steps at 0 carry no action, and on the 61-case
-	// baseline they were more than half the rows. They stay available, but
-	// behind a toggle, because "which steps are fine" is a real question —
-	// just not the one this heading claims to answer.
-	const [showClean, setShowClean] = React.useState(false);
 	const failing = ranked.filter((r) => r.wrong > 0);
 	const clean = ranked.filter((r) => r.wrong === 0);
 	const rows = showClean ? ranked : failing;
-
-	// Bars scale to the worst step so the top row fills the track; the label
-	// carries the cumulative share, which is the number a reviewer acts on.
 	const worstWrong = Math.max(1, ...pareto.map((r) => r.wrong));
 
 	return (
-		<>
+		<div>
 			{clean.length > 0 && (
-				<button
-					type="button"
-					className="linkish"
-					aria-expanded={showClean}
-					onClick={() => setShowClean((v) => !v)}
-				>
-					{showClean
-						? `只看還在錯的 ${failing.length} 步`
-						: `顯示沒有錯的 ${clean.length} 步`}
-				</button>
+				<div className="px-5 pt-4">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setShowClean((v) => !v)}
+					>
+						{showClean
+							? `只看還在錯的 ${failing.length} 步`
+							: `顯示沒有錯的 ${clean.length} 步`}
+					</Button>
+				</div>
 			)}
-			<table className="steps">
+			<DataTable>
 				<caption className="sr-only">依錯誤率排序的步驟清單</caption>
 				<thead>
 					<tr>
-						<th scope="col">步驟</th>
-						<th scope="col" className="num">
-							錯誤率
-						</th>
-						<th scope="col" className="num">
-							錯／評估
-						</th>
-						<th scope="col">佔全部錯誤</th>
+						<Th className="w-16">步</Th>
+						<Th>操作</Th>
+						<Th className="w-24 text-right">錯誤率</Th>
+						<Th className="w-28 text-right">錯／評估</Th>
+						<Th className="w-48">佔全部錯誤</Th>
 					</tr>
 				</thead>
 				<tbody>
 					{rows.map((r) => {
-					const cumulative = share.get(r.stepCode);
-					const in80 = cumulative != null && cumulative <= 0.8;
-					return (
-						<tr key={r.stepCode} className={in80 ? "in80" : undefined}>
-							<th scope="row">
-								{r.critical && (
-									<span className="crit" title="關鍵步驟">
-										★
+						const cumulative = share.get(r.stepCode);
+						const in80 = cumulative != null && cumulative <= 0.8;
+						return (
+							<tr
+								key={r.stepCode}
+								className={in80 ? "bg-danger-soft/30" : undefined}
+							>
+								<Td>
+									<span className="inline-flex size-7 items-center justify-center rounded-md bg-surface-muted text-[15px] font-bold text-text">
+										{r.stepCode.split("_")[1] ?? r.stepCode}
 									</span>
-								)}
-								<span className="step-char">
-									{r.stepCode.split("_")[1] ?? r.stepCode}
-								</span>
-								<span className="step-text">
-									{STEP_BY_CODE[r.stepCode]?.text ?? ""}
-								</span>
-							</th>
-							<td className="num">{Math.round(r.errorRate * 100)}%</td>
-							<td className="num muted">
-								{r.wrong}／{r.assessed}
-							</td>
-							<td>
-								{r.wrong > 0 ? (
-									<span className="share-cell">
-										<span className="share">
-											<span
-												className="share-fill"
-												style={{
-													inlineSize: `${worstWrong ? (r.wrong / worstWrong) * 100 : 0}%`,
-												}}
-											/>
-										</span>
-										<span className="num muted">
-											累積 {Math.round((cumulative ?? 0) * 100)}%
-										</span>
+								</Td>
+								<Td>
+									<span className="text-text">
+										{STEP_BY_CODE[r.stepCode]?.text ?? ""}
 									</span>
-								) : (
-									<span className="muted">—</span>
-								)}
-							</td>
-						</tr>
-					);
-				})}
+									{r.critical && (
+										<Badge tone="warning" className="ml-2">
+											★ 關鍵
+										</Badge>
+									)}
+								</Td>
+								<Td className="text-right font-semibold tabular-nums">
+									{Math.round(r.errorRate * 100)}%
+								</Td>
+								<Td className="text-right tabular-nums text-text-secondary">
+									{r.wrong}／{r.assessed}
+								</Td>
+								<Td>
+									{r.wrong > 0 ? (
+										<span className="flex items-center gap-2">
+											<span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
+												<span
+													className="block h-full rounded-full bg-primary"
+													style={{
+														inlineSize: `${(r.wrong / worstWrong) * 100}%`,
+													}}
+												/>
+											</span>
+											<span className="w-20 shrink-0 text-right text-xs tabular-nums text-text-secondary">
+												累積 {Math.round((cumulative ?? 0) * 100)}%
+											</span>
+										</span>
+									) : (
+										<span className="text-text-muted">—</span>
+									)}
+								</Td>
+							</tr>
+						);
+					})}
 				</tbody>
-			</table>
-		</>
+			</DataTable>
+		</div>
 	);
 }

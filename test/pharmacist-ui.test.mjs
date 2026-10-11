@@ -25,6 +25,18 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API_PORT = 4193;
 const WEB_PORT = 4195;
 const BASE = `http://localhost:${WEB_PORT}`;
+/** Select by accessible name, not by class name: a stylesheet rename must not
+ *  break a test that is asserting the navigation still has an address. */
+const NAV = 'nav[aria-label="藥師工作區"]';
+const NAV_A = `${NAV} a`;
+/** The open follow-up queue, addressed by its caption. */
+/*
+ * Addressed by test id rather than :text(). The :text() pseudo-class is
+ * Playwright's own and does not exist inside page.evaluate, so a selector using
+ * it resolves under $$eval and then silently never matches in the browser —
+ * which is what made the close test time out at 30s with no error.
+ */
+const QUEUE_ROWS = "[data-testid=followup-queue] tbody tr";
 /** Spawned as `node vite.js`, never through `bunx` — see the note in before(). */
 const VITE_BIN = resolve(ROOT, "node_modules/vite/bin/vite.js");
 
@@ -81,7 +93,7 @@ before(async () => {
 	page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 	page.on("pageerror", (e) => consoleErrors.push(String(e)));
 	page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-	await page.goto(`${BASE}/pharmacist`, { waitUntil: "networkidle" });
+	await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
 
 	// The outcomes view summarises every case in the database, so this test has
 	// to own the database state to assert anything about it. Both other
@@ -143,16 +155,16 @@ after(async () => {
 
 describe("pharmacist tabs", () => {
 	it("has one set of tabs, not two apps", async () => {
-		const tabs = await page.$$eval(".rx-tabs button", (n) => n.map((x) => x.textContent.trim()));
+		const tabs = await page.$$eval(NAV_A, (n) => n.map((x) => x.textContent.trim()));
 		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效"]);
-		assert.equal(await page.$$eval(".rx-tabs", (n) => n.length), 1, "one nav, not two");
+		assert.equal(await page.$$eval(NAV, (n) => n.length), 1, "one nav, not two");
 	});
 
 	it("shows the outcomes inside the pharmacist app", async () => {
-		await page.click('.rx-tabs button:has-text("成效")');
-		await page.waitForSelector(".verdict", { timeout: 15_000 });
+		await page.click(`${NAV} a:has-text("成效")`);
+		await page.waitForSelector("[data-testid=verdict]", { timeout: 15_000 });
 		assert.equal((await page.textContent("h1"))?.trim(), "有沒有變好");
-		assert.equal(await page.$$eval(".rx-tabs", (n) => n.length), 1);
+		assert.equal(await page.$$eval(NAV, (n) => n.length), 1);
 	});
 
 	it("renders a verdict built from the cases this test created", async () => {
@@ -160,39 +172,45 @@ describe("pharmacist tabs", () => {
 		// both are wrong (100%), the follow-up case has 2 steps and neither is
 		// (0%). The figures are asserted in the metrics tests; here the point is
 		// that the number comes from the database and the page renders it at all.
-		const verdict = (await page.textContent(".verdict-number"))?.replace(/\s+/g, " ").trim();
+		const verdict = (await page.textContent("[data-testid=verdict-number]"))?.replace(/\s+/g, " ").trim();
 		assert.match(verdict ?? "", /100%\s*→\s*0%/, `got ${verdict}`);
 	});
 
 	it("starts case entry at one field again", async () => {
-		await page.click('.rx-tabs button:has-text("收案評估")');
-		await page.waitForSelector(".rx", { timeout: 10_000 });
-		assert.equal(
-			await page.$$eval(".rx input, .rx select", (n) => n.length),
-			1,
-			"case entry still begins with the record number alone",
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 10_000 });
+		// The record number is the only control on arrival; choosing the product
+		// and judging the camera-visible steps are what used to cost 25 taps.
+		const controls = await page.$$eval(
+			'main input, main select, main button',
+			(n) => n.length,
 		);
+		assert.equal(controls, 1, `case entry should open with one control, got ${controls}`);
 	});
 
 	it("closes a follow-up and takes it off the queue", async () => {
 		// Work out how many rows are open, then close one for real through the
 		// button the pharmacist uses. A function that works while its button does
 		// nothing is not a feature.
-		await page.click('.rx-tabs button:has-text("追蹤清單")');
-		await page.waitForSelector(".ck-table tbody tr", { timeout: 15_000 });
-		const before = await page.$$eval(".ck-table tbody tr", (n) => n.length);
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector(QUEUE_ROWS, { timeout: 15_000 });
+		const before = await page.$$eval(QUEUE_ROWS, (n) => n.length);
 		assert.ok(before > 0, "the seeded data must produce an open follow-up to close");
 
-		await page.click('.ck-table tbody tr:first-child .seg button.ok');
+		await page.evaluate((n) => {
+			window.__before = n;
+		}, before);
+		// By exact accessible name: "完成" also matches "未完成".
+		await page.getByRole("button", { name: /標記為完成$/ }).first().click();
 		await page.waitForFunction(
-			(n) => document.querySelectorAll(".ck-table tbody tr").length === n - 1,
-			before,
+			(sel) => document.querySelectorAll(sel).length === window.__before - 1,
+			QUEUE_ROWS,
 			{ timeout: 15_000 },
 		);
-		const after = await page.$$eval(".ck-table tbody tr", (n) => n.length);
+		const after = await page.$$eval(QUEUE_ROWS, (n) => n.length);
 		assert.equal(after, before - 1, "the row must leave the queue");
 
-		const banner = (await page.textContent(".fu-tally")) ?? "";
+		const banner = (await page.textContent("[data-testid=followup-tally]")) ?? "";
 		assert.match(banner, /今天已完成 1 件/);
 	});
 

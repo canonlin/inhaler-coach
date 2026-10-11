@@ -20,11 +20,7 @@
  * hearing an instruction is not evidence they can perform it.
  */
 import { useMemo, useState } from "react";
-import {
-	type AiStep,
-	createCase,
-	fetchPendingSession,
-} from "../api-client.js";
+import { type AiStep, createCase, fetchPendingSession } from "../api-client.js";
 import { ALL_DRUGS, DRUG_BY_NAME, type Drug } from "../domain/drugs.js";
 import {
 	CAMPUSES,
@@ -40,8 +36,20 @@ import {
 	pharmacistSteps,
 	stepReviewSource,
 } from "../domain/steps.js";
+import { cn } from "../lib/utils";
 import { StepChecklist } from "./components/StepChecklist.jsx";
-import "./pharmacist.css";
+import {
+	Badge,
+	Button,
+	Card,
+	CardHeader,
+	DataTable,
+	Field,
+	Input,
+	Select,
+	Td,
+	Th,
+} from "./components/ui";
 
 /** Two questions, chosen by device. The device dictates what patients get wrong. */
 function targetedQuestions(device: string): KnowledgeQuestion[] {
@@ -180,278 +188,339 @@ export function CaseEntry({
 
 	if (!drug) {
 		return (
-			<div className="rx">
-				<header className="rx-head">
-					<span className="eyebrow">QCC 吸入劑 · 收案評估</span>
-					<h1>{askedMrn ? "這位病人用哪一種？" : "先輸入病歷號碼"}</h1>
-					<p className="hint">
+			<div className="flex min-h-[calc(100dvh-9rem)] items-center justify-center py-8">
+				{/* A screen whose only job is to ask for one number is a focus state:
+				    centred, and sized for a hand holding a tablet at a counter. No
+				    header band — the heading introduces the field directly, and the
+				    divider between them only added a dead strip. */}
+				<div className="w-full max-w-2xl rounded-lg border border-border-subtle bg-surface px-10 py-10 shadow-sm">
+					<h1 className="text-2xl font-bold tracking-tight text-text">
+						{askedMrn ? "這位病人用哪一種？" : "先輸入病歷號碼"}
+					</h1>
+					<p className="mt-2 text-base leading-relaxed text-text-secondary">
 						{askedMrn
 							? "若病人剛做過 AI 練習，這裡會自動帶入他練的那一支。"
-							: "輸入後系統會查有沒有 AI 練習紀錄，有的話直接帶入。"}
+							: "輸入後系統會查有沒有 AI 練習紀錄，有的話直接帶入藥品與判定，你只需要看相機看不到的兩步。"}
 					</p>
-					{askedMrn && mrn.trim() && (
-						<p className="field-note">
-							{Object.keys(ai).length > 0
-								? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
-								: "查無 AI 練習紀錄，請手動評估"}
-						</p>
+
+					{!askedMrn && (
+						<Field
+							className="mt-8"
+							label="病歷號碼"
+							htmlFor="mrn"
+							hint="病人領藥後輸入。"
+						>
+							<Input
+								id="mrn"
+								className="mrn-only text-xl"
+								value={mrn}
+								onChange={(e) => lookUpSession(e.target.value)}
+								autoComplete="off"
+								inputMode="numeric"
+								placeholder="例：A123456789"
+							/>
+						</Field>
 					)}
-				</header>
 
-				{!askedMrn && (
-					<label className="field mrn-only">
-						<span>病歷號碼</span>
-						<input
-							value={mrn}
-							onChange={(e) => lookUpSession(e.target.value)}
-							autoComplete="off"
-							inputMode="numeric"
-						/>
-					</label>
-				)}
+					{askedMrn && mrn.trim() && (
+						<div className="mt-6">
+							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
+								{Object.keys(ai).length > 0
+									? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
+									: "查無 AI 練習紀錄，請手動評估"}
+							</Badge>
+						</div>
+					)}
 
-				{/*
-				 * The product list waits until the record number is in.
-				 *
-				 * Offering seventeen products on the first screen invites the
-				 * pharmacist to skip the lookup, and skipping it is what made
-				 * this form cost twenty-five interactions. Most of these patients
-				 * have just practised with the camera, so the session already
-				 * knows the answer.
-				 */}
-				{askedMrn && (
-					<div className="drug-pick">
-						{drugsByDevice.map(([device, list]) => (
-							<section key={device}>
-								<h2>{DEVICES[device].label}</h2>
-								<div className="chips">
-									{list.map((d) => (
-										<button
-											key={d.name}
-											type="button"
-											className="chip"
-											onClick={() => {
-												setDrugName(d.name);
-												setSteps({ ...(preset?.aiSteps ?? {}) });
-											}}
-										>
-											{d.label}
-											{d.hasIcs && <span className="ics">ICS</span>}
-										</button>
-									))}
+					{/*
+					 * The product list waits until the record number is in.
+					 *
+					 * Offering seventeen products on the first screen invites the
+					 * pharmacist to skip the lookup, and skipping it is what made
+					 * this form cost twenty-five interactions. Most of these patients
+					 * have just practised with the camera, so the session already
+					 * knows the answer.
+					 */}
+					{askedMrn && (
+						<div className="drug-pick space-y-5">
+							{drugsByDevice.map(([device, list]) => (
+								<div key={device}>
+									<h2 className="mb-2 text-xs font-bold tracking-wide text-text-secondary">
+										{DEVICES[device].label}
+									</h2>
+									<div className="flex flex-wrap gap-2">
+										{list.map((d) => (
+											<Button
+												key={d.name}
+												variant="secondary"
+												onClick={() => {
+													setDrugName(d.name);
+													setSteps({ ...(preset?.aiSteps ?? {}) });
+												}}
+											>
+												{d.label}
+												{d.hasIcs && <span className="text-primary">ICS</span>}
+											</Button>
+										))}
+									</div>
 								</div>
-							</section>
-						))}
-					</div>
-				)}
+							))}
+						</div>
+					)}
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="rx">
-			<header className="rx-head">
-				<div>
-					<span className="eyebrow">QCC 吸入劑 · 收案評估</span>
-					<h1>
-						{drug.label}
-						<span className="rx-sub">
-							{drug.hasIcs ? "含類固醇" : "不含類固醇"} ·{" "}
-							{DEVICES[drug.device].speed}
-						</span>
-					</h1>
-				</div>
-				<button
-					type="button"
-					className="linkish"
-					onClick={() => setDrugName("")}
-				>
-					換藥
-				</button>
-			</header>
-
-			<div className="rx-grid">
-				<section className="rx-side">
-					<label className="field">
-						<span>病歷號碼</span>
-						<input
-							value={mrn}
-							onChange={(e) => lookUpSession(e.target.value)}
-							autoComplete="off"
-							inputMode="numeric"
-							placeholder="病人領藥後輸入"
-						/>
+		<div className="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
+			{/* Identity and teaching context, in a narrow column because it is read
+			    once and then left alone while the right column does the work. */}
+			<aside className="space-y-5">
+				<Card>
+					<CardHeader title="這位病人" />
+					<div className="space-y-4 px-5 py-4">
+						<Field label="病歷號碼" htmlFor="mrn2">
+							<Input
+								id="mrn2"
+								value={mrn}
+								onChange={(e) => lookUpSession(e.target.value)}
+								autoComplete="off"
+								inputMode="numeric"
+							/>
+						</Field>
 						{mrn.trim() && (
-							<span className="field-note">
+							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
 								{Object.keys(ai).length > 0
 									? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
 									: "查無 AI 練習紀錄，請手動評估"}
-							</span>
+							</Badge>
 						)}
-					</label>
-					<label className="field">
-						<span>評估者</span>
-						<select
-							value={pharmacist}
-							onChange={(e) => setPharmacist(e.target.value)}
-						>
-							{PHARMACISTS.map((p) => (
-								<option key={p}>{p}</option>
-							))}
-						</select>
-					</label>
-					<label className="field">
-						<span>院區</span>
-						<select value={campus} onChange={(e) => setCampus(e.target.value)}>
-							{CAMPUSES.map((c) => (
-								<option key={c}>{c}</option>
-							))}
-						</select>
-					</label>
-					<fieldset className="field">
-						<legend>病人因素（影響怎麼教）</legend>
-						<div className="chips">
-							{FACTORS.map((f: Factor) => (
-								<button
-									key={f.code}
-									type="button"
-									className="chip"
-									aria-pressed={factors.includes(f.code)}
-									onClick={() =>
-										setFactors((prev: string[]) =>
-											prev.includes(f.code)
-												? prev.filter((code: string) => code !== f.code)
-												: [...prev, f.code],
-										)
-									}
-								>
-									{f.label}
-								</button>
-							))}
-						</div>
-					</fieldset>
-				</section>
 
-				<section className="rx-main">
-					{/* One confirmation for everything the camera already judged. */}
-					{aiDone.length > 0 && (
-						<div className="ai-block">
-							<div className="ai-head">
-								<b>AI 已判 {aiDone.length} 步</b>
-								<span className="muted">確認就好，不用重打</span>
+						<div className="rounded-md bg-surface-muted px-3 py-2.5">
+							<div className="flex items-baseline justify-between gap-2">
+								<span className="text-sm font-bold text-text">
+									{drug.label}
+								</span>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setDrugName("")}
+								>
+									換藥
+								</Button>
 							</div>
-							<ul className="ai-list">
+							<p className="mt-0.5 text-xs text-text-secondary">
+								{drug.hasIcs ? "含類固醇" : "不含類固醇"} ·{" "}
+								{DEVICES[drug.device].speed}
+							</p>
+						</div>
+
+						<Field label="評估者" htmlFor="pharmacist">
+							<Select
+								id="pharmacist"
+								value={pharmacist}
+								onChange={(e) => setPharmacist(e.target.value)}
+							>
+								{PHARMACISTS.map((p) => (
+									<option key={p}>{p}</option>
+								))}
+							</Select>
+						</Field>
+
+						<Field label="院區" htmlFor="campus">
+							<Select
+								id="campus"
+								value={campus}
+								onChange={(e) => setCampus(e.target.value)}
+							>
+								{CAMPUSES.map((c) => (
+									<option key={c}>{c}</option>
+								))}
+							</Select>
+						</Field>
+
+						<fieldset>
+							<legend className="mb-1.5 text-sm font-semibold text-text">
+								病人因素（影響怎麼教）
+							</legend>
+							<div className="flex flex-wrap gap-2">
+								{FACTORS.map((f: Factor) => (
+									<Button
+										key={f.code}
+										size="sm"
+										variant={factors.includes(f.code) ? "primary" : "secondary"}
+										aria-pressed={factors.includes(f.code)}
+										onClick={() =>
+											setFactors((prev: string[]) =>
+												prev.includes(f.code)
+													? prev.filter((code: string) => code !== f.code)
+													: [...prev, f.code],
+											)
+										}
+									>
+										{f.label}
+									</Button>
+								))}
+							</div>
+						</fieldset>
+					</div>
+				</Card>
+			</aside>
+
+			<div className="space-y-6">
+				{/* One confirmation for everything the camera already judged. */}
+				{aiDone.length > 0 && (
+					<Card>
+						<CardHeader
+							title={`AI 已判 ${aiDone.length} 步`}
+							description="相機看過了，確認就好，不用重打。百分比是相機信心值。"
+						/>
+						<DataTable>
+							<thead>
+								<tr>
+									<Th className="w-14">步</Th>
+									<Th>操作</Th>
+									<Th className="w-28 text-right">判定</Th>
+									<Th className="w-36">當場示範過</Th>
+								</tr>
+							</thead>
+							<tbody>
 								{applicable
 									.filter((s) => stepReviewSource(s.code) === "ai")
 									.map((s) => (
-										<li
-											key={s.code}
-											className={steps[s.code] === "錯誤" ? "ng" : "ok"}
-										>
-											<span className="ck-char">{s.char}</span>
-											<span className="ai-text">{s.text}</span>
-											<b>
-												{steps[s.code] ?? "未判"}
-												{ai[s.code] && (
-													<span className="conf" title="相機信心值">
-														{Math.round(ai[s.code].confidence * 100)}%
-													</span>
-												)}
-											</b>
-											<label className="demo">
-												<input
-													type="checkbox"
-													checked={Boolean(demonstrated[s.code])}
-													onChange={(e) =>
-														setDemonstrated(
-															(prev: Record<string, boolean>) => ({
-																...prev,
-																[s.code]: e.target.checked,
-															}),
-														)
-													}
-												/>
-												當場示範過
-											</label>
-										</li>
+										<tr key={s.code}>
+											<Td>
+												<span className="inline-flex size-7 items-center justify-center rounded-md bg-surface-muted text-sm font-bold text-text">
+													{s.char}
+												</span>
+											</Td>
+											<Td className="text-text-secondary">{s.text}</Td>
+											<Td className="text-right">
+												<Badge
+													tone={steps[s.code] === "錯誤" ? "danger" : "success"}
+												>
+													{steps[s.code] ?? "未判"}
+													{ai[s.code]
+														? ` · ${Math.round(ai[s.code].confidence * 100)}%`
+														: ""}
+												</Badge>
+											</Td>
+											<Td>
+												<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-sm text-text-secondary">
+													<input
+														type="checkbox"
+														className="size-4"
+														checked={Boolean(demonstrated[s.code])}
+														onChange={(e) =>
+															setDemonstrated(
+																(prev: Record<string, boolean>) => ({
+																	...prev,
+																	[s.code]: e.target.checked,
+																}),
+															)
+														}
+													/>
+													示範過
+												</label>
+											</Td>
+										</tr>
 									))}
-							</ul>
-						</div>
-					)}
+							</tbody>
+						</DataTable>
+					</Card>
+				)}
 
-					{/* Only the steps nothing else can judge. */}
-					<StepChecklist
-						steps={manual}
-						drug={drug}
-						value={steps}
-						onChange={setSteps}
-						demonstrated={demonstrated}
-						onDemonstrate={setDemonstrated}
+				{/* Only the steps nothing else can judge. */}
+				<StepChecklist
+					steps={manual}
+					drug={drug}
+					value={steps}
+					onChange={setSteps}
+					demonstrated={demonstrated}
+					onDemonstrate={setDemonstrated}
+				/>
+
+				{/* Two questions, not ten. */}
+				<Card>
+					<CardHeader
+						title={`確認兩件事（${Object.keys(knowledge).length}/${questions.length}）`}
+						description="依這位病人的裝置，挑出最容易錯的兩題。"
 					/>
+					<div className="divide-y divide-border-subtle">
+						{questions.map((q) => (
+							<div
+								key={q.index}
+								className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+							>
+								<p className="min-w-0 flex-1 text-sm text-text">{q.text}</p>
+								<div className="flex gap-2">
+									<Button
+										size="sm"
+										variant={
+											knowledge[String(q.index)] === "對"
+												? "primary"
+												: "secondary"
+										}
+										aria-pressed={knowledge[String(q.index)] === "對"}
+										onClick={() =>
+											setKnowledge((p: Record<string, "對" | "不對">) => ({
+												...p,
+												[String(q.index)]: "對",
+											}))
+										}
+									>
+										對
+									</Button>
+									<Button
+										size="sm"
+										variant={
+											knowledge[String(q.index)] === "不對"
+												? "primary"
+												: "secondary"
+										}
+										aria-pressed={knowledge[String(q.index)] === "不對"}
+										onClick={() =>
+											setKnowledge((p: Record<string, "對" | "不對">) => ({
+												...p,
+												[String(q.index)]: "不對",
+											}))
+										}
+									>
+										不對
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+				</Card>
 
-					{/* Two questions, not ten. */}
-					<section className="knowledge">
-						<h2>
-							確認兩件事（{Object.keys(knowledge).length}/{questions.length}）
-						</h2>
-						<ol className="kq">
-							{questions.map((q) => (
-								<li key={q.index}>
-									<span className="kq-text">{q.text}</span>
-									<span className="seg">
-										<button
-											type="button"
-											aria-pressed={knowledge[String(q.index)] === "對"}
-											onClick={() =>
-												setKnowledge((p: Record<string, "對" | "不對">) => ({
-													...p,
-													[String(q.index)]: "對",
-												}))
-											}
-										>
-											對
-										</button>
-										<button
-											type="button"
-											aria-pressed={knowledge[String(q.index)] === "不對"}
-											onClick={() =>
-												setKnowledge((p: Record<string, "對" | "不對">) => ({
-													...p,
-													[String(q.index)]: "不對",
-												}))
-											}
-										>
-											不對
-										</button>
-									</span>
-								</li>
-							))}
-						</ol>
-					</section>
-
-					<div className="rx-save">
-						<p className="rx-progress">
-							AI 已判 {aiDone.length} 步 · 待補{" "}
-							{manual.filter((s) => !steps[s.code]).length} 步 ·{" "}
-							{Object.keys(knowledge).length}/{questions.length} 題
-						</p>
-						<button
-							type="button"
-							className="btn-primary"
-							disabled={!ready}
-							onClick={save}
-						>
+				{/* The save bar stays visible while the page scrolls: the decision to
+				    finish belongs beside the progress, not at the bottom. */}
+				<div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface/95 px-5 py-3 shadow-lg backdrop-blur">
+					<p className="text-sm text-text-secondary">
+						AI 已判 {aiDone.length} 步 · 待補{" "}
+						{manual.filter((s) => !steps[s.code]).length} 步 ·{" "}
+						{Object.keys(knowledge).length}/{questions.length} 題
+					</p>
+					<div className="flex items-center gap-3">
+						{status && (
+							<span
+								className={cn(
+									"text-sm font-semibold",
+									status.tone === "good" ? "text-success" : "text-danger",
+								)}
+							>
+								{status.text}
+							</span>
+						)}
+						<Button size="lg" disabled={!ready} onClick={save}>
 							{ready
 								? "儲存收案"
-								: `${missingLabel(manual, steps, questions, knowledge)}`}
-						</button>
-						{status && (
-							<p className={`rx-status ${status.tone}`} role="status">
-								{status.text}
-							</p>
-						)}
+								: missingLabel(manual, steps, questions, knowledge)}
+						</Button>
 					</div>
-				</section>
+				</div>
 			</div>
 		</div>
 	);

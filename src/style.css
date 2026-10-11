@@ -1,19 +1,54 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens.
+ *
+ * These are the single source of truth for the whole product — patient end and
+ * pharmacist end alike. The pharmacist end used to carry its own parallel set
+ * (`--rx-*`) with a teal accent, which is why it read as a different product;
+ * that set is gone.
+ *
+ * Palette authority: `--color-primary` rose is the established brand colour and
+ * is not changed here. Roles that did not exist before (muted foreground,
+ * input, ring, muted surfaces) are added so every surface draws from the same
+ * names rather than inventing its own.
+ */
 @theme {
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-light: #e2e8f0;
+  --color-surface-muted: #f1f5f9;
   --color-border: #cbd5e1;
+  --color-border-subtle: #e2e8f0;
   --color-text: #0f172a;
   --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
   --color-primary: #e11d48;
   --color-primary-dark: #be123c;
+  --color-primary-foreground: #ffffff;
   --color-success: #047857;
+  --color-success-soft: #ecfdf5;
   --color-warning: #b45309;
+  --color-warning-soft: #fffbeb;
   --color-danger: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-accent: #0f172a;
+  --color-ring: #38bdf8;
+
   --font-sans: 'jf-openhuninn', 'Noto Sans TC', system-ui, sans-serif;
   --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* shadcn/ui names the same roles with different keys. Alias them so components
+   ported from anywhere in that ecosystem resolve to this product's palette
+   rather than to their own defaults. */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-surface-muted);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-ring);
 }
 
 @font-face {

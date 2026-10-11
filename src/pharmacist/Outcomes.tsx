@@ -1,20 +1,17 @@
 /**
- * Outcomes: ONE job — 有沒有變好.
+ * Outcomes: did it get better, and is anyone using it.
  *
- * This replaces the prototype's renderDash(), which put 11 panels on one page
- * (per-device bars, step heatmap, drug × step heatmap, knowledge errors,
- * pharmacist × device, inspiratory flow, dose-counter adherence, CAT/ACT pairs,
- * physician loop, discharge reconciliation, Pareto). Everything that does not
- * change the verdict was cut: clinical extras belong to the pharmacist's case
- * view, and the drill-down tables belong behind the numbers they explain.
+ * Two questions, in that order. The verdict answers the first; the engagement
+ * panel answers the second, because an error rate on its own cannot tell a
+ * working system from one nobody followed up with.
  */
 import { useEffect, useState } from "react";
 
 import { fetchSummary, type Summary } from "../api-client";
 import { EngagementPanel } from "./components/EngagementPanel";
 import { StepTable } from "./components/StepTable";
+import { Card, CardHeader, Select } from "./components/ui";
 import { Verdict } from "./components/Verdict";
-import "./outcomes.css";
 
 export function Outcomes() {
 	const [data, setData] = useState<Summary | null>(null);
@@ -38,36 +35,42 @@ export function Outcomes() {
 
 	if (error) {
 		return (
-			<div className="outcomes">
-				<p className="empty">讀不到資料：{error}</p>
-				<p className="hint">確認 API 已部署，並已設定 DATABASE_URL。</p>
-			</div>
+			<Card className="p-6">
+				<p className="text-base text-danger">讀不到資料：{error}</p>
+				<p className="mt-1 text-base text-text-secondary">
+					確認 API 已部署，並已設定 DATABASE_URL。
+				</p>
+			</Card>
 		);
 	}
-	if (!data) {
-		return (
-			<div className="outcomes">
-				<p className="empty">載入中…</p>
-			</div>
-		);
-	}
+	if (!data)
+		return <Card className="p-6 text-base text-text-secondary">載入中…</Card>;
 
 	return (
-		<div className="outcomes">
-			<header className="out-head">
+		<div className="space-y-6">
+			<div className="flex flex-wrap items-end justify-between gap-4">
 				<div>
-					<span className="eyebrow">QCC 吸入劑 · 改善成效</span>
-					<h1>有沒有變好</h1>
+					<h1 className="text-2xl font-bold tracking-tight text-text">
+						有沒有變好
+					</h1>
+					<p className="mt-1.5 max-w-prose text-base text-text-secondary">
+						錯誤率回答「有沒有變好」，下面這一段回答「有人在用嗎」。兩個問題分開看，因為追蹤完成率是零的時候，錯誤率照樣可以看起來穩定。
+					</p>
 				</div>
-				<label className="stage-pick">
-					<span>階段</span>
-					<select value={stage} onChange={(e) => setStage(e.target.value)}>
+				<div className="flex items-center gap-2 text-base text-text-secondary">
+					<label htmlFor="stage">階段</label>
+					<Select
+						id="stage"
+						value={stage}
+						onChange={(e) => setStage(e.target.value)}
+						className="w-36"
+					>
 						<option value="">全部</option>
 						<option value="改善前">改善前</option>
 						<option value="改善後">改善後</option>
-					</select>
-				</label>
-			</header>
+					</Select>
+				</div>
+			</div>
 
 			<Verdict
 				baseline={data.baseline}
@@ -76,15 +79,13 @@ export function Outcomes() {
 				paired={data.paired}
 			/>
 
-			<section className="block">
-				<h2>還是錯在這裡</h2>
-				<p className="hint">
-					依錯誤次數排序（佔最多錯誤的排最前）。★
-					關鍵步驟，錯了這一次藥大多到不了肺部。
-					最右欄為累積佔比：前幾個步驟修好，就能涵蓋 80% 的錯誤。
-				</p>
+			<Card>
+				<CardHeader
+					title="還是錯在這裡"
+					description="依錯誤次數排序（佔最多錯誤的排最前）。★ 關鍵步驟，錯了這一次藥大多到不了肺部。最右欄為累積佔比：前幾個步驟修好，就能涵蓋 80% 的錯誤。"
+				/>
 				<StepTable rates={data.stepRates} pareto={data.pareto} />
-			</section>
+			</Card>
 
 			<EngagementPanel e={data.engagement ?? null} />
 		</div>

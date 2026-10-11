@@ -1,5 +1,4 @@
 import { useCoaching } from "./hooks/useCoaching";
-import { Pharmacist } from "./pharmacist/Pharmacist";
 import { IntroScreen } from "./screens/IntroScreen";
 import { StageScreen } from "./screens/StageScreen";
 import { SuccessScreen } from "./screens/SuccessScreen";
@@ -7,19 +6,16 @@ import { SuccessScreen } from "./screens/SuccessScreen";
 const baseUrl = import.meta.env.BASE_URL;
 const introBackground = `${baseUrl}inhaler_bg.jpg?v=20260818_left_nozzle_final`;
 
+/**
+ * The patient coaching loop.
+ *
+ * This used to inspect window.location and render the pharmacist end itself.
+ * Routing lives in src/routes.tsx now: a component deciding its own URL means
+ * the navigation has to be reimplemented by hand and cannot be linked to, and
+ * the three tabs had no addresses at all.
+ */
 export function App() {
-	// Every hook runs before any early return. Returning first would make the
-	// hook count depend on the route, which React treats as a hooks violation.
 	const c = useCoaching();
-
-	// The pharmacist end sits on its own path so the patient coaching loop keeps
-	// its zero-install, zero-login entry at "/". There is no separate management
-	// end: the pharmacist is the only person who records a case and the only one
-	// who reads the outcomes, so those are two views of one job.
-	const route = window.location.pathname
-		.replace(baseUrl, "")
-		.replace(/\/+$/, "");
-	if (route === "pharmacist") return <Pharmacist />;
 
 	if (c.screen === "intro") {
 		return (

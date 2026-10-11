@@ -7,12 +7,13 @@
  * hold a stable error rate simply because nobody came back to be measured.
  *
  * Every count is people, not events, so one patient practising four times is
- * one person. That matches the plan's per-person analysis unit.
+ * one person — matching the plan's per-person analysis unit.
  *
- * On a fresh database all of these are zero. That is the intended reading, not a
- * failure to load: "nobody has used this yet" must be visible rather than an
- * empty screen.
+ * On a fresh database all of these are zero. That is the intended reading: "nobody
+ * has used this yet" must be visible rather than an empty screen.
  */
+import { Badge, Card, CardHeader } from "./ui";
+
 export interface Engagement {
 	enrolled: number;
 	practised: number;
@@ -29,13 +30,8 @@ export interface Engagement {
 }
 
 /**
- * Steps of the funnel, in the order a patient actually meets them.
- *
- * `of` names the previous step *in that same chain*, not merely a denominator.
- * LINE is a separate chain from practice: a patient can be asked to add LINE
- * without ever having practised, so the funnel is two chains sharing an
- * enrolled base. Getting this wrong prints a percentage against a number the
- * percentage has nothing to do with, which is worse than printing nothing.
+ * Two chains from one enrolled base. Practising and adding LINE are not steps
+ * of each other, so neither is a denominator for the other.
  */
 const CHAINS = [
 	{
@@ -54,83 +50,97 @@ const CHAINS = [
 	},
 ] as const;
 
-/** Formats 0 as a zero rather than a dash: absence is the finding. */
-const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "—");
+const pct = (n: number, d: number) =>
+	d > 0 ? `${Math.round((n / d) * 100)}%` : "—";
 
 export function EngagementPanel({ e }: { e: Engagement | null }) {
 	if (!e) return null;
 	const rate = e.followupCompletionRate;
 
 	return (
-		<section className="block">
-			<h2>民眾有在用嗎</h2>
-			<p className="hint">
-				以「人」計數，不是次數。一個人練習四次仍算一位。
-				這裡回答的是系統有沒有被真的使用，不是操作有沒有變好。
-			</p>
+		<Card>
+			<CardHeader
+				title="民眾有在用嗎"
+				description="以「人」計數，不是次數。一個人練習四次仍算一位。這裡回答系統有沒有被真的使用，不是操作有沒有變好。"
+			/>
 
-			{/* Two chains from the same enrolled base: practising and LINE are
-			    independent, so neither is a step of the other. */}
-			<div className="funnel-base">
-				<span className="funnel-label">已收案</span>
-				<span className="funnel-bar">
-					<span className="funnel-fill" style={{ inlineSize: "100%" }} />
-				</span>
-				<span className="funnel-num">{e.enrolled}</span>
-				<span className="funnel-pct muted">分母</span>
-			</div>
-
-			{CHAINS.map((chain) => (
-				<fieldset key={chain.label} className="funnel-chain">
-					<legend>{chain.label}</legend>
-					{chain.steps.map((step, i) => {
-						const value = e[step.key];
-						const denom = i === 0 ? e.enrolled : e[chain.steps[i - 1].key];
-						return (
-							<div key={step.key} className="funnel-row">
-								<span className="funnel-label">{step.label}</span>
-								<span className="funnel-bar">
-									<span
-										className="funnel-fill"
-										style={{
-											inlineSize: `${e.enrolled > 0 ? (value / e.enrolled) * 100 : 0}%`,
-										}}
-									/>
-								</span>
-								<span className="funnel-num">{value}</span>
-								<span className="funnel-pct muted">
-									{denom > 0 ? `${pct(value, denom)} 佔上一步` : "無上一步可比"}
-								</span>
-							</div>
-						);
-					})}
-				</fieldset>
-			))}
-
-			{/*
-			 * Follow-up completion is the indicator the whole project rests on —
-			 * the baseline had 62 cases at M0 and none at M1. It is shown as its
-			 * own number rather than folded into the funnel because it is the one
-			 * number that can be zero while every other number looks fine.
-			 */}
-			<div className="fu-kpi">
-				<div>
-					<span className="kpi-label">追蹤完成率</span>
-					<span className="kpi-value">
-						{rate == null ? "—" : `${Math.round(rate * 100)}%`}
+			<div className="px-5 py-5">
+				<div className="grid gap-4 sm:grid-cols-[8rem_minmax(0,1fr)_3rem_8rem] sm:items-center">
+					<span className="text-sm font-bold text-text">已收案</span>
+					<span className="h-2 overflow-hidden rounded-full bg-surface-muted">
+						<span className="block h-full w-full rounded-full bg-primary" />
 					</span>
+					<span className="text-right text-sm font-bold tabular-nums text-text">
+						{e.enrolled}
+					</span>
+					<span className="text-xs text-text-muted">分母</span>
 				</div>
-				<p className="hint">
-					已到期 {e.followupDue} 件，完成 {e.followupDone} 件。
-					{e.fu_open > 0 && ` 尚未到期或未結案 ${e.fu_open} 件。`}
-					{e.fu_missed > 0 && ` 標記未完成 ${e.fu_missed} 件。`}
+
+				{CHAINS.map((chain) => (
+					<fieldset
+						key={chain.label}
+						className="mt-4 border-s-2 border-border-subtle ps-4"
+					>
+						<legend className="px-1 text-xs font-bold text-text-secondary">
+							{chain.label}
+						</legend>
+						<div className="space-y-2">
+							{chain.steps.map((step, i) => {
+								const value = e[step.key];
+								const denom = i === 0 ? e.enrolled : e[chain.steps[i - 1].key];
+								return (
+									<div
+										key={step.key}
+										className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)_3rem_8rem] sm:items-center"
+									>
+										<span className="text-base text-text-secondary">
+											{step.label}
+										</span>
+										<span className="h-2 overflow-hidden rounded-full bg-surface-muted">
+											<span
+												className="block h-full rounded-full bg-primary"
+												style={{
+													inlineSize: `${e.enrolled > 0 ? (value / e.enrolled) * 100 : 0}%`,
+												}}
+											/>
+										</span>
+										<span className="text-right text-sm font-semibold tabular-nums text-text">
+											{value}
+										</span>
+										<span className="text-xs tabular-nums text-text-muted">
+											{denom > 0
+												? `${pct(value, denom)} 佔上一步`
+												: "無上一步可比"}
+										</span>
+									</div>
+								);
+							})}
+						</div>
+					</fieldset>
+				))}
+
+				<div className="mt-6 rounded-md border border-border-subtle bg-surface-muted px-4 py-3">
+					<div className="flex items-baseline gap-3">
+						<span className="text-sm font-semibold text-text-secondary">
+							追蹤完成率
+						</span>
+						<span className="text-3xl font-bold tabular-nums text-text">
+							{rate == null ? "—" : `${Math.round(rate * 100)}%`}
+						</span>
+						{rate === 0 && <Badge tone="danger">全部未完成</Badge>}
+					</div>
+					<p className="mt-1 text-base text-text-secondary">
+						已到期 {e.followupDue} 件，完成 {e.followupDone} 件。
+						{e.fu_open > 0 && ` 尚未到期或未結案 ${e.fu_open} 件。`}
+						{e.fu_missed > 0 && ` 標記未完成 ${e.fu_missed} 件。`}
+					</p>
+				</div>
+
+				<p className="mt-4 text-base text-text-secondary">
+					近 7 天有動作的病人：{e.active_7d} 人。
+					{e.active_7d === 0 && " 目前沒有任何病人使用紀錄。"}
 				</p>
 			</div>
-
-			<p className="hint">
-				近 7 天有動作的病人：{e.active_7d} 人。
-				{e.active_7d === 0 && " 目前沒有任何病人使用紀錄。"}
-			</p>
-		</section>
+		</Card>
 	);
 }

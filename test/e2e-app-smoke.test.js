@@ -6,17 +6,34 @@ import { execSync } from "node:child_process";
 import test from "node:test";
 import { chromium } from "playwright";
 
+/** The prefix the production build is served under. */
+const BASE = "inhaler-coach";
+
 test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async () => {
 	const distDir = path.resolve("dist");
-	if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, "index.html"))) {
-		execSync("VITE_BASE=/ bun run build", { stdio: "inherit" });
+	const indexHtml = path.join(distDir, "index.html");
+
+	/*
+	 * Deploying serves the app under /inhaler-coach/, and the router derives its
+	 * basename from the base the build was given. A dist left over from any
+	 * other base would be reused and the test would report on an app that is not
+	 * the one that ships, so the guard checks the base in index.html rather than
+	 * only whether the directory exists.
+	 */
+	const builtWith = fs.existsSync(indexHtml)
+		? (fs.readFileSync(indexHtml, "utf8").match(/\/(inhaler-coach)\/assets\//) || [])[1]
+		: null;
+	if (builtWith !== BASE) {
+		execSync(`VITE_BASE=/${BASE === "inhaler-coach" ? "" : BASE} bun run build`, {
+			stdio: "inherit",
+		});
 	}
-	assert.ok(fs.existsSync(distDir), "dist directory must exist for smoke test");
+	assert.ok(fs.existsSync(indexHtml), "index.html must exist for smoke test");
 
 	const server = http.createServer((req, res) => {
 		let reqPath = req.url.split("?")[0];
-		if (reqPath.startsWith("/inhaler-coach/")) {
-			reqPath = reqPath.slice("/inhaler-coach".length);
+		if (reqPath.startsWith(`/${BASE}/`)) {
+			reqPath = reqPath.slice(BASE.length + 1);
 		}
 		if (reqPath === "" || reqPath === "/") reqPath = "/index.html";
 		const filePath = path.join(distDir, reqPath);
@@ -50,7 +67,7 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 		page.on("pageerror", (err) => pageErrors.push(err.message));
 
 		// 1. Visit homepage
-		await page.goto(`http://localhost:${port}`);
+		await page.goto(`http://localhost:${port}/${BASE}/`);
 		await page.waitForSelector("#btn-start", { timeout: 10000 });
 
 		assert.equal(pageErrors.length, 0, `Homepage threw errors: ${pageErrors.join(", ")}`);
@@ -71,7 +88,7 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 		assert.match(stage0Text, /衛教影片/);
 
 		// 3. Directly load stage 1 via URL
-		await page.goto(`http://localhost:${port}/?stage=1`);
+		await page.goto(`http://localhost:${port}/${BASE}/?stage=1`);
 		await page.waitForFunction(
 			() => document.querySelector("#app")?.textContent?.includes("振搖"),
 			{ timeout: 10000 },
