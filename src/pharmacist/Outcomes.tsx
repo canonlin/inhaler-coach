@@ -1,24 +1,25 @@
 /**
- * Outcomes: did it get better, and is anyone using it.
+ * Outcomes: an overview, then the detail behind it.
  *
- * Read order is evidence order, not topic order. The screen once led with the
- * before/after headline, which hands the largest type to a rate computed from
- * however many people have been measured — at 收案 1/30 the page's loudest
- * object was its least supported claim. The step distribution leads now,
- * because 61 cases is the one finding here with enough behind it to act on, and
- * the comparison follows in its own tier.
+ * The screen opened with a heading, a paragraph explaining its own section
+ * order, and a filter, so the space above the fold — the most valuable space on
+ * an overview screen — was spent on chrome. It now leads with the summary band
+ * (where the study stands, in one look) and keeps only what a glance cannot
+ * carry below.
  *
- * Two questions, in that order. The verdict answers the first; the engagement
- * panel answers the second, because an error rate on its own cannot tell a
- * working system from one nobody followed up with.
+ * Nothing is shown twice. The band carries enrolment, error rate, follow-up
+ * completion and weekly actives; the panels below carry the step distribution
+ * and the usage chains. That is why Verdict is gone rather than moved: its
+ * numbers now live in the band, and keeping the card would make a reader
+ * confirm the same figures a second time.
  */
 import { useEffect, useState } from "react";
 
 import { fetchSummary, type Summary } from "../api-client";
 import { EngagementPanel } from "./components/EngagementPanel";
+import { OutcomeSummary } from "./components/OutcomeSummary";
 import { StepPareto } from "./components/StepPareto";
 import { Card, CardHeader, Select } from "./components/ui";
-import { Verdict } from "./components/Verdict";
 
 export function Outcomes() {
 	const [data, setData] = useState<Summary | null>(null);
@@ -55,13 +56,8 @@ export function Outcomes() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex flex-wrap items-end justify-between gap-4">
-				<div>
-					<h1 className="text-2xl font-bold tracking-tight text-text">成效</h1>
-					<p className="mt-1.5 max-w-prose text-base text-text-secondary">
-						這頁回答兩件事：錯在哪裡，以及介入有沒有效。順序不是隨便排的——先講證據夠的那件事。下方第二段回答「有人在用嗎」，因為追蹤完成率是零的時候，錯誤率照樣可以看起來穩定。
-					</p>
-				</div>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<h1 className="text-2xl font-bold tracking-tight text-text">成效</h1>
 				<div className="flex items-center gap-2 text-base text-text-secondary">
 					<label htmlFor="stage">階段</label>
 					<Select
@@ -77,6 +73,14 @@ export function Outcomes() {
 				</div>
 			</div>
 
+			<OutcomeSummary
+				baseline={data.baseline}
+				after={data.after}
+				enrolment={data.enrolment}
+				paired={data.paired}
+				engagement={data.engagement}
+			/>
+
 			<Card>
 				<CardHeader
 					title="錯在哪裡"
@@ -85,14 +89,13 @@ export function Outcomes() {
 				<StepPareto rates={data.stepRates} pareto={data.pareto} />
 			</Card>
 
-			<Verdict
-				baseline={data.baseline}
-				after={data.after}
-				enrolment={data.enrolment}
-				paired={data.paired}
-			/>
-
-			<EngagementPanel e={data.engagement ?? null} />
+			<Card>
+				<CardHeader
+					title="民眾有在用嗎"
+					description="以「人」計數，不是次數。一個人練習四次仍算一位。回答系統有沒有被真的使用，不是操作有沒有變好。"
+				/>
+				<EngagementPanel e={data.engagement ?? null} />
+			</Card>
 		</div>
 	);
 }

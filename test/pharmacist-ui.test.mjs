@@ -167,7 +167,7 @@ describe("pharmacist tabs", () => {
 
 	it("shows the outcomes inside the pharmacist app", async () => {
 		await page.click(`${NAV} a:has-text("成效")`);
-		await page.waitForSelector("[data-testid=verdict]", { timeout: 15_000 });
+		await page.waitForSelector("[data-testid=outcome-summary]", { timeout: 15_000 });
 		assert.equal((await page.textContent("h1"))?.trim(), "成效");
 		assert.equal(await page.$$eval(NAV, (n) => n.length), 1);
 	});
@@ -178,17 +178,20 @@ describe("pharmacist tabs", () => {
 	 * back over unpaired data without anything failing, so both states are
 	 * asserted here: paired → the comparison, unpaired → an explicit refusal.
 	 */
-	it("renders a verdict built from the cases this test created", async () => {
+	it("renders a summary built from the cases this test created", async () => {
 		// One patient measured before (2/2 steps wrong) and after (0/2 wrong).
 		// The figures themselves are asserted in the metrics tests; here the
 		// point is that they come from the database and reach the page.
-		const verdict = (await page.textContent("[data-testid=verdict-number]"))?.replace(/\s+/g, " ").trim();
-		assert.match(verdict ?? "", /100%\s*→\s*0%/, `got ${verdict}`);
+		const headline = (
+			await page.textContent("[data-testid=error-rate-headline]")
+		)?.replace(/\s+/g, " ").trim();
+		assert.match(headline ?? "", /100%\s*→\s*0%/, `got ${headline}`);
 
 		// The paired test is the condition that earns the headline; if it is
 		// missing, the number above is being displayed without support.
-		const note = (await page.textContent("[data-testid=verdict]")) ?? "";
-		assert.match(note, /配對中/, "a paired test must accompany a headline rate");
+		const support = (await page.textContent("[data-testid=error-rate-support]")) ?? "";
+		assert.match(support, /配對 1 人/, `got ${support}`);
+		assert.match(support, /改善 1 · 退步 0/);
 	});
 
 	it("refuses to headline a rate it cannot test", async () => {
@@ -200,18 +203,43 @@ describe("pharmacist tabs", () => {
 		);
 		await page.waitForTimeout(400);
 
-		const card = (await page.textContent("[data-testid=verdict]")) ?? "";
+		// The band itself is always present; what must not appear is a rate.
+		assert.ok(
+			await page.$("[data-testid=outcome-summary]"),
+			"the summary band stays; only the unsupported rate is withheld",
+		);
 		assert.equal(
-			await page.$("[data-testid=verdict-number]"),
+			await page.$("[data-testid=error-rate-headline]"),
 			null,
 			"no headline rate when the two cohorts cannot be compared",
 		);
-		assert.match(card, /還不能下結論/);
-		assert.match(card, /改善前 1 例、改善後 0 例/);
+		const blocked = (await page.textContent("[data-testid=error-rate-blocked]")) ?? "";
+		assert.match(blocked, /還不能下結論/);
+
+		const tile = (await page.textContent("[data-testid=outcome-summary]")) ?? "";
+		assert.match(tile, /改善前 1 例、改善後 0 例/);
 
 		// Leave the filter as found for the tests that follow.
 		await page.selectOption("#stage", "");
 		await page.waitForTimeout(300);
+	});
+
+	/*
+	 * The overview must not make the reader confirm the same figure twice. The
+	 * band carries enrolment, error rate, follow-up completion and weekly
+	 * actives; the panels below carry the step distribution and usage chains.
+	 * If a number drifts back into both places, this catches it.
+	 */
+	it("shows each headline number once", async () => {
+		const band = (await page.textContent("[data-testid=outcome-summary]")) ?? "";
+		const rest = (
+			await page.textContent("main") // eslint-disable-line
+		)?.replace(band, "") ?? "";
+
+		// 追蹤完成率 and 近 7 天 belong to the band; the detail panels below
+		// should not restate either.
+		assert.doesNotMatch(rest, /追蹤完成率/);
+		assert.doesNotMatch(rest, /近 7 天活躍/);
 	});
 
 	/*
