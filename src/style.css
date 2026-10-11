@@ -68,11 +68,20 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
   font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+
+/* The document scrolls again. It carried overflow: hidden for the 3D patient
+   coaching loop, which needs no page scroll because its <main> is
+   position: fixed with inset-0 and clips its own overflow (see App.tsx). That
+   rule is redundant there and was fatal here: the pharmacist end is ordinary
+   document flow, so a page taller than the viewport became unreachable — the
+   outcomes page could not be scrolled to the step table below the fold.
+
+   The coaching loop keeps its behaviour either way, because a fixed element
+   does not move with the document and clips regardless of this rule. */
 
 button,
 [role='button'] {

@@ -165,6 +165,19 @@ if (false) {
 			assert.equal(r.enrolment.target, 61);
 			assert.equal(r.enrolment.after, 2);
 		});
+
+		/*
+		 * The default is the plan's own enrolment figure, 「預計收案 30 位病人」
+		 * (計畫書 line 112). It used to fall back to 61 — the baseline cohort —
+		 * so with no target supplied the page showed 收案 2/61 and read as if
+		 * the intervention had to reach every baseline patient. Nothing caught
+		 * it because the neighbouring test passes a target explicitly and so
+		 * never exercises the fallback.
+		 */
+		it("falls back to the plan's enrolment target, not the cohort size", async () => {
+			const r = await api.summary({});
+			assert.equal(r.enrolment.target, 30);
+		});
 	});
 
 	describe("POST /api/sessions", () => {

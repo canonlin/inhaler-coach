@@ -1,6 +1,13 @@
 /**
  * Outcomes: did it get better, and is anyone using it.
  *
+ * Read order is evidence order, not topic order. The screen once led with the
+ * before/after headline, which hands the largest type to a rate computed from
+ * however many people have been measured — at 收案 1/30 the page's loudest
+ * object was its least supported claim. The step distribution leads now,
+ * because 61 cases is the one finding here with enough behind it to act on, and
+ * the comparison follows in its own tier.
+ *
  * Two questions, in that order. The verdict answers the first; the engagement
  * panel answers the second, because an error rate on its own cannot tell a
  * working system from one nobody followed up with.
@@ -9,7 +16,7 @@ import { useEffect, useState } from "react";
 
 import { fetchSummary, type Summary } from "../api-client";
 import { EngagementPanel } from "./components/EngagementPanel";
-import { StepTable } from "./components/StepTable";
+import { StepPareto } from "./components/StepPareto";
 import { Card, CardHeader, Select } from "./components/ui";
 import { Verdict } from "./components/Verdict";
 
@@ -50,11 +57,9 @@ export function Outcomes() {
 		<div className="space-y-6">
 			<div className="flex flex-wrap items-end justify-between gap-4">
 				<div>
-					<h1 className="text-2xl font-bold tracking-tight text-text">
-						有沒有變好
-					</h1>
+					<h1 className="text-2xl font-bold tracking-tight text-text">成效</h1>
 					<p className="mt-1.5 max-w-prose text-base text-text-secondary">
-						錯誤率回答「有沒有變好」，下面這一段回答「有人在用嗎」。兩個問題分開看，因為追蹤完成率是零的時候，錯誤率照樣可以看起來穩定。
+						這頁回答兩件事：錯在哪裡，以及介入有沒有效。順序不是隨便排的——先講證據夠的那件事。下方第二段回答「有人在用嗎」，因為追蹤完成率是零的時候，錯誤率照樣可以看起來穩定。
 					</p>
 				</div>
 				<div className="flex items-center gap-2 text-base text-text-secondary">
@@ -72,20 +77,20 @@ export function Outcomes() {
 				</div>
 			</div>
 
+			<Card>
+				<CardHeader
+					title="錯在哪裡"
+					description="每個步驟被評估時的錯誤次數，從最多錯的排起。★ 標記關鍵步驟——錯了通常代表藥到不了肺部。"
+				/>
+				<StepPareto rates={data.stepRates} pareto={data.pareto} />
+			</Card>
+
 			<Verdict
 				baseline={data.baseline}
 				after={data.after}
 				enrolment={data.enrolment}
 				paired={data.paired}
 			/>
-
-			<Card>
-				<CardHeader
-					title="還是錯在這裡"
-					description="依錯誤次數排序（佔最多錯誤的排最前）。★ 關鍵步驟，錯了這一次藥大多到不了肺部。最右欄為累積佔比：前幾個步驟修好，就能涵蓋 80% 的錯誤。"
-				/>
-				<StepTable rates={data.stepRates} pareto={data.pareto} />
-			</Card>
 
 			<EngagementPanel e={data.engagement ?? null} />
 		</div>

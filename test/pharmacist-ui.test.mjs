@@ -116,7 +116,12 @@ before(async () => {
 		steps: { MDI_壓: "錯誤", MDI_吸: "錯誤" },
 	});
 	await post("/api/cases", {
-		mrn: "UI0000002",
+		// Same record number as the baseline case, so this patient is measured
+		// twice and the page has something it can actually test. With two
+		// different patients there is no paired comparison, which is the state
+		// the page refuses to headline — and a test that never reached that
+		// state would not notice the headline disappearing.
+		mrn: "UI0000001",
 		caseDate: "2026-06-04",
 		pharmacist: "黃永成",
 		drug: "Symbicort",
@@ -163,17 +168,105 @@ describe("pharmacist tabs", () => {
 	it("shows the outcomes inside the pharmacist app", async () => {
 		await page.click(`${NAV} a:has-text("成效")`);
 		await page.waitForSelector("[data-testid=verdict]", { timeout: 15_000 });
-		assert.equal((await page.textContent("h1"))?.trim(), "有沒有變好");
+		assert.equal((await page.textContent("h1"))?.trim(), "成效");
 		assert.equal(await page.$$eval(NAV, (n) => n.length), 1);
 	});
 
+	/*
+	 * The headline only appears when the same people were measured twice.
+	 * Testing the page only in the testable state would let the headline grow
+	 * back over unpaired data without anything failing, so both states are
+	 * asserted here: paired → the comparison, unpaired → an explicit refusal.
+	 */
 	it("renders a verdict built from the cases this test created", async () => {
-		// The two cases are counted separately: the baseline case has 2 steps and
-		// both are wrong (100%), the follow-up case has 2 steps and neither is
-		// (0%). The figures are asserted in the metrics tests; here the point is
-		// that the number comes from the database and the page renders it at all.
+		// One patient measured before (2/2 steps wrong) and after (0/2 wrong).
+		// The figures themselves are asserted in the metrics tests; here the
+		// point is that they come from the database and reach the page.
 		const verdict = (await page.textContent("[data-testid=verdict-number]"))?.replace(/\s+/g, " ").trim();
 		assert.match(verdict ?? "", /100%\s*→\s*0%/, `got ${verdict}`);
+
+		// The paired test is the condition that earns the headline; if it is
+		// missing, the number above is being displayed without support.
+		const note = (await page.textContent("[data-testid=verdict]")) ?? "";
+		assert.match(note, /配對中/, "a paired test must accompany a headline rate");
+	});
+
+	it("refuses to headline a rate it cannot test", async () => {
+		// 改善前 only: there is no "after" cohort, so no comparison exists.
+		await page.selectOption("#stage", "改善前");
+		await page.waitForFunction(
+			() => document.querySelector("#stage")?.value === "改善前",
+			{ timeout: 5000 },
+		);
+		await page.waitForTimeout(400);
+
+		const card = (await page.textContent("[data-testid=verdict]")) ?? "";
+		assert.equal(
+			await page.$("[data-testid=verdict-number]"),
+			null,
+			"no headline rate when the two cohorts cannot be compared",
+		);
+		assert.match(card, /還不能下結論/);
+		assert.match(card, /改善前 1 例、改善後 0 例/);
+
+		// Leave the filter as found for the tests that follow.
+		await page.selectOption("#stage", "");
+		await page.waitForTimeout(300);
+	});
+
+	/*
+	 * `body { overflow: hidden }` existed for the 3D coaching loop and made every
+	 * page in this app unreachable below the fold. Nothing caught it because
+	 * each assertion read text that was already on screen — a page that cannot
+	 * scroll still renders everything above the fold, perfectly.
+	 *
+	 * Measured rather than asserted: scroll the window and compare. A test that
+	 * only checks the body is taller than the viewport would pass here, since
+	 * that was true; the missing half is whether scrolling actually moves.
+	 */
+	it("can scroll to content below the fold", async () => {
+		const results = [];
+		for (const path of ["/admin", "/admin/followups", "/admin/outcomes"]) {
+			await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
+			// Settle the fetch and the async chart before measuring.
+			await page.waitForTimeout(400);
+
+			const m = await page.evaluate(async () => {
+				const de = document.documentElement;
+				const before = window.scrollY;
+				window.scrollTo(0, 999999);
+				await new Promise((r) =>
+					requestAnimationFrame(() => requestAnimationFrame(r)),
+				);
+				const moved = window.scrollY - before;
+				window.scrollTo(0, 0);
+				return {
+					overflow: getComputedStyle(document.body).overflowY,
+					overflowing: de.scrollHeight - de.clientHeight,
+					moved,
+				};
+			});
+
+			results.push({ path, ...m });
+			assert.notEqual(
+				m.overflow,
+				"hidden",
+				`${path}: body must not clip the document, or content below the fold is unreachable`,
+			);
+			// Only assert movement where there is something below the fold.
+			if (m.overflowing > 0) {
+				assert.ok(
+					m.moved > 0,
+					`${path}: ${m.overflowing}px of content sits below the fold but the page did not scroll`,
+				);
+			}
+		}
+		// Guard the test itself: if every page ever fits the viewport, the check
+		// above passes vacuously and stops testing anything.
+		assert.ok(
+			results.some((r) => r.overflowing > 0),
+			"expected at least one pharmacist page to exceed the viewport",
+		);
 	});
 
 	it("starts case entry at one field again", async () => {

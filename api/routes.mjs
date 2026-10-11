@@ -318,7 +318,12 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			pareto: pareto(shaped),
 			stepRates: stepErrorRates(shaped),
 			enrolment: {
-				target: Number(q.target) || 61,
+				// The plan's own figure, used when the caller supplies none:
+				// 「預計收案 30 位病人」(計畫書 line 112). The previous fallback
+				// was 61, which is the baseline cohort — so the outcomes page
+				// claimed a target the study never set, and read as if the
+				// intervention had to reach every baseline patient.
+				target: Number(q.target) || 30,
 				after: shaped.filter((r) => r.qccStage === "改善後").length,
 			},
 			engagement: await engagement(),
