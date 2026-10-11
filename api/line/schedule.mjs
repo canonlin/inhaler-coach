@@ -33,7 +33,8 @@
  */
 export function buildSchedule({ caseDate, steps, demonstrated = {} }) {
 	const date = new Date(`${caseDate}T00:00:00Z`);
-	const at = (day) => new Date(date.getTime() + day * 86400000).toISOString().slice(0, 10);
+	const at = (day) =>
+		new Date(date.getTime() + day * 86400000).toISOString().slice(0, 10);
 
 	const wrong = Object.entries(steps ?? {})
 		.filter(([, v]) => v === "錯誤")
@@ -41,7 +42,9 @@ export function buildSchedule({ caseDate, steps, demonstrated = {} }) {
 	if (!wrong.length) return [];
 
 	// Rank by criticality first: a wrong ★ step outranks a wrong ordinary one.
-	const ordered = wrong.sort((a, b) => criticalRank(b) - criticalRank(a) || a.localeCompare(b));
+	const ordered = wrong.sort(
+		(a, b) => criticalRank(b) - criticalRank(a) || a.localeCompare(b),
+	);
 	const demonstratedCount = ordered.filter((c) => demonstrated[c]).length;
 
 	return [
@@ -105,9 +108,26 @@ export function renderMessage(touch, { drugLabel, steps }) {
 				text: `${drugLabel}｜今天試過了嗎？`,
 				quickReply: {
 					items: [
-						{ type: "action", action: { type: "message", label: "都做對了", text: "都做對了" } },
-						{ type: "action", action: { type: "message", label: "還有一兩個不順", text: "還有一兩個不順" } },
-						{ type: "action", action: { type: "message", label: "忘了怎麼用", text: "忘了怎麼用" } },
+						{
+							type: "action",
+							action: { type: "message", label: "都做對了", text: "都做對了" },
+						},
+						{
+							type: "action",
+							action: {
+								type: "message",
+								label: "還有一兩個不順",
+								text: "還有一兩個不順",
+							},
+						},
+						{
+							type: "action",
+							action: {
+								type: "message",
+								label: "忘了怎麼用",
+								text: "忘了怎麼用",
+							},
+						},
 					],
 				},
 			};

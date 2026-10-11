@@ -176,13 +176,13 @@ export function FollowupAssessment({
 				{/* What to pay attention to. Marked, not filtered — see the note
 				    at the top of this file. */}
 				{followup.wrongSteps.length > 0 && (
-					<p className="flex flex-wrap items-center gap-2 rounded-md bg-danger-soft px-4 py-3 text-[15px] text-danger">
+					<p className="flex flex-wrap items-center gap-2 rounded-md bg-danger-soft px-4 py-3 text-base text-danger">
 						<span className="font-semibold">上次錯在這幾步：</span>
 						{followup.wrongSteps.map((c) => (
 							<span
 								key={c}
 								className={cn(
-									"rounded px-2 py-0.5 text-[15px]",
+									"rounded px-2 py-0.5 text-base",
 									steps[c]
 										? "bg-success-soft text-success"
 										: "bg-danger-soft text-danger",
@@ -196,7 +196,7 @@ export function FollowupAssessment({
 
 				{!aiLooked && (
 					<div className="flex flex-wrap items-center gap-3 rounded-md bg-surface-muted px-4 py-3">
-						<p className="grow text-[15px] text-text-secondary">
+						<p className="grow text-base text-text-secondary">
 							這位病人有先做 AI 練習嗎？有���話相機判過的步驟可以直接帶入。
 						</p>
 						<Button size="sm" onClick={loadAi}>
@@ -206,7 +206,7 @@ export function FollowupAssessment({
 				)}
 
 				{ai && (
-					<p className="text-[15px] text-success">
+					<p className="text-base text-success">
 						已帶入 {Object.keys(ai).length} 步相機判定，確認即可。
 					</p>
 				)}
@@ -284,7 +284,7 @@ export function FollowupAssessment({
 						取消
 					</Button>
 					{!ready && (
-						<p className={cn("text-[15px]", "text-text-secondary")}>
+						<p className={cn("text-base", "text-text-secondary")}>
 							還需要 {manual.length - answered} 個步驟、
 							{questions.length -
 								questions.filter((q) => knowledge[String(q.index)]).length}{" "}

@@ -39,11 +39,15 @@ export default async function handler(req, res) {
 	res.setHeader("Content-Type", "application/json; charset=utf-8");
 
 	if (!name) {
-		res.status(404).end(JSON.stringify({ ok: false, error: `no route for ${key}` }));
+		res
+			.status(404)
+			.end(JSON.stringify({ ok: false, error: `no route for ${key}` }));
 		return;
 	}
 	if (!process.env.MRN_SALT) {
-		res.status(500).end(JSON.stringify({ ok: false, error: "MRN_SALT is not configured" }));
+		res
+			.status(500)
+			.end(JSON.stringify({ ok: false, error: "MRN_SALT is not configured" }));
 		return;
 	}
 

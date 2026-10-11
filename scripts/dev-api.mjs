@@ -19,6 +19,7 @@ const api = makeRoutes({ query: (t, p) => pool.query(t, p), salt: process.env.MR
 const ROUTES = {
 	"GET /api/health": "health",
 	"POST /api/cases": "createCase",
+	"POST /api/cases/lookup": "lookupCases",
 	"GET /api/cases": "listCases",
 	"GET /api/metrics/summary": "summary",
 	"POST /api/sessions": "recordSession",

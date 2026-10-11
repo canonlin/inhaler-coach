@@ -16,10 +16,20 @@
 import { useEffect, useState } from "react";
 
 import { fetchSummary, type Summary } from "../api-client";
+import { DeviceBeforeAfter } from "./components/DeviceBeforeAfter";
 import { EngagementPanel } from "./components/EngagementPanel";
 import { OutcomeSummary } from "./components/OutcomeSummary";
+import { StepHeatmap } from "./components/StepHeatmap";
 import { StepPareto } from "./components/StepPareto";
-import { Card, CardHeader, Select, SelectItem } from "./components/ui";
+import {
+	Card,
+	CardHeader,
+	Pending,
+	Select,
+	SelectItem,
+	Skeleton,
+	SkeletonRows,
+} from "./components/ui";
 
 export function Outcomes() {
 	const [data, setData] = useState<Summary | null>(null);
@@ -51,8 +61,61 @@ export function Outcomes() {
 			</Card>
 		);
 	}
-	if (!data)
-		return <Card className="p-6 text-base text-text-secondary">載入中…</Card>;
+	/*
+	 * The page's own shape, not a spinner.
+	 *
+	 * This screen returns one figure after another, so a placeholder that is a
+	 * single grey box would be replaced by a page twice its height and the eye
+	 * would re-read everything. The skeleton reserves the KPI band and the three
+	 * panels, and their row counts are the ones the seeded data actually
+	 * produces — a placeholder sized differently from its content is just a
+	 * spinner drawn grey.
+	 */
+	if (!data) {
+		return (
+			<Pending label="正在讀取成效資料" className="space-y-6">
+				<div className="flex items-center justify-between gap-3">
+					<Skeleton className="h-8 w-24" />
+					<Skeleton className="h-9 w-36" />
+				</div>
+				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					{[0, 1, 2, 3].map((kpi) => (
+						<div
+							key={kpi}
+							className="rounded-lg border border-border-subtle bg-surface px-5 py-4"
+						>
+							<Skeleton className="h-4 w-20" />
+							<Skeleton className="mt-3 h-9 w-24" />
+							<Skeleton className="mt-2 h-3 w-28" />
+						</div>
+					))}
+				</div>
+				{/*
+				 * Row counts per panel, named rather than positional. Three bare
+				 * numbers in an array would read as "first, second, third" and
+				 * silently change meaning if one were inserted.
+				 */}
+				{[
+					{ id: "heatmap", rows: 8 },
+					{ id: "device", rows: 4 },
+					{ id: "pareto", rows: 5 },
+				].map((panel) => (
+					<div
+						key={panel.id}
+						className="rounded-lg border border-border-subtle bg-surface"
+					>
+						<div className="border-b border-border-subtle px-5 py-4">
+							<Skeleton className="h-5 w-48" />
+							<Skeleton className="mt-2 h-3 w-96 max-w-full" />
+						</div>
+						<div className="space-y-2.5 px-5 py-4">
+							<SkeletonRows count={panel.rows} className="h-5 w-full" />
+						</div>
+					</div>
+				))}
+			</Pending>
+		);
+	}
 
 	return (
 		<div className="space-y-6">
@@ -81,6 +144,25 @@ export function Outcomes() {
 				paired={data.paired}
 				engagement={data.engagement}
 			/>
+
+			<Card>
+				<CardHeader
+					title="各劑型的錯誤率"
+					description="衛教方式依裝置而不同，所以分開看。右欄空白代表介入還沒排到那種裝置，不是零。"
+				/>
+				<DeviceBeforeAfter
+					before={data.byDevice?.before ?? {}}
+					after={data.byDevice?.after ?? {}}
+				/>
+			</Card>
+
+			<Card>
+				<CardHeader
+					title="每個步驟：改善前 → 改善後"
+					description="依改善前的錯誤率排序。數字是「做錯／評估這一步」。▲ 代表改善後仍偏高，而且樣本夠大到能這樣說。"
+				/>
+				<StepHeatmap steps={data.stepsBeforeAfter ?? []} />
+			</Card>
 
 			<Card>
 				<CardHeader

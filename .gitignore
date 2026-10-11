@@ -1,44 +1,9 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Collector upload endpoint — not secret, but not source either
+node_modules/
+dist/
 .env
 .env.local
 
-# onnxruntime-web and mediapipe wasm backends (copied from node_modules by scripts/copy-ort.mjs)
-public/ort/
-public/mediapipe/
-public/models/mediapipe/
-.playwright-cli/
-
-# Playwright run artifacts (failure traces, error-context.md, last-run)
-test-results/
-playwright-report/
-
-# Python test/training bytecode
-__pycache__/
-*.py[cod]
-.vercel
-training/negative_eval/
+# Review artefacts. The rule checks under output/design-review/ are source —
+# they run in the gate and stay tracked. Screenshots are evidence of a past
+# run and go stale, so they do not.
+output/design-review/*.png

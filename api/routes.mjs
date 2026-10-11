@@ -4,14 +4,23 @@
  *
  * PHI rule: a response may carry mrn_tail, never mrn_hash.
  */
-import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
-import { stageVerdicts } from "../src/domain/stages.js";
+
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
+import { stageVerdicts } from "../src/domain/stages.js";
+import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { makeLineService } from "./line/service.mjs";
-import { createLiveTransport, createRecordingTransport } from "./line/transport.mjs";
-import { pareto, stepErrorRates, summarise } from "./metrics.mjs";
+import {
+	createLiveTransport,
+	createRecordingTransport,
+} from "./line/transport.mjs";
+import {
+	pareto,
+	stepComparison,
+	stepErrorRates,
+	summarise,
+} from "./metrics.mjs";
 
 class HttpError extends Error {
 	constructor(status, message) {
@@ -62,7 +71,8 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		query,
 		transport:
 			lineTransport ??
-			(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_SEND_ENABLED === "true"
+			(process.env.LINE_CHANNEL_ACCESS_TOKEN &&
+			process.env.LINE_SEND_ENABLED === "true"
 				? createLiveTransport({ token: process.env.LINE_CHANNEL_ACCESS_TOKEN })
 				: createRecordingTransport({
 						insert: async () => {
@@ -78,8 +88,15 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 	/** GET /api/health */
 	async function health() {
-		const { rows } = await query("SELECT now() AS now, current_database() AS db");
-		return { ok: true, db: rows[0].db, now: rows[0].now, cases: await countCases() };
+		const { rows } = await query(
+			"SELECT now() AS now, current_database() AS db",
+		);
+		return {
+			ok: true,
+			db: rows[0].db,
+			now: rows[0].now,
+			cases: await countCases(),
+		};
 	}
 
 	/**
@@ -102,18 +119,22 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 		const drug = drugOf(body.drug);
 		const timepoint = body.timepoint ?? "M0";
-		if (!["M0", "M1", "M3"].includes(timepoint)) bad(`unknown timepoint ${timepoint}`);
-		if (!PHARMACISTS.includes(body.pharmacist)) bad(`unknown pharmacist ${body.pharmacist}`);
+		if (!["M0", "M1", "M3"].includes(timepoint))
+			bad(`unknown timepoint ${timepoint}`);
+		if (!PHARMACISTS.includes(body.pharmacist))
+			bad(`unknown pharmacist ${body.pharmacist}`);
 
 		const steps = body.steps ?? {};
 		const demonstrated = body.demonstrated ?? {};
 		for (const code of Object.keys(steps)) {
 			if (!ALL_STEP_CODES.includes(code)) bad(`unknown step ${code}`);
-			if (!["正確", "錯誤", "na"].includes(steps[code])) bad(`bad value for ${code}`);
+			if (!["正確", "錯誤", "na"].includes(steps[code]))
+				bad(`bad value for ${code}`);
 		}
 		for (const code of Object.keys(demonstrated)) {
 			if (!ALL_STEP_CODES.includes(code)) bad(`unknown step ${code}`);
-			if (typeof demonstrated[code] !== "boolean") bad(`demonstrated must be boolean for ${code}`);
+			if (typeof demonstrated[code] !== "boolean")
+				bad(`demonstrated must be boolean for ${code}`);
 		}
 		const knowledge = body.knowledge ?? {};
 		for (const [k, v] of Object.entries(knowledge)) {
@@ -134,13 +155,18 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		const followup = hasCritical
 			? { task: "有關鍵錯誤：2 週內再評估", days: 14, priority: "P1" }
 			: wrongCodes.length
-				? { task: `${timepoint === "M0" ? "M1" : timepoint} 評估`, days: 14, priority: "P2" }
+				? {
+						task: `${timepoint === "M0" ? "M1" : timepoint} 評估`,
+						days: 14,
+						priority: "P2",
+					}
 				: null;
 
 		const { rows } = await query(
 			`WITH ins_p AS (
-			   ${patientId
-				? `SELECT $1::uuid AS id,
+			   ${
+						patientId
+							? `SELECT $1::uuid AS id,
 			             (SELECT mrn_tail FROM patients WHERE id = $1::uuid) AS mrn_tail,
 			             -- $2..$6 carry the record number and demographics, which an
 			             -- existing patient already has. They are projected so their
@@ -151,13 +177,14 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			             -- them here also keeps both branches on one numbering.
 			             $2::text AS _mrn, $3::text AS _age, $4::text AS _sex,
 			             $5::text AS _dx, $6::text AS _study`
-				: `INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, study_id)
+							: `INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, study_id)
 			   VALUES ($1,$2,$3,$4,$5,$6)
 			   ON CONFLICT (mrn_hash) DO UPDATE SET age_band = EXCLUDED.age_band
 			   -- mrn_tail comes back via RETURNING: a data-modifying CTE cannot
 			   -- re-read the row it just inserted by joining back to the patients
 			   -- table, because that read sees the pre-statement snapshot.
-			   RETURNING id, mrn_tail`}
+			   RETURNING id, mrn_tail`
+}
 			 ), ins_c AS (
 			   INSERT INTO cases (patient_id, case_date, timepoint, qcc_stage, campus,
 			                      pharmacist, device, drug, has_ics, needs_shake, case_type,
@@ -240,7 +267,41 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		return { ok: true, ...rows[0] };
 	}
 
-	/** GET /api/cases — filters: qccStage, timepoint, campus, pharmacist, drug */
+	/**
+	 * POST /api/cases/lookup — one patient's history, by record number.
+	 *
+	 * This exists because there was no way to answer 「這位病人上次幾分」 at all:
+	 * /api/cases filters by cohort and the frontend never called it, so a
+	 * pharmacist could record a case and close a follow-up but could not read
+	 * back anything they had already written down.
+	 *
+	 * A POST rather than `?mrn=` for the same reason session reporting posts its
+	 * identifier — a record number in a query string ends up in browser history,
+	 * proxy logs and any shared link. The number is hashed here and only the
+	 * hash is compared.
+	 *
+	 * Newest first, each with its step verdicts, so a before/after reads side by
+	 * side without opening anything else.
+	 */
+	async function lookupCases(body) {
+		const mrn = String(body?.mrn ?? "").trim();
+		if (!mrn) bad("mrn is required");
+		const { rows: ids } = await query(
+			`SELECT c.id FROM cases c
+			 JOIN patients p ON p.id = c.patient_id
+			 WHERE p.mrn_hash = $1`,
+			[hashMrn(mrn, salt)],
+		);
+		if (ids.length === 0) return { ok: true, found: false, cases: [] };
+		const { rows } = await query(
+			`${ROW_SQL} WHERE c.id = ANY($1::uuid[])
+			 ORDER BY c.case_date DESC, c.id DESC`,
+			[ids.map((r) => r.id)],
+		);
+		return { ok: true, found: true, cases: rows.map(present) };
+	}
+
+	/** GET /api/cases — filters: qccStage, timepoint, campus, pharmacist, drug, device, patientId */
 	async function listCases(q = {}) {
 		const where = [];
 		const params = [];
@@ -250,6 +311,17 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			["campus", "c.campus"],
 			["pharmacist", "c.pharmacist"],
 			["drug", "c.drug"],
+			// Device before drug, because it is the coarser and more useful cut:
+			// the steps a patient is taught are defined by device.
+			["device", "c.device::text"],
+			/*
+			 * A UUID, not a record number. The queue holds the masked tail only —
+			 * that is enough to recognise a row and not enough to pull the rest
+			 * of a patient's history, so the identifier that does the lookup is
+			 * the internal id. It is opaque and carries no clinical meaning,
+			 * which is why it is acceptable in a URL where an MRN would not be.
+			 */
+			["patientId", "c.patient_id::text"],
 		]) {
 			if (q[key]) {
 				params.push(q[key]);
@@ -334,11 +406,25 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		}
 		const { rows } = await query(`${ROW_SQL} ${where}`, params);
 		const shaped = rows.map(shape);
+		const baseline = shaped.filter((r) => r.qccStage === "改善前");
+		const after = shaped.filter((r) => r.qccStage === "改善後");
 		return {
 			ok: true,
 			...summarise(shaped),
 			pareto: pareto(shaped),
 			stepRates: stepErrorRates(shaped),
+			/*
+			 * The before → after pair, for the heatmap. Computed from the two
+			 * cohorts separately rather than by filtering the combined rate: the
+			 * whole point of the panel is that a step is compared with itself,
+			 * and a single rate over both cohorts cannot say which side moved.
+			 *
+			 * When `qccStage` narrows the query to one cohort, the other side is
+			 * empty and every cell reads 「沒有資料」 — which is correct, and
+			 * better than silently showing the combined figure under both
+			 * headings.
+			 */
+			stepsBeforeAfter: stepComparison(baseline, after),
 			enrolment: {
 				// The plan's own figure, used when the caller supplies none:
 				// 「預計收案 30 位病人」(計畫書 line 112). The previous fallback
@@ -404,7 +490,13 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 	/** GET /api/reference — the spine, so a client never hardcodes it. */
 	async function reference() {
-		return { ok: true, drugs: ALL_DRUGS, pharmacists: PHARMACISTS, knowledge: KNOWLEDGE, steps: ALL_STEP_CODES };
+		return {
+			ok: true,
+			drugs: ALL_DRUGS,
+			pharmacists: PHARMACISTS,
+			knowledge: KNOWLEDGE,
+			steps: ALL_STEP_CODES,
+		};
 	}
 
 	/**
@@ -463,6 +555,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	async function followups() {
 		const { rows } = await query(
 			`SELECT f.id, f.task, f.due_start, f.due_end, f.priority, f.status,
+			        f.case_id, p.id AS patient_id,
 			        p.mrn_tail, c.drug, c.device, c.pharmacist,
 			        COALESCE(w.steps, '[]'::json) AS wrong_steps
 			 FROM followups f
@@ -527,9 +620,12 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				 WHERE f.id = $1 AND f.status = 'open'`,
 				[id],
 			);
-			if (!ctx[0]) throw new HttpError(404, "follow-up not found or already closed");
+			if (!ctx[0])
+				throw new HttpError(404, "follow-up not found or already closed");
 			if (!ctx[0].drug)
-				bad("this follow-up has no linked case, so an assessment cannot be recorded against it");
+				bad(
+					"this follow-up has no linked case, so an assessment cannot be recorded against it",
+				);
 
 			assessment = await createCase({
 				patientId: ctx[0].patient_id,
@@ -582,7 +678,10 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	 */
 	async function lineLink(body) {
 		if (!body?.mrn || !body?.lineUserId) bad("mrn and lineUserId are required");
-		return line.link({ mrn: hashMrn(String(body.mrn), salt), lineUserId: String(body.lineUserId) });
+		return line.link({
+			mrn: hashMrn(String(body.mrn), salt),
+			lineUserId: String(body.lineUserId),
+		});
 	}
 
 	/** GET /api/line/plan?case_id= — what would be sent, and what it costs. */
@@ -604,7 +703,8 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			 WHERE p.mrn_hash = $1 AND p.consent_line`,
 			[hashMrn(String(body?.mrn ?? ""), salt)],
 		);
-		if (!rows[0]) throw new HttpError(403, "no consented LINE account for this patient");
+		if (!rows[0])
+			throw new HttpError(403, "no consented LINE account for this patient");
 		return line.send({
 			patientId: rows[0].id,
 			lineUserId: rows[0].line_user_id,
@@ -638,6 +738,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		health,
 		createCase,
 		listCases,
+		lookupCases,
 		summary,
 		recordSession,
 		reference,

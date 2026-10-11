@@ -5,10 +5,15 @@
  * tests and the pre-launch dry run use the recording transport and verify the
  * whole chain up to the final HTTP call.
  */
-import { countsAgainstQuota, quotaCheck } from "./transport.mjs";
-import { buildSchedule, renderMessage, setCriticalCodes } from "./schedule.mjs";
-import { ALL_STEP_CODES, CRITICAL_STEP_CODES, STEP_BY_CODE } from "../../src/domain/steps.js";
+
 import { DRUG_BY_NAME } from "../../src/domain/drugs.js";
+import {
+	ALL_STEP_CODES,
+	CRITICAL_STEP_CODES,
+	STEP_BY_CODE,
+} from "../../src/domain/steps.js";
+import { buildSchedule, renderMessage, setCriticalCodes } from "./schedule.mjs";
+import { countsAgainstQuota, quotaCheck } from "./transport.mjs";
 
 setCriticalCodes(CRITICAL_STEP_CODES);
 
@@ -106,7 +111,15 @@ export function makeLineService({ query, transport }) {
 			 VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
 			 ON CONFLICT (line_user_id, touch, sent_on) DO NOTHING
 			 RETURNING id`,
-			[patientId, lineUserId, touch, sentOn, kind, transport.channel, JSON.stringify(message)],
+			[
+				patientId,
+				lineUserId,
+				touch,
+				sentOn,
+				kind,
+				transport.channel,
+				JSON.stringify(message),
+			],
 		);
 		if (!claimed.rows.length) {
 			return { ok: true, touch, kind, skipped: "already sent", counted: false };
@@ -114,9 +127,12 @@ export function makeLineService({ query, transport }) {
 
 		try {
 			const res = await deliver.send(lineUserId, message);
-			if (!res.ok) throw new HttpError(res.status || 502, res.body ?? "send failed");
+			if (!res.ok)
+				throw new HttpError(res.status || 502, res.body ?? "send failed");
 		} catch (err) {
-			await query("DELETE FROM line_deliveries WHERE id = $1", [claimed.rows[0].id]);
+			await query("DELETE FROM line_deliveries WHERE id = $1", [
+				claimed.rows[0].id,
+			]);
 			throw err;
 		}
 		return { ok: true, touch, kind, counted: countsAgainstQuota(kind) };
@@ -132,9 +148,19 @@ export function makeLineService({ query, transport }) {
 			 SELECT li.patient_id, $1, $2, $3, $4::jsonb FROM line_identities li WHERE li.line_user_id = $5
 			 ON CONFLICT (line_event_id) DO NOTHING
 			 RETURNING patient_id`,
-			[eventId, type, stepCode ?? null, JSON.stringify(payload ?? {}), lineUserId],
+			[
+				eventId,
+				type,
+				stepCode ?? null,
+				JSON.stringify(payload ?? {}),
+				lineUserId,
+			],
 		);
-		return { ok: true, recorded: rows.length > 0, patientId: rows[0]?.patient_id ?? null };
+		return {
+			ok: true,
+			recorded: rows.length > 0,
+			patientId: rows[0]?.patient_id ?? null,
+		};
 	}
 
 	/**
@@ -165,9 +191,19 @@ export function makeLineService({ query, transport }) {
 		);
 		return {
 			ok: true,
-			byKind: rows.map((r) => ({ ...r, responseRate: r.sent ? r.responded / r.sent : null })),
+			byKind: rows.map((r) => ({
+				...r,
+				responseRate: r.sent ? r.responded / r.sent : null,
+			})),
 		};
 	}
 
-	return { link, plan, send, recordEvent, engagement, channel: transport.channel };
+	return {
+		link,
+		plan,
+		send,
+		recordEvent,
+		engagement,
+		channel: transport.channel,
+	};
 }

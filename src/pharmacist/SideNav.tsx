@@ -41,10 +41,10 @@ export function SideNav() {
 			 * contradicted what the screen does.
 			 */}
 			<div className="border-b border-border-subtle px-5 py-4">
-				<p className="text-base font-bold tracking-tight text-primary">
+				<p className="text-lg font-bold tracking-tight text-primary">
 					智慧呼吸照護平台
 				</p>
-				<p className="mt-0.5 text-[13px] text-text-muted">QCC 吸入劑衛教</p>
+				<p className="mt-0.5 text-caption text-text-muted">QCC 吸入劑衛教</p>
 			</div>
 
 			<ul className="grow overflow-y-auto p-3">
@@ -58,7 +58,7 @@ export function SideNav() {
 								end
 								className={({ isActive }) =>
 									cn(
-										"flex items-center justify-between gap-2 rounded-md px-3 py-2 text-[15px] font-semibold transition-colors",
+										"flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2.5 text-base font-semibold transition-colors",
 										isActive
 											? "bg-primary-soft text-primary"
 											: "text-text-secondary hover:bg-surface-muted hover:text-text",
@@ -73,7 +73,7 @@ export function SideNav() {
 										   link, and a bare number beside the label reads as
 										   noise to a screen reader on every visit. */
 										aria-hidden="true"
-										className="rounded-full bg-surface-muted px-2 py-0.5 text-[13px] font-bold tabular-nums text-text-secondary"
+										className="rounded-full bg-surface-muted px-2 py-0.5 text-caption font-bold tabular-nums text-text-secondary"
 									>
 										{badge}
 									</span>

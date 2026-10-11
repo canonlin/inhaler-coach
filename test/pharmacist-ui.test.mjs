@@ -17,9 +17,10 @@ import { createPool } from "../api/db.mjs";
 
 let pool;
 const getPool = async () => (pool ??= createPool(process.env.DATABASE_URL));
+
+import { dirname, resolve } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API_PORT = 4193;
@@ -78,21 +79,38 @@ async function serve(name, cmd, args, url, env = {}) {
 // exits. vite is therefore spawned as node with its bin script directly.
 before(async () => {
 	if (!process.env.DATABASE_URL) {
-		throw new Error("DATABASE_URL is required; the verdict is read from a real database");
+		throw new Error(
+			"DATABASE_URL is required; the verdict is read from a real database",
+		);
 	}
 	// dev-api reads PORT itself, so it has to arrive through the environment.
-	await serve("api", process.execPath, ["scripts/dev-api.mjs"], `http://localhost:${API_PORT}/api/health`, {
-		PORT: String(API_PORT),
-	});
-	await serve("web", process.execPath, [VITE_BIN, "--port", String(WEB_PORT), "--strictPort"], `${BASE}/`, {
-		VITE_API_PROXY: `http://localhost:${API_PORT}`,
-	});
+	await serve(
+		"api",
+		process.execPath,
+		["scripts/dev-api.mjs"],
+		`http://localhost:${API_PORT}/api/health`,
+		{
+			PORT: String(API_PORT),
+		},
+	);
+	await serve(
+		"web",
+		process.execPath,
+		[VITE_BIN, "--port", String(WEB_PORT), "--strictPort"],
+		`${BASE}/`,
+		{
+			VITE_API_PROXY: `http://localhost:${API_PORT}`,
+		},
+	);
 
 	const { chromium } = await import("playwright");
 	browser = await chromium.launch();
 	page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 	page.on("pageerror", (e) => consoleErrors.push(String(e)));
-	page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
+	page.on(
+		"console",
+		(m) => m.type() === "error" && consoleErrors.push(m.text()),
+	);
 
 	// The navigation badge reads the queue as the page loads and caches it. It
 	// has to open only after the rows below exist, or it caches a count of zero
@@ -135,6 +153,25 @@ before(async () => {
 		steps: { MDI_壓: "正確", MDI_吸: "正確" },
 	});
 
+	await post("/api/cases", {
+		/*
+		 * A second product on purpose. Both cases above are Symbicort, so a
+		 * filter over the queue would have exactly one option and could not be
+		 * shown to do anything — the test would pass a control that was never
+		 * exercised, which is the same mistake as testing a dead row.
+		 *
+		 * Breztri is also a pMDI, so it shares Symbicort's steps and still
+		 * generates a follow-up with real content behind it.
+		 */
+		mrn: "UI0000002",
+		caseDate: "2026-05-06",
+		pharmacist: "林家薐",
+		drug: "Breztri",
+		qccStage: "改善前",
+		timepoint: "M0",
+		steps: { MDI_壓: "錯誤", MDI_吸: "正確" },
+	});
+
 	// Only now is the state this test intends to measure.
 	await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
 });
@@ -146,7 +183,8 @@ async function post(path, body) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	if (!res.ok) throw new Error(`seed ${path}: HTTP ${res.status} ${await res.text()}`);
+	if (!res.ok)
+		throw new Error(`seed ${path}: HTTP ${res.status} ${await res.text()}`);
 }
 
 // `started` holds only the spawned servers. A Playwright browser has no pid and
@@ -175,12 +213,15 @@ describe("pharmacist tabs", () => {
 	 * announces the section name, and a bare number on every visit is noise.
 	 */
 	it("has one set of tabs, not two apps", async () => {
-		const tabs = await page.$$eval(
-			`${NAV_A} > span:first-child`,
-			(n) => n.map((x) => x.textContent.trim()),
+		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
+			n.map((x) => x.textContent.trim()),
 		);
 		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效"]);
-		assert.equal(await page.$$eval(NAV, (n) => n.length), 1, "one nav, not two");
+		assert.equal(
+			await page.$$eval(NAV, (n) => n.length),
+			1,
+			"one nav, not two",
+		);
 	});
 
 	/* The queue count belongs in the navigation: a pharmacist should be able to
@@ -189,7 +230,9 @@ describe("pharmacist tabs", () => {
 		// The count arrives over the network, so waiting for it is the assertion
 		// rather than a detail: reading the nav immediately would pass on an
 		// absent badge and fail on a present one depending on timing.
-		await page.waitForSelector('[data-testid="queue-count"]', { timeout: 10_000 });
+		await page.waitForSelector('[data-testid="queue-count"]', {
+			timeout: 10_000,
+		});
 		const badge = await page.textContent('[data-testid="queue-count"]');
 		assert.match(badge ?? "", /^\d+$/, `expected a count, got ${badge}`);
 		assert.ok(
@@ -200,7 +243,9 @@ describe("pharmacist tabs", () => {
 
 	it("shows the outcomes inside the pharmacist app", async () => {
 		await page.click(`${NAV} a:has-text("成效")`);
-		await page.waitForSelector("[data-testid=outcome-summary]", { timeout: 15_000 });
+		await page.waitForSelector("[data-testid=outcome-summary]", {
+			timeout: 15_000,
+		});
 		assert.equal((await page.textContent("h1"))?.trim(), "成效");
 		assert.equal(await page.$$eval(NAV, (n) => n.length), 1);
 	});
@@ -217,12 +262,15 @@ describe("pharmacist tabs", () => {
 		// point is that they come from the database and reach the page.
 		const headline = (
 			await page.textContent("[data-testid=error-rate-headline]")
-		)?.replace(/\s+/g, " ").trim();
+		)
+			?.replace(/\s+/g, " ")
+			.trim();
 		assert.match(headline ?? "", /100%\s*→\s*0%/, `got ${headline}`);
 
 		// The paired test is the condition that earns the headline; if it is
 		// missing, the number above is being displayed without support.
-		const support = (await page.textContent("[data-testid=error-rate-support]")) ?? "";
+		const support =
+			(await page.textContent("[data-testid=error-rate-support]")) ?? "";
 		assert.match(support, /配對 1 人/, `got ${support}`);
 		assert.match(support, /改善 1 · 退步 0/);
 	});
@@ -247,11 +295,13 @@ describe("pharmacist tabs", () => {
 			null,
 			"no headline rate when the two cohorts cannot be compared",
 		);
-		const blocked = (await page.textContent("[data-testid=error-rate-blocked]")) ?? "";
+		const blocked =
+			(await page.textContent("[data-testid=error-rate-blocked]")) ?? "";
 		assert.match(blocked, /還不能下結論/);
 
-		const tile = (await page.textContent("[data-testid=outcome-summary]")) ?? "";
-		assert.match(tile, /改善前 1 例、改善後 0 例/);
+		const tile =
+			(await page.textContent("[data-testid=outcome-summary]")) ?? "";
+		assert.match(tile, /改善前 \d+ 例、改善後 0 例/);
 
 		// Back to 全部 so the tests that follow see both cohorts.
 		await page.click("#stage");
@@ -266,10 +316,11 @@ describe("pharmacist tabs", () => {
 	 * If a number drifts back into both places, this catches it.
 	 */
 	it("shows each headline number once", async () => {
-		const band = (await page.textContent("[data-testid=outcome-summary]")) ?? "";
-		const rest = (
-			await page.textContent("main") // eslint-disable-line
-		)?.replace(band, "") ?? "";
+		const band =
+			(await page.textContent("[data-testid=outcome-summary]")) ?? "";
+		const rest =
+			(await page.textContent("main")) // eslint-disable-line
+				?.replace(band, "") ?? "";
 
 		// 追蹤完成率 and 近 7 天 belong to the band; the detail panels below
 		// should not restate either.
@@ -293,6 +344,11 @@ describe("pharmacist tabs", () => {
 			await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
 			// Settle the fetch and the async chart before measuring.
 			await page.waitForTimeout(400);
+
+			// The cohort sizes are matched as numbers, not literals. What this
+			// asserts is that the page says which cohorts it has and refuses to
+			// compare them — not how many cases the fixture happens to seed, which
+			// changes whenever a case is added for another test's sake.
 
 			const m = await page.evaluate(async () => {
 				const de = document.documentElement;
@@ -358,8 +414,14 @@ describe("pharmacist tabs", () => {
 			// in between is caught rather than skipped over.
 			for (let i = 0; i < 60; i += 1) {
 				out.push({
-					loading: (document.body.textContent ?? "").includes("載入中"),
-					table: document.querySelector("[data-testid=followup-queue]") !== null,
+					// This page's own pending state, by test id. Matching on the
+					// words 「載入中」 anywhere in the document also caught the
+					// case-entry screen being left behind, which says nothing
+					// about whether the queue blanks on arrival.
+					loading:
+						document.querySelector("[data-testid=queue-loading]") !== null,
+					table:
+						document.querySelector("[data-testid=followup-queue]") !== null,
 				});
 				if (out.at(-1).table) break;
 				await new Promise((r) => requestAnimationFrame(r));
@@ -379,16 +441,158 @@ describe("pharmacist tabs", () => {
 		);
 	});
 
+	/*
+	 * A pharmacist had no way to read back what they had already recorded:
+	 * entering a record number showed nothing about that patient before, so
+	 * 「這位上次幾分」 had no answer anywhere in the app.
+	 */
+	it("shows a patient's history once their record number is in", async () => {
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 15_000 });
+		await page.fill("#mrn", "UI0000001");
+		await page.waitForSelector("[data-testid=case-history]", {
+			timeout: 15_000,
+		});
+
+		const history =
+			(await page.textContent("[data-testid=case-history]")) ?? "";
+		// Both the M0 and the M1 this file seeded for the same patient.
+		assert.match(history, /M0/, `expected both assessments, got: ${history}`);
+		assert.match(history, /M1/, `expected both assessments, got: ${history}`);
+		// Newest first, so a before/after reads top to bottom.
+		assert.ok(
+			history.indexOf("M1") < history.indexOf("M0"),
+			`history should be newest first, got: ${history}`,
+		);
+		// The verdict travels with it, otherwise the row says nothing.
+		assert.match(history, /錯誤|全數正確/);
+
+		// And never the full record number — only the tail the server returned.
+		assert.ok(
+			!history.includes("UI0000001"),
+			"the full record number must not be echoed",
+		);
+	});
+
+	it("says so when a patient has no history, rather than showing nothing", async () => {
+		await page.fill("#mrn", "ZZ9999999");
+		await page.waitForFunction(
+			() => (document.querySelector("#mrn")?.value ?? "") === "ZZ9999999",
+			{ timeout: 5000 },
+		);
+		await page.waitForTimeout(600);
+		const body = (await page.textContent("main")) ?? "";
+		assert.match(
+			body,
+			/沒有歷史評估紀錄/,
+			"an unknown patient must read as unknown",
+		);
+	});
+
+	/*
+	 * The record-number field used to be replaced by the lookup result, which
+	 * left a mistyped number uncorrectable: 「換藥」 returns to the same branch
+	 * still holding it, so the only way out was reloading the page. The case is
+	 * saved under this field, so that is a wrong-patient record, not a typo.
+	 */
+	it("keeps the record number editable after the lookup", async () => {
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 10_000 });
+		await page.fill("#mrn", "UI0000001");
+		// The drug list is what the lookup opens, so its arrival is the proof
+		// the lookup has landed and the field has been given its chance to go.
+		await page.waitForSelector(".drug-pick", { timeout: 15_000 });
+
+		const still = await page.$("#mrn");
+		assert.ok(still, "the record number must remain editable after the lookup");
+		// Editable, not merely present: fill fails on a disabled or readonly
+		// input, so this is the assertion that actually catches the defect.
+		await page.fill("#mrn", "UI0000099");
+		assert.equal(
+			await page.inputValue("#mrn"),
+			"UI0000099",
+			"a mistyped record number must be correctable in place",
+		);
+	});
+
+	it("corrects a mistyped record number in place", async () => {
+		// The corrected number has no history, so the panel ends in its empty
+		// state rather than the list one. Both are the panel having answered.
+		await page.waitForSelector(
+			"[data-testid=case-history], [data-testid=case-history-empty]",
+			{ timeout: 15_000 },
+		);
+		const corrected =
+			(await page.textContent(
+				"[data-testid=case-history], [data-testid=case-history-empty]",
+			)) ?? "";
+		assert.match(
+			corrected,
+			/沒有歷史評估紀錄|次歷史評估/,
+			"a corrected number must re-query rather than keep the first answer",
+		);
+	});
+
+	/*
+	 * The five rows under the pending counts were plain text. They duplicated
+	 * the queue page and could not be reached from them, which makes them
+	 * decoration: information with no way to act on it and no part in deciding
+	 * whether to act.
+	 */
+	it("takes a pending follow-up from the home screen to that row", async () => {
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 10_000 });
+		const row = await page.waitForSelector(
+			'main a[href^="/admin/followups?case="]',
+			{ timeout: 15_000 },
+		);
+		const href = await row.getAttribute("href");
+		assert.ok(
+			href && href !== "/admin/followups",
+			`row must name a case: ${href}`,
+		);
+
+		await row.click();
+		await page.waitForSelector("[data-testid=followup-focus]", {
+			timeout: 15_000,
+		});
+		const id = href.split("case=")[1];
+		const focusedHref = await page.getAttribute(
+			"[data-testid=followup-focus]",
+			"data-testid",
+		);
+		assert.equal(focusedHref, "followup-focus", "the row should be marked");
+		assert.ok(id, "the link must carry the case it names");
+	});
+
+	it("reports when the case a link named is already closed", async () => {
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector("[data-testid=followup-queue]", {
+			timeout: 15_000,
+		});
+		// A link can outlive its target: someone else closes the case while
+		// this one sits in a tab. Landing on a queue that does not contain it,
+		// saying nothing, is the same silence as a dead row.
+		await page.goto(`${BASE}/admin/followups?case=does-not-exist`, {
+			waitUntil: "networkidle",
+		});
+		await page.waitForSelector("[data-testid=focus-gone]", { timeout: 15_000 });
+	});
+
 	it("starts case entry at one field again", async () => {
 		await page.click(`${NAV} a:has-text("收案評估")`);
 		await page.waitForSelector("#mrn", { timeout: 10_000 });
 		// The record number is the only control on arrival; choosing the product
 		// and judging the camera-visible steps are what used to cost 25 taps.
 		const controls = await page.$$eval(
-			'main input, main select, main button',
+			"main input, main select, main button",
 			(n) => n.length,
 		);
-		assert.equal(controls, 1, `case entry should open with one control, got ${controls}`);
+		assert.equal(
+			controls,
+			1,
+			`case entry should open with one control, got ${controls}`,
+		);
 	});
 
 	/*
@@ -399,13 +603,270 @@ describe("pharmacist tabs", () => {
 	 * the panel states the real spread, and the rows carry a figure that can
 	 * differ between them.
 	 */
+	/*
+	 * The 藥品 column was a label on every row and a control on none. Which
+	 * product a patient is on decides what to be re-taught, and working that out
+	 * meant reading down a column and holding it in memory.
+	 */
+	it("groups the queue by product, and says what it hid", async () => {
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector("[data-testid=followup-queue]", {
+			timeout: 15_000,
+		});
+
+		const before = await page.$$eval(
+			"[data-testid=followup-queue] tbody tr",
+			(rows) => rows.length,
+		);
+
+		/*
+		 * A Radix Select opens into a portal and mounts its items over a few
+		 * frames. Reading the list as soon as the first option exists gets one
+		 * option — which reads as "this filter has nothing to filter", the exact
+		 * failure the assertion below is meant to catch. So wait for the list to
+		 * reach its real length instead of sampling it early.
+		 */
+		await page.click("#f-drug");
+		await page.waitForSelector('[role="option"]', { timeout: 5_000 });
+		await page.waitForFunction(
+			() => document.querySelectorAll('[role="option"]').length >= 3,
+			{ timeout: 5_000 },
+		);
+		const options = await page.$$eval('[role="option"]', (o) =>
+			o.map((x) => x.textContent?.trim() ?? ""),
+		);
+		/*
+		 * The first option is 全部藥品, which selects nothing — picking it proves
+		 * the control opens and nothing else. The test has to choose a real
+		 * product, or it would pass a filter that had filtered nothing.
+		 */
+		assert.equal(
+			options[0],
+			"全部藥品",
+			"the list must offer a way back to all",
+		);
+		const products = options.slice(1);
+		assert.ok(
+			products.length > 1,
+			`a filter with ${products.length} product(s) cannot be shown to filter`,
+		);
+
+		await page.click(`[role="option"]:has-text("${products[0]}")`);
+		await page.waitForFunction(
+			() =>
+				document.querySelectorAll("[data-testid=followup-queue] tbody tr")
+					.length < 99,
+			{ timeout: 5_000 },
+		);
+
+		const after = await page.$$eval(
+			"[data-testid=followup-queue] tbody tr",
+			(r) => r.length,
+		);
+		assert.ok(after <= before, "grouping can only narrow the queue");
+
+		// Every remaining row is that product — a filter that leaves other
+		// products in view is worse than no filter, because it looks right.
+		const drugs = await page.$$eval(
+			"[data-testid=followup-queue] tbody tr",
+			(rows) => [
+				...new Set(rows.map((r) => r.children[2]?.textContent?.trim())),
+			],
+		);
+		assert.deepEqual(
+			drugs,
+			[products[0]],
+			"the filter left other products visible",
+		);
+
+		// And it says how much it removed, so the drop is not mistaken for a
+		// smaller backlog.
+		const note = (await page.textContent("main")) ?? "";
+		assert.match(
+			note,
+			/目前顯示 \d+ 件，套用篩選前共 \d+ 件/,
+			note.slice(0, 400),
+		);
+
+		/*
+		 * And the filter can be undone from the filter itself.
+		 *
+		 * With only a placeholder there was no way back once a product was
+		 * chosen: Radix reserves the empty string, so "all" could not be an
+		 * item, and the queue was a one-way door. Every list a reader can narrow
+		 * has to be one they can widen again without finding another control.
+		 */
+		await page.click("#f-drug");
+		await page.waitForSelector('[role="option"]', { timeout: 5_000 });
+		await page.click('[role="option"]:has-text("全部藥品")');
+		await page.waitForFunction(
+			() =>
+				!document.querySelector("main")?.textContent?.includes("套用篩選前"),
+			{ timeout: 5_000 },
+		);
+		const restored = await page.$$eval(
+			"[data-testid=followup-queue] tbody tr",
+			(rows) => rows.length,
+		);
+		assert.equal(restored, before, "choosing 全部 must restore every row");
+	});
+
+	/*
+	 * The row named a patient, a product and a count of steps, and stopped. A
+	 * follow-up can be closed from here, but what it is re-checking could not be
+	 * seen — so the reassessment had to start from memory.
+	 */
+	/*
+	 * 「全部未完成」 was the widest view on the queue and it still showed 37,
+	 * because it is the same list of open follow-ups. With 79 cases recorded,
+	 * the other 42 were reachable nowhere — /api/cases existed and no screen
+	 * called it.
+	 */
+	it("reaches the cases the queue does not list", async () => {
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector("[data-testid=followup-queue]", {
+			timeout: 15_000,
+		});
+
+		const open = await page.$$eval(
+			"[data-testid=followup-queue] tbody tr",
+			(r) => r.length,
+		);
+		await page.click('button:has-text("全部個案")');
+		await page.waitForSelector("[data-testid=case-list]", { timeout: 15_000 });
+		await page.waitForFunction(
+			() =>
+				(document.querySelectorAll("[data-testid=case-list] tbody tr").length ??
+					0) > 0,
+			{ timeout: 15_000 },
+		);
+
+		const all = await page.$$eval(
+			"[data-testid=case-list] tbody tr",
+			(r) => r.length,
+		);
+
+		/*
+		 * Having looked once, the switch must remember the number.
+		 *
+		 * It showed a dash before, which was honest — the queue has only ever
+		 * been told about open follow-ups — but a figure you have to rediscover
+		 * by clicking is a figure you keep rediscovering, and the dash is read
+		 * as "there may be nothing here".
+		 */
+		await page.waitForFunction(
+			() => {
+				const b = [...document.querySelectorAll("button")].find((x) =>
+					x.textContent?.includes("全部個案"),
+				);
+				return Boolean(b) && !b.textContent?.includes("—");
+			},
+			{ timeout: 10_000 },
+		);
+		assert.ok(
+			all >= open,
+			`every open follow-up should also be a recorded case: ${all} < ${open}`,
+		);
+
+		// It reads as cases, not as tasks: no close buttons here.
+		assert.equal(
+			await page.$("[data-testid=followup-queue]"),
+			null,
+			"the queue must not stay on screen under the case list",
+		);
+		const buttons = await page.$$eval("[data-testid=case-list] button", (b) =>
+			b.map((x) => x.textContent?.trim()),
+		);
+		assert.ok(
+			!buttons.includes("完成") && !buttons.includes("未完成"),
+			`a read-only list must not offer to close cases: ${buttons.join(",")}`,
+		);
+
+		// And it keeps the grouping the queue already had.
+		await page.click("#f-device");
+		await page.waitForSelector('[role="option"]', { timeout: 5_000 });
+		await page.click('[role="option"]:has-text("全部劑型")');
+		await page.waitForTimeout(300);
+
+		// Leave the queue view restored. Several tests below close follow-ups
+		// and assert on the queue, so finishing here on the case list makes this
+		// file fail in five places for one reason — the same shape of bug as the
+		// insert-before-summary mistake in the API suite.
+		await page.click('button:has-text("今日待辦")');
+		await page.waitForSelector("[data-testid=followup-queue]", {
+			timeout: 15_000,
+		});
+	});
+
+	it("opens the case behind a row", async () => {
+		// Navigate rather than relying on where the previous test left the page:
+		// a test that only passes in sequence is testing the order.
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector("[data-testid=followup-queue]", {
+			timeout: 15_000,
+		});
+
+		// Clear any grouping, only if one is set, so this passes alone too.
+		if (await page.$("text=套用篩選前")) {
+			await page.click("#f-drug");
+			await page.waitForSelector('[role="option"]', { timeout: 5_000 });
+			await page.click('[role="option"]:has-text("全部藥品")');
+			await page.waitForTimeout(300);
+		}
+
+		await page.click("[data-testid=open-case]");
+		await page.waitForSelector("[data-testid=case-detail]", {
+			timeout: 15_000,
+		});
+		// Wait for the answer, not for the container. Reading the panel the
+		// moment it opens reads its loading skeleton, and then asserts on the
+		// skeleton as though it were the record.
+		await page.waitForFunction(
+			() => {
+				const t = document.querySelector(
+					"[data-testid=case-detail]",
+				)?.textContent;
+				return Boolean(t) && !t.includes("正在讀取");
+			},
+			{ timeout: 15_000 },
+		);
+
+		const detail = (await page.textContent("[data-testid=case-detail]")) ?? "";
+		assert.match(detail, /的評估紀錄/, detail.slice(0, 200));
+		// The same patient, and never their record number.
+		assert.ok(
+			!/\bUI\d{7}\b/.test(detail),
+			"the full record number must not appear",
+		);
+		// It either lists what was recorded or says there is nothing else — the
+		// two things a row can legitimately lead to.
+		assert.match(
+			detail,
+			/全數正確|步錯誤|沒有其他評估紀錄/,
+			detail.slice(0, 400),
+		);
+
+		// And it closes, so the queue it interrupted is reachable again.
+		await page.click('[data-testid=case-detail] button:has-text("關閉")');
+		await page.waitForSelector("[data-testid=case-detail]", {
+			state: "detached",
+			timeout: 5_000,
+		});
+	});
+
 	it("puts the queue's real state above the list", async () => {
 		await page.click(`${NAV} a:has-text("追蹤清單")`);
-		await page.waitForSelector("[data-testid=queue-attention]", { timeout: 15_000 });
+		await page.waitForSelector("[data-testid=queue-attention]", {
+			timeout: 15_000,
+		});
 
-		const panel = (await page.textContent("[data-testid=queue-attention]")) ?? "";
+		const panel =
+			(await page.textContent("[data-testid=queue-attention]")) ?? "";
 		const rows = await page.$$eval(QUEUE_ROWS, (n) =>
-			n.map((tr) => tr.querySelector("tbody, tr")?.textContent ?? tr.textContent ?? ""),
+			n.map(
+				(tr) =>
+					tr.querySelector("tbody, tr")?.textContent ?? tr.textContent ?? "",
+			),
 		);
 		const open = rows.length;
 		assert.ok(open > 0, "the seeded queue should not be empty");
@@ -431,7 +892,10 @@ describe("pharmacist tabs", () => {
 		);
 		// Worst and median must both be stated, and worst cannot be smaller.
 		const nums = [...panel.matchAll(/(\d+)\s*天/g)].map((m) => Number(m[1]));
-		assert.ok(nums.length >= 3, `expected worst/median/earliest, got: ${panel}`);
+		assert.ok(
+			nums.length >= 3,
+			`expected worst/median/earliest, got: ${panel}`,
+		);
 		assert.ok(
 			nums[0] >= nums[1] && nums[1] >= nums[2],
 			`worst >= median >= earliest, got ${nums.join(", ")} in: ${panel}`,
@@ -450,13 +914,19 @@ describe("pharmacist tabs", () => {
 		await page.click(`${NAV} a:has-text("追蹤清單")`);
 		await page.waitForSelector(QUEUE_ROWS, { timeout: 15_000 });
 		const before = await page.$$eval(QUEUE_ROWS, (n) => n.length);
-		assert.ok(before > 0, "the seeded data must produce an open follow-up to close");
+		assert.ok(
+			before > 0,
+			"the seeded data must produce an open follow-up to close",
+		);
 
 		await page.evaluate((n) => {
 			window.__before = n;
 		}, before);
 		// By exact accessible name: "完成" also matches "未完成".
-		await page.getByRole("button", { name: /標記為完成$/ }).first().click();
+		await page
+			.getByRole("button", { name: /標記為完成$/ })
+			.first()
+			.click();
 
 		/*
 		 * Completing opens the M1 assessment rather than dismissing the row,

@@ -33,7 +33,10 @@ export function createPool(url = process.env.DATABASE_URL) {
 		max: 4,
 		idleTimeoutMillis: 10_000,
 		connectionTimeoutMillis: 10_000,
-		ssl: url.startsWith("postgres://") && !url.includes("localhost") ? { rejectUnauthorized: false } : undefined,
+		ssl:
+			url.startsWith("postgres://") && !url.includes("localhost")
+				? { rejectUnauthorized: false }
+				: undefined,
 	});
 }
 

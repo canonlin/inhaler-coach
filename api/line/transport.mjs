@@ -16,8 +16,13 @@ export const QUOTA_FREE_KINDS = new Set(["welcome", "reply"]);
 /**
  * @param {{url?: string, token: string, fetchImpl?: typeof fetch}} cfg
  */
-export function createLiveTransport({ url = "https://api.line.me/v2/bot/message/push", token, fetchImpl = fetch } = {}) {
-	if (!token) throw new Error("LiveTransport needs a LINE channel access token");
+export function createLiveTransport({
+	url = "https://api.line.me/v2/bot/message/push",
+	token,
+	fetchImpl = fetch,
+} = {}) {
+	if (!token)
+		throw new Error("LiveTransport needs a LINE channel access token");
 
 	return {
 		channel: "live",
@@ -31,7 +36,11 @@ export function createLiveTransport({ url = "https://api.line.me/v2/bot/message/
 				},
 				body: JSON.stringify({ to, messages: [message] }),
 			});
-			return { ok: res.ok, status: res.status, body: res.ok ? undefined : await res.text() };
+			return {
+				ok: res.ok,
+				status: res.status,
+				body: res.ok ? undefined : await res.text(),
+			};
 		},
 	};
 }
@@ -43,7 +52,8 @@ export function createLiveTransport({ url = "https://api.line.me/v2/bot/message/
  * @param {{insert: Function}} deps
  */
 export function createRecordingTransport({ insert }) {
-	if (typeof insert !== "function") throw new Error("RecordingTransport needs an insert function");
+	if (typeof insert !== "function")
+		throw new Error("RecordingTransport needs an insert function");
 
 	return {
 		channel: "recording",

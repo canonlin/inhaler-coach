@@ -41,7 +41,16 @@ export class ExhaleDetector {
 		device = null,
 		mouthPoint = null,
 		poseLandmarks = null,
+		/*
+		 * Kept in the destructuring on purpose. Every step detector is handed the
+		 * same frame and the same @param list, so removing the two this step
+		 * happens not to read would make it the odd one out and imply the others
+		 * are wrong. Deleting them here also reads as a removal of the inputs
+		 * rather than of the read.
+		 */
+		// biome-ignore lint/correctness/noUnusedFunctionParameters: part of the shared frame contract
 		faceLandmarks = null,
+		// biome-ignore lint/correctness/noUnusedFunctionParameters: part of the shared frame contract
 		faceBlendshapes = null,
 		timestamp = 0,
 	} = {}) {

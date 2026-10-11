@@ -12,7 +12,7 @@ on:
 
 jobs:
   verify:
-    name: Typecheck, Build, Unit & DB Tests
+    name: Lint, Typecheck, Build, Unit & DB Tests
     runs-on: ubuntu-latest
 
     # The API tests truncate between cases, so they need a database they own.
@@ -59,6 +59,9 @@ jobs:
 
       - name: Install Playwright Chromium & OS Deps
         run: bunx playwright install --with-deps chromium
+
+      - name: Run Lint (biome, incl. complexity rules)
+        run: bun run lint
 
       - name: Run Typecheck (tsc --noEmit)
         run: bun run typecheck

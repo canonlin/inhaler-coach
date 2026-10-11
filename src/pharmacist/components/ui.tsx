@@ -35,7 +35,7 @@ const buttonVariants = cva(
 			// Counter-height for a tablet at a pharmacy counter: the queue is
 			// served standing up, often one-handed.
 			size: {
-				sm: "min-h-10 px-3.5 text-[15px]",
+				sm: "min-h-10 px-3.5 text-base",
 				md: "min-h-11 px-4",
 				lg: "min-h-14 px-8 text-lg",
 			},
@@ -67,7 +67,7 @@ export const Input = React.forwardRef<
 	<input
 		ref={ref}
 		className={cn(
-			"min-h-12 w-full rounded-md border border-border bg-surface px-4 py-3 text-lg",
+			"min-h-12 w-full rounded-md border border-border bg-surface px-4 py-3 text-base",
 			"placeholder:text-text-muted",
 			"focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring focus-visible:border-primary",
 			"disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted",
@@ -239,18 +239,128 @@ export function Field({
 		<div className={cn("flex flex-col gap-1.5", className)}>
 			<LabelPrimitive.Root
 				htmlFor={htmlFor}
-				className="text-[15px] font-semibold text-text"
+				className="text-base font-semibold text-text"
 			>
 				{label}
 			</LabelPrimitive.Root>
 			{children}
 			{hint && (
-				<p className="text-[15px] leading-relaxed text-text-muted">{hint}</p>
+				<p className="text-base leading-relaxed text-text-muted">{hint}</p>
 			)}
 		</div>
 	);
 }
 
+/**
+ * A bordered surface. It carries no padding of its own.
+ *
+ * CardHeader sets `px-5 py-4`, so a body rendered as Card's other child must
+ * set the same or it will sit flush against the border — and any grid inside it
+ * will hang past the right edge. That is not a style preference; it is the
+ * contract, and two components already had to be fixed for breaking it.
+ */
+/**
+ * One block of a loading placeholder.
+ *
+ * Decorative by construction — the shape, not the content — so it is hidden from
+ * assistive technology. The state itself is carried by Pending, which announces
+ * it once instead of on every bar.
+ */
+export function Skeleton({ className }: { className?: string }) {
+	return (
+		<span
+			aria-hidden="true"
+			className={cn(
+				"block animate-pulse rounded bg-surface-muted motion-reduce:animate-none",
+				className,
+			)}
+		/>
+	);
+}
+
+/**
+ * What is on screen while a request is still open.
+ *
+ * The three earlier versions were: a bare 「載入中」 word, and in two places
+ * nothing at all — CaseHistory returned null, so typing a record number simply
+ * produced no history box until the answer arrived. Both read as 「這裡沒有
+ * 資料」, which is the one thing the panel must never say while it has not
+ * asked yet. A pharmacist who reads that, concludes the patient is new, and
+ * skips the check.
+ *
+ * So the placeholder has to look like the thing it is standing in for: the same
+ * rows, the same columns, the same height. That also removes the layout jump
+ * when the data lands, which is what a spinner does not do.
+ *
+ * `aria-busy` marks the region so a screen reader says it is working; the
+ * visible bars are `aria-hidden`, because "loading" announced once is a state
+ * and announced per bar is noise.
+ */
+export function Pending({
+	label,
+	rows = 3,
+	className,
+	testId,
+	children,
+}: {
+	label: string;
+	rows?: number;
+	className?: string;
+	/**
+	 * Lets a caller name its own pending state in a test, so the test asserts
+	 * about this panel rather than searching the document for a loading word
+	 * that some other panel may also be showing.
+	 */
+	testId?: string;
+	children?: React.ReactNode;
+}) {
+	return (
+		<div
+			role="status"
+			aria-busy="true"
+			data-testid={testId}
+			className={className}
+		>
+			<span className="sr-only">{label}</span>
+			{children ?? (
+				<SkeletonRows count={rows} className="mb-2 h-4 w-full last:mb-0" />
+			)}
+		</div>
+	);
+}
+
+/**
+ * N placeholder rows of a given width, for building a skeleton.
+ *
+ * The same four-line loop had been written out at four call sites, each with its
+ * own key question answered differently. It lives here so there is one.
+ *
+ * The index IS the key, and that is correct rather than tolerated: these are
+ * fixed-length positions in a list that never reorders, never changes length and
+ * holds no data. A generated key would imply a stable identity that a grey bar
+ * does not have, and would make React's reconciliation look like it is tracking
+ * something when there is nothing to track.
+ */
+export function SkeletonRows({
+	count,
+	className,
+}: {
+	count: number;
+	className?: string;
+}) {
+	return (
+		<>
+			{Array.from({ length: count }, (_, i) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: positional placeholder, see above
+				<Skeleton key={i} className={className} />
+			))}
+		</>
+	);
+}
+
+/**
+ * A bordered surface. It carries no padding of its own.
+ */
 export function Card({
 	className,
 	...props
@@ -272,7 +382,7 @@ export function Card({
  * red-only badge fails anyone with colour vision deficiency.
  */
 const badgeVariants = cva(
-	"inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap",
+	"inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-caption font-semibold whitespace-nowrap",
 	{
 		variants: {
 			tone: {
@@ -316,7 +426,7 @@ export function CardHeader({
 			<div className="min-w-0">
 				<h2 className="text-lg font-bold text-text">{title}</h2>
 				{description && (
-					<p className="mt-1 text-[15px] leading-relaxed text-text-secondary">
+					<p className="mt-1 text-base leading-relaxed text-text-secondary">
 						{description}
 					</p>
 				)}
@@ -345,7 +455,7 @@ export const DataTable = React.forwardRef<
 	<table
 		ref={ref}
 		className={cn(
-			"w-full border-collapse text-left text-[15px]",
+			"w-full border-collapse text-left text-base",
 			dense ? CELL_PADDING : "[--cell-y:0.75rem] [--cell-x:1rem]",
 			className,
 		)}
@@ -354,14 +464,26 @@ export const DataTable = React.forwardRef<
 ));
 DataTable.displayName = "DataTable";
 
+/**
+ * A column header.
+ *
+ * `scope` defaults to "col" here rather than at each call site. A missing scope
+ * is invisible — the table still looks right and every value still lines up —
+ * but a screen reader announcing a data cell has no way to say which column it
+ * belongs to, so the whole table degrades to an undifferentiated stream of
+ * numbers. Seven of the queue's headers were missing it, which is what the a11y
+ * guard found: nothing in the markup made it obvious at the point of writing.
+ */
 export function Th({
 	className,
+	scope = "col",
 	...props
 }: React.ThHTMLAttributes<HTMLTableCellElement>) {
 	return (
 		<th
+			scope={scope}
 			className={cn(
-				"border-b border-border bg-surface-muted px-(--cell-x) py-(--cell-y) text-[13px] font-bold tracking-wide whitespace-nowrap text-text-secondary",
+				"border-b border-border bg-surface-muted px-(--cell-x) py-(--cell-y) text-base font-bold tracking-wide whitespace-nowrap text-text-secondary",
 				className,
 			)}
 			{...props}

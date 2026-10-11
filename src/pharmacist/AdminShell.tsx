@@ -79,7 +79,7 @@ export function PageTitle({
 			<div className="min-w-0">
 				<h2 className="text-lg font-bold tracking-tight text-text">{title}</h2>
 				{description && (
-					<p className="mt-1 max-w-prose text-[15px] leading-relaxed text-text-secondary">
+					<p className="mt-1 max-w-prose text-base leading-relaxed text-text-secondary">
 						{description}
 					</p>
 				)}

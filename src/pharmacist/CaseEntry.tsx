@@ -37,6 +37,7 @@ import {
 	stepReviewSource,
 } from "../domain/steps.js";
 import { cn } from "../lib/utils";
+import { CaseHistory } from "./components/CaseHistory.jsx";
 import { StepChecklist } from "./components/StepChecklist.jsx";
 import { TodayQueue } from "./components/TodayQueue.jsx";
 import {
@@ -203,30 +204,41 @@ export function CaseEntry({
 					<h2 className="text-xl font-bold tracking-tight text-text">
 						{askedMrn ? "這位病人用哪一種？" : "先輸入病歷號碼"}
 					</h2>
-					<p className="mt-1.5 max-w-prose text-[15px] leading-relaxed text-text-secondary">
+					<p className="mt-1.5 max-w-prose text-base leading-relaxed text-text-secondary">
 						{askedMrn
 							? "病人做過 AI 練習的話，這裡會自動帶入該次結果。"
 							: "輸入病歷號碼。查得到 AI 練習紀錄就直接帶入藥品與判定，你只需要看相機看不到的兩步。"}
 					</p>
 
-					{!askedMrn && (
-						<Field
-							className="mt-6"
-							label="病歷號碼"
-							htmlFor="mrn"
-							hint="病人領藥後輸入。"
-						>
-							<Input
-								id="mrn"
-								className="mrn-only text-xl"
-								value={mrn}
-								onChange={(e) => lookUpSession(e.target.value)}
-								autoComplete="off"
-								inputMode="numeric"
-								placeholder="例：A123456789"
-							/>
-						</Field>
-					)}
+					{/*
+					 * Kept on screen after the lookup rather than swapped for the
+					 * result.
+					 *
+					 * Hiding it made the record number uneditable the moment it
+					 * mattered: one wrong digit and the only way back was 「換藥」,
+					 * which returns to this branch still holding it, or reloading
+					 * the page. The case is saved under this field, so a mistake
+					 * here is a wrong-patient record rather than a cosmetic slip,
+					 * and the cost of one visible field is lower than the cost of a
+					 * case filed against the wrong person.
+					 */}
+					<Field
+						className="mt-6"
+						label="病歷號碼"
+						htmlFor="mrn"
+						hint={askedMrn ? "輸入錯了可以直接改。" : "病人領藥後輸入。"}
+					>
+						<Input
+							id="mrn"
+							value={mrn}
+							onChange={(e) => lookUpSession(e.target.value)}
+							autoComplete="off"
+							inputMode="numeric"
+							placeholder="例：1234567"
+						/>
+					</Field>
+
+					{askedMrn && mrn.trim() && <CaseHistory mrn={mrn.trim()} />}
 
 					{askedMrn && mrn.trim() && (
 						<div className="mt-5">
@@ -251,7 +263,7 @@ export function CaseEntry({
 						<div className="drug-pick space-y-5">
 							{drugsByDevice.map(([device, list]) => (
 								<div key={device}>
-									<h2 className="mb-2 text-xs font-bold tracking-wide text-text-secondary">
+									<h2 className="mb-2 text-meta font-bold tracking-wide text-text-secondary">
 										{DEVICES[device].label}
 									</h2>
 									<div className="flex flex-wrap gap-2">
@@ -318,7 +330,7 @@ export function CaseEntry({
 									換藥
 								</Button>
 							</div>
-							<p className="mt-0.5 text-xs text-text-secondary">
+							<p className="mt-0.5 text-meta text-text-secondary">
 								{drug.hasIcs ? "含類固醇" : "不含類固醇"} ·{" "}
 								{DEVICES[drug.device].speed}
 							</p>

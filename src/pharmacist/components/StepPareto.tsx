@@ -47,7 +47,7 @@ export function StepPareto({
 	const [showClean, setShowClean] = useState(false);
 
 	if (!rates.length)
-		return <p className="p-6 text-[15px] text-text-secondary">尚無資料。</p>;
+		return <p className="p-6 text-base text-text-secondary">尚無資料。</p>;
 
 	const order = new Map(pareto.map((r, i) => [r.stepCode, i]));
 
@@ -67,6 +67,15 @@ export function StepPareto({
 	// the band from a local running total, so the sentence could name eight
 	// steps while the labels fell on a different eight.
 	const totalWrong = failing.reduce((a, r) => a + r.wrong, 0);
+	/*
+	 * Below this many errors the Pareto cannot say anything useful: the top step
+	 * always carries all of them, so the band is always 100% and the ranking
+	 * carries no information. "2 個步驟佔了全部 2 次錯誤的 100%" is arithmetically
+	 * true, reads as a finding, and distinguishes nothing — the same failure as
+	 * the error rate headlining a single patient's result.
+	 */
+	const MIN_ERRORS_FOR_A_CLAIM = 8;
+	const tooFewToConclude = totalWrong < MIN_ERRORS_FOR_A_CLAIM;
 	let running = 0;
 	let bandEnd = -1;
 	for (let i = 0; i < failing.length; i += 1) {
@@ -84,8 +93,15 @@ export function StepPareto({
 	return (
 		<div>
 			<div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-5 pt-5">
-				<p className="max-w-prose text-[15px] leading-relaxed text-text-secondary">
-					{totalWrong > 0 && bandCount > 0 ? (
+				<p className="max-w-prose text-base leading-relaxed text-text-secondary">
+					{totalWrong === 0 ? (
+						"目前沒有任何步驟被記為錯誤。"
+					) : tooFewToConclude ? (
+						<>
+							目前只有 {totalWrong} 次錯誤，還看不出哪幾步是主要問題。
+							等收案累積之後，這裡才會告訴你先修哪幾步。
+						</>
+					) : bandCount > 0 ? (
 						<>
 							最錯的{" "}
 							<strong className="text-base text-text">
@@ -97,9 +113,7 @@ export function StepPareto({
 							</strong>
 							。先把這幾步練好，其餘的不用重做。
 						</>
-					) : (
-						"目前沒有任何步驟被記為錯誤。"
-					)}
+					) : null}
 				</p>
 				{clean.length > 0 && (
 					<Button
@@ -114,7 +128,7 @@ export function StepPareto({
 				)}
 			</div>
 
-			<div className="mt-4 grid grid-cols-[2.25rem_minmax(0,1fr)_6.5rem] items-end gap-x-3 border-y border-border-subtle px-5 pb-2 text-[13px] font-bold tracking-wide text-text-secondary">
+			<div className="mt-4 grid grid-cols-[2.25rem_minmax(0,1fr)_6.5rem] items-end gap-x-3 border-y border-border-subtle px-5 pb-2 text-caption font-bold tracking-wide text-text-secondary">
 				<span className="sr-only">步驟</span>
 				<span>操作</span>
 				<span className="text-right">累積 · 錯/評估</span>
@@ -127,12 +141,14 @@ export function StepPareto({
 					const inBand = showClean ? false : bandCodes.has(r.stepCode);
 					const cumulative = cumulativeUpTo(r, ranked);
 					const isBoundary =
-						!showClean && failing[bandEnd]?.stepCode === r.stepCode;
+						!showClean &&
+						!tooFewToConclude &&
+						failing[bandEnd]?.stepCode === r.stepCode;
 
 					return (
 						<li key={r.stepCode}>
 							<div className="grid grid-cols-[2.25rem_minmax(0,1fr)_6.5rem] items-center gap-x-3 border-b border-border-subtle/60 py-2.5">
-								<span className="inline-flex size-7 items-center justify-center rounded-md bg-surface-muted text-[15px] font-bold tabular-nums text-text">
+								<span className="inline-flex size-7 items-center justify-center rounded-md bg-surface-muted text-base font-bold tabular-nums text-text">
 									{r.stepCode.split("_")[1] ?? r.stepCode}
 								</span>
 
@@ -179,7 +195,7 @@ export function StepPareto({
 									) : (
 										<p className="text-base text-text-muted">—</p>
 									)}
-									<p className="text-[13px] text-text-secondary">
+									<p className="text-caption text-text-secondary">
 										<span className="text-text">{r.wrong}</span>
 										<span className="text-text-muted">／{r.assessed}</span>
 									</p>
@@ -188,7 +204,7 @@ export function StepPareto({
 
 							{/* The band boundary, stated once. */}
 							{isBoundary && (
-								<p className="flex items-center gap-3 border-b-2 border-primary/40 py-2 text-[13px] font-semibold text-primary">
+								<p className="flex items-center gap-3 border-b-2 border-primary/40 py-2 text-caption font-semibold text-primary">
 									<span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
 									以上 {bandCount} 個步驟佔全部錯誤的{" "}
 									{Math.round((bandWrong / totalWrong) * 100)}%，先修這些

@@ -61,7 +61,14 @@ export function EngagementPanel({ e }: { e: Engagement | null }) {
 	if (!e) return null;
 
 	return (
-		<div>
+		/*
+		 * The padding is this component's job, and it has to match CardHeader's
+		 * exactly. Card is a bare bordered box: a header supplies its own
+		 * padding, so a body that does not supplies none — which is how the
+		 * 「全部個案」 row and both chains ended up straddling the card's border
+		 * with their last column hanging outside it.
+		 */
+		<div className="px-5 py-4">
 			<div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_2.75rem_9rem] sm:items-center">
 				{/*
 				 * Labelled 全部個案, not 已收案, because the summary band above
@@ -72,14 +79,14 @@ export function EngagementPanel({ e }: { e: Engagement | null }) {
 				 * be measured against is a separate question and is not decided
 				 * here: this row only names what the query counts.
 				 */}
-				<span className="text-[15px] font-bold text-text">全部個案</span>
+				<span className="text-base font-bold text-text">全部個案</span>
 				<span className="h-2.5 overflow-hidden rounded-full bg-surface-muted">
 					<span className="block h-full w-full rounded-full bg-primary" />
 				</span>
-				<span className="text-right text-[15px] font-bold tabular-nums text-text">
+				<span className="text-right text-base font-bold tabular-nums text-text">
 					{e.enrolled}
 				</span>
-				<span className="text-[13px] text-text-muted">分母</span>
+				<span className="text-caption text-text-muted">以下比例的分母</span>
 			</div>
 
 			{CHAINS.map((chain) => (
@@ -87,7 +94,7 @@ export function EngagementPanel({ e }: { e: Engagement | null }) {
 					key={chain.label}
 					className="mt-4 border-s-2 border-border-subtle ps-4"
 				>
-					<legend className="px-1 text-[13px] font-bold text-text-secondary">
+					<legend className="px-1 text-caption font-bold text-text-secondary">
 						{chain.label}
 					</legend>
 					<div className="space-y-2">
@@ -110,13 +117,11 @@ export function EngagementPanel({ e }: { e: Engagement | null }) {
 											}}
 										/>
 									</span>
-									<span className="text-right text-[15px] font-semibold tabular-nums text-text">
+									<span className="text-right text-base font-semibold tabular-nums text-text">
 										{value}
 									</span>
-									<span className="text-[13px] tabular-nums text-text-muted">
-										{denom > 0
-											? `${pct(value, denom)} 佔上一步`
-											: "無上一步可比"}
+									<span className="text-caption tabular-nums text-text-muted">
+										{denom > 0 ? pct(value, denom) : "尚無上一步"}
 									</span>
 								</div>
 							);
@@ -126,7 +131,7 @@ export function EngagementPanel({ e }: { e: Engagement | null }) {
 			))}
 
 			{e.fu_open > 0 && (
-				<p className="mt-4 text-[15px] text-text-secondary">
+				<p className="mt-4 text-base text-text-secondary">
 					尚未到期或未結案 {e.fu_open} 件
 					{e.fu_missed > 0 && `，其中標記未完成 ${e.fu_missed} 件`}。
 				</p>

@@ -69,6 +69,21 @@ export interface StepRate {
 	share?: number;
 }
 
+/** One step's rate in both cohorts, with the denominator that produced it. */
+export interface StepPair {
+	stepCode: string;
+	critical: boolean;
+	before: { rate: number; assessed: number } | null;
+	after: { rate: number; assessed: number } | null;
+	/**
+	 * The ▲ 頑固 finding. The server decides, because the threshold depends on
+	 * the false-alarm rate of marking a step that actually improved — not a
+	 * display preference — and a client cannot compute that from these fields.
+	 */
+	stubborn: boolean;
+	noAfterData: boolean;
+}
+
 export interface Summary {
 	engagement?: Engagement;
 	ok: true;
@@ -79,6 +94,13 @@ export interface Summary {
 	knowledge: { cases: number; mean: number };
 	topSteps: StepRate[];
 	stepRates: StepRate[];
+	/** Before → after per step, for the heatmap. Sorted by baseline rate. */
+	stepsBeforeAfter: StepPair[];
+	/** Per device class, both cohorts. Carries a device with no cases at all. */
+	byDevice: {
+		before: Record<string, TechniqueStats>;
+		after: Record<string, TechniqueStats>;
+	};
 	pareto: StepRate[];
 	enrolment: { target: number; after: number };
 }
@@ -162,11 +184,93 @@ export interface Followup {
 	drug: string | null;
 	device: DeviceKind | null;
 	pharmacist: string | null;
+	/** The case this follow-up came from, and the patient it belongs to. */
+	case_id: string | null;
+	patient_id: string;
 	/** Step codes the linked case got wrong — what this follow-up is for. */
 	wrongSteps: string[];
 	overdue: boolean;
 	dueSoon: boolean;
 }
+export interface CaseRow {
+	id: string;
+	case_date: string;
+	timepoint: string;
+	qcc_stage: string;
+	device: string | null;
+	drug: string | null;
+	pharmacist: string | null;
+	campus: string | null;
+	mrn_tail: string;
+	knowledgeScore: number | null;
+	steps: Record<string, string>;
+}
+
+/**
+ * One patient's history.
+ *
+ * POST rather than GET: the record number is hashed server-side and never
+ * travels in a query string, where it would land in browser history, proxy
+ * logs and any link a pharmacist pastes to a colleague.
+ */
+export async function lookupCases(mrn: string): Promise<CaseRow[]> {
+	if (!mrn.trim()) return [];
+	const res = await fetch(`${base}/api/cases/lookup`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ mrn: mrn.trim() }),
+	});
+	const json = await res.json();
+	if (!res.ok || json.ok === false) {
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	}
+	return (json.cases ?? []) as CaseRow[];
+}
+
+/** GET /api/cases — every recorded case, newest first. */
+export async function fetchCases(
+	q: {
+		qccStage?: string;
+		timepoint?: string;
+		campus?: string;
+		pharmacist?: string;
+		drug?: string;
+		device?: string;
+	} = {},
+): Promise<CaseRow[]> {
+	const params = new URLSearchParams();
+	for (const [k, v] of Object.entries(q)) {
+		if (v) params.set(k, v);
+	}
+	const qs = params.toString();
+	const res = await fetch(`${base}/api/cases${qs ? `?${qs}` : ""}`);
+	const json = await res.json();
+	if (!res.ok || json.ok === false) {
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	}
+	return (json.cases ?? []) as CaseRow[];
+}
+
+/**
+ * One patient's history, found from the queue.
+ *
+ * Same endpoint as the record-number lookup but keyed by the opaque internal
+ * id, because the queue has the masked tail only — enough to recognise a row,
+ * not enough to retrieve anything. The tail cannot be used to look up, and
+ * reconstructing the full number from a tail would be guessing at a patient's
+ * identity.
+ */
+export async function casesForPatient(patientId: string): Promise<CaseRow[]> {
+	const res = await fetch(
+		`${base}/api/cases?patientId=${encodeURIComponent(patientId)}`,
+	);
+	const json = await res.json();
+	if (!res.ok || json.ok === false) {
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	}
+	return (json.cases ?? []) as CaseRow[];
+}
+
 /** POST /api/cases — one transaction for the case and all of its results. */
 export interface NewCase {
 	mrn: string;

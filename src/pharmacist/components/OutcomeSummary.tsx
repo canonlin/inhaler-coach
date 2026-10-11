@@ -86,7 +86,7 @@ export function OutcomeSummary({
 						</p>
 						<p
 							data-testid="error-rate-support"
-							className="mt-1.5 text-[13px] leading-snug text-text-secondary"
+							className="mt-1.5 text-caption leading-snug text-text-secondary"
 						>
 							配對 {paired?.paired} 人 · 改善 {paired?.b} · 退步 {paired?.c}
 							{paired?.p != null && (
@@ -112,7 +112,7 @@ export function OutcomeSummary({
 						>
 							還不能下結論
 						</p>
-						<p className="mt-1.5 text-[13px] leading-snug text-text-secondary">
+						<p className="mt-1.5 text-caption leading-snug text-text-secondary">
 							改善前 {baseline.cases} 例、改善後 {after.cases} 例，
 							{paired?.paired === 0 ? "但重疊 0 人" : "無法定義前後測"}
 							—— 沒有同一批病人就看不出變化。
@@ -130,7 +130,7 @@ export function OutcomeSummary({
 							: pct(engagement.followupCompletionRate)
 						: "—"}
 				</p>
-				<p className="mt-1.5 text-[13px] leading-snug text-text-secondary">
+				<p className="mt-1.5 text-caption leading-snug text-text-secondary">
 					{engagement ? (
 						<>
 							已到期 {engagement.followupDue} 件 · 完成{" "}
@@ -161,7 +161,7 @@ export function OutcomeSummary({
 					</span>
 					<span className="text-lg font-semibold text-text-muted">人</span>
 				</p>
-				<p className="mt-1.5 text-[13px] leading-snug text-text-secondary">
+				<p className="mt-1.5 text-caption leading-snug text-text-secondary">
 					{engagement && engagement.active_7d === 0
 						? "目前沒有病人使用紀錄"
 						: "有動作的病人（以人計數）"}
@@ -187,7 +187,7 @@ function Tile({
 				emphasis ? "border-primary/30" : "border-border-subtle",
 			)}
 		>
-			<h2 className="text-[13px] font-bold tracking-wide text-text-secondary">
+			<h2 className="text-caption font-bold tracking-wide text-text-secondary">
 				{label}
 			</h2>
 			<div className="mt-1.5 grow">{children}</div>
@@ -205,7 +205,7 @@ function Progress({ value, note }: { value: number; note: string }) {
 					style={{ inlineSize: `${clamped * 100}%` }}
 				/>
 			</span>
-			<p className="mt-1.5 text-[13px] tabular-nums text-text-secondary">
+			<p className="mt-1.5 text-caption tabular-nums text-text-secondary">
 				{note}
 			</p>
 		</div>

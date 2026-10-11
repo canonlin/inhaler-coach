@@ -399,7 +399,6 @@ export class ShoulderKinematicsTracker {
 		let headTurnRange = 0;
 		let yDrop = 0;
 		let xRange = 0;
-		let yRange = 0;
 		let minY = this.smoothedY;
 
 		if (this.history.length >= 3) {
@@ -410,7 +409,6 @@ export class ShoulderKinematicsTracker {
 
 			headDistRange = Math.max(...hDists) - Math.min(...hDists);
 			headTurnRange = Math.max(...turns) - Math.min(...turns);
-			yRange = (Math.max(...ys) - Math.min(...ys)) / span;
 			minY = Math.min(...ys); // highest shoulder point in window
 			yDrop = (this.smoothedY - minY) / span;
 			xRange = (Math.max(...xs) - Math.min(...xs)) / span;

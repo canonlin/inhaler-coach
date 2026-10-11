@@ -6,7 +6,7 @@
  * Run:  DATABASE_URL=postgres://postgres:devpw@localhost:55432/inhaler bun run test
  */
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 
 import { createPool, hashMrn } from "../api/db.mjs";
 import { makeRoutes } from "../api/routes.mjs";
@@ -34,7 +34,9 @@ if (false) {
 		pool = createPool(URL);
 		api = makeRoutes({ query: (t, p) => pool.query(t, p), salt: SALT });
 		// Start from a known state; the schema is applied by db/schema.sql.
-		await pool.query("TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE");
+		await pool.query(
+			"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
+		);
 	});
 
 	after(async () => {
@@ -60,7 +62,7 @@ if (false) {
 				qccStage: "改善後",
 				timepoint: "M0",
 				steps: { MDI_搖: "正確", MDI_吐: "錯誤", MDI_開: "正確" },
-				knowledge: { "1": "對", "3": "不對" },
+				knowledge: { 1: "對", 3: "不對" },
 				measurements: { PIF: "62", CAT: "14" },
 			});
 			assert.equal(r.ok, true);
@@ -117,7 +119,9 @@ if (false) {
 		});
 
 		it("reuses the patient row when the same MRN returns", async () => {
-			const before = await pool.query("SELECT count(*)::int AS n FROM patients");
+			const before = await pool.query(
+				"SELECT count(*)::int AS n FROM patients",
+			);
 			await api.createCase({
 				mrn: "A123456789",
 				caseDate: "2026-06-15",
@@ -127,7 +131,11 @@ if (false) {
 				steps: { MDI_搖: "正確", MDI_含: "正確" },
 			});
 			const after = await pool.query("SELECT count(*)::int AS n FROM patients");
-			assert.equal(after.rows[0].n, before.rows[0].n, "must not duplicate the patient");
+			assert.equal(
+				after.rows[0].n,
+				before.rows[0].n,
+				"must not duplicate the patient",
+			);
 		});
 	});
 
@@ -156,7 +164,11 @@ if (false) {
 
 		it("counts knowledge answers as integers, not bigint strings", async () => {
 			const r = await api.summary({});
-			assert.equal(r.knowledge.cases, 1, "only the case that recorded answers counts");
+			assert.equal(
+				r.knowledge.cases,
+				1,
+				"only the case that recorded answers counts",
+			);
 			assert.equal(r.knowledge.mean, 1);
 		});
 
@@ -187,8 +199,8 @@ if (false) {
 				device: "MDI",
 				completed: true,
 				stages: {
-					"1": { a: 3, c: 0.87, p: "correct", passed: true },
-					"2": { a: 5, c: 0.62, p: "incorrect", passed: false },
+					1: { a: 3, c: 0.87, p: "correct", passed: true },
+					2: { a: 5, c: 0.62, p: "incorrect", passed: false },
 				},
 			});
 			assert.equal(r.ok, true);
@@ -197,7 +209,12 @@ if (false) {
 			const { rows } = await pool.query(
 				"SELECT stage, attempts, ai_confidence, pharmacist FROM session_stages ORDER BY stage",
 			);
-			assert.deepEqual(rows[0], { stage: 1, attempts: 3, ai_confidence: "0.87", pharmacist: "correct" });
+			assert.deepEqual(rows[0], {
+				stage: 1,
+				attempts: 3,
+				ai_confidence: "0.87",
+				pharmacist: "correct",
+			});
 			assert.equal(rows[1].attempts, 5);
 			assert.equal(rows[1].pharmacist, "incorrect");
 		});
@@ -268,11 +285,17 @@ if (false) {
 			);
 			assert.equal(rows.length, 1);
 			assert.equal(rows[0].priority, "P2");
-			assert.equal(rows[0].due_end, "2026-08-12", "six weeks: the routine window");
+			assert.equal(
+				rows[0].due_end,
+				"2026-08-12",
+				"six weeks: the routine window",
+			);
 		});
 
 		it("does not enqueue a follow-up when every step was correct", async () => {
-			const before = await pool.query("SELECT count(*)::int AS n FROM followups");
+			const before = await pool.query(
+				"SELECT count(*)::int AS n FROM followups",
+			);
 			await api.createCase({
 				mrn: "E444555666",
 				caseDate: "2026-07-01",
@@ -280,7 +303,9 @@ if (false) {
 				drug: "Symbicort",
 				steps: { MDI_搖: "正確", MDI_開: "正確" },
 			});
-			const after = await pool.query("SELECT count(*)::int AS n FROM followups");
+			const after = await pool.query(
+				"SELECT count(*)::int AS n FROM followups",
+			);
 			assert.equal(after.rows[0].n, before.rows[0].n);
 		});
 	});
@@ -339,7 +364,11 @@ if (false) {
 
 		it("reports a missing follow-up as not found", async () => {
 			await assert.rejects(
-				() => api.closeFollowup({ id: "00000000-0000-0000-0000-000000000000", by: "x" }),
+				() =>
+					api.closeFollowup({
+						id: "00000000-0000-0000-0000-000000000000",
+						by: "x",
+					}),
 				/not found/,
 			);
 		});
@@ -356,7 +385,11 @@ if (false) {
 				`SELECT count(*)::int AS n FROM followups
 				 WHERE (status = 'open') <> (completed_at IS NULL)`,
 			);
-			assert.equal(rows[0].n, 0, "the CHECK constraint should make this impossible");
+			assert.equal(
+				rows[0].n,
+				0,
+				"the CHECK constraint should make this impossible",
+			);
 		});
 	});
 
@@ -367,9 +400,9 @@ if (false) {
 				device: "MDI",
 				completed: true,
 				stages: {
-					"1": { a: 2, c: 0.88, p: "correct", passed: true },
-					"2": { a: 4, c: 0.61, p: "incorrect", passed: false },
-					"3": { a: 3, c: 0.79, p: "correct", passed: true },
+					1: { a: 2, c: 0.88, p: "correct", passed: true },
+					2: { a: 4, c: 0.61, p: "incorrect", passed: false },
+					3: { a: 3, c: 0.79, p: "correct", passed: true },
 				},
 			});
 			const r = await api.pendingSession({ mrn: "T900900900" });
@@ -394,6 +427,183 @@ if (false) {
 			assert.equal(r.ok, true);
 			assert.equal(r.found, false);
 			assert.deepEqual(r.steps, {});
+		});
+	});
+
+	/*
+	 * Moved to the end of this file on purpose.
+	 *
+	 * GET /api/metrics/summary has no setup of its own — it reads whatever the
+	 * preceding block left in the database — so anything inserted before it
+	 * inherits that responsibility and silently breaks a suite several blocks
+	 * away. This block truncates and reseeds per test, which is exactly the
+	 * wrong shape to sit in the middle of the chain.
+	 */
+	/*
+	 * There was no way to read a patient's history back at all: /api/cases
+	 * filters by cohort and nothing in the frontend called it. This covers
+	 * the lookup that replaced that, including the property that matters
+	 * most about it — the record number is compared by hash and never
+	 * appears in a URL or in the response.
+	 */
+	describe("POST /api/cases/lookup", () => {
+		beforeEach(async () => {
+			await pool.query(
+				"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
+			);
+			await api.createCase({
+				mrn: "H9990001",
+				caseDate: "2026-05-04",
+				pharmacist: "黃永成",
+				drug: "Symbicort",
+				qccStage: "改善前",
+				timepoint: "M0",
+				steps: { MDI_壓: "錯誤", MDI_吸: "正確" },
+			});
+			await api.createCase({
+				mrn: "H9990001",
+				caseDate: "2026-06-04",
+				pharmacist: "黃永成",
+				drug: "Symbicort",
+				qccStage: "改善後",
+				timepoint: "M1",
+				steps: { MDI_壓: "正確", MDI_吸: "正確" },
+			});
+			await api.createCase({
+				mrn: "H9990002",
+				caseDate: "2026-05-06",
+				pharmacist: "林家薐",
+				drug: "Breztri",
+				qccStage: "改善前",
+				timepoint: "M0",
+				steps: { MDI_吸: "錯誤" },
+			});
+		});
+
+		it("returns one patient's cases, newest first", async () => {
+			const r = await api.lookupCases({ mrn: "H9990001" });
+			assert.equal(r.ok, true);
+			assert.equal(r.found, true);
+			assert.equal(r.cases.length, 2, "only this patient's two cases");
+			assert.deepEqual(
+				r.cases.map((c) => c.timepoint),
+				["M1", "M0"],
+				"newest first, so a before/after reads top to bottom",
+			);
+		});
+
+		it("carries the step verdicts, so a before/after needs no second call", async () => {
+			const r = await api.lookupCases({ mrn: "H9990001" });
+			assert.deepEqual(r.cases[0].steps, { MDI_壓: "正確", MDI_吸: "正確" });
+			assert.deepEqual(r.cases[1].steps, { MDI_壓: "錯誤", MDI_吸: "正確" });
+		});
+
+		it("never echoes the full record number back", async () => {
+			const r = await api.lookupCases({ mrn: "H9990001" });
+			assert.ok(
+				!JSON.stringify(r).includes("H9990001"),
+				"only the masked tail may leave the server",
+			);
+		});
+
+		it("reports an unknown patient without creating one", async () => {
+			const r = await api.lookupCases({ mrn: "H0000000" });
+			assert.equal(r.found, false);
+			assert.deepEqual(r.cases, []);
+			const { rows } = await pool.query(
+				"SELECT count(*)::int AS n FROM patients WHERE mrn_tail = '00'",
+			);
+			assert.equal(rows[0].n, 0, "a lookup must not insert");
+		});
+
+		it("refuses an empty record number", async () => {
+			await assert.rejects(
+				() => api.lookupCases({ mrn: "  " }),
+				/mrn is required/,
+			);
+		});
+	});
+	/*
+	 * At the end for the reason the lookup block below also gives: the
+	 * summary suite reads whatever the preceding block left behind, so a
+	 * truncating block placed before it breaks a suite it never mentions.
+	 */
+	/*
+	 * The queue holds only the masked tail, so a row could not be opened: there
+	 * was no way to get from "this patient is overdue on 7 steps" to "here is
+	 * what they actually did". These cover the two fields that make the row
+	 * actionable, and the filter that reaches the same records by product.
+	 */
+	describe("queue rows are actionable", () => {
+		beforeEach(async () => {
+			await pool.query(
+				"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
+			);
+			await api.createCase({
+				mrn: "H7770001",
+				caseDate: "2026-04-21",
+				pharmacist: "黃永成",
+				drug: "Symbicort",
+				qccStage: "改善前",
+				timepoint: "M0",
+				steps: { MDI_壓: "錯誤", MDI_搖: "正確" },
+			});
+			await api.createCase({
+				mrn: "H7770002",
+				caseDate: "2026-04-22",
+				pharmacist: "林家薐",
+				drug: "Breztri",
+				qccStage: "改善前",
+				timepoint: "M0",
+				steps: { MDI_壓: "錯誤" },
+			});
+		});
+
+		it("carries the ids a row needs to be opened", async () => {
+			const r = await api.followups();
+			assert.equal(r.followups.length, 2);
+			for (const f of r.followups) {
+				assert.ok(f.case_id, "the row must name the case it came from");
+				assert.ok(f.patient_id, "the row must name the patient");
+				assert.ok(
+					f.device,
+					"a row that cannot be grouped by device cannot be worked",
+				);
+			}
+		});
+
+		it("never carries the record number itself", async () => {
+			const r = await api.followups();
+			const body = JSON.stringify(r);
+			assert.ok(
+				!body.includes("H7770001"),
+				"only the masked tail may leave the server",
+			);
+			assert.ok(!body.includes("H7770002"));
+			for (const f of r.followups) {
+				assert.equal(String(f.mrn_tail).length, 2, "the tail is two digits");
+			}
+		});
+
+		it("reaches one patient's records from the queue, by id rather than by name", async () => {
+			const r = await api.followups();
+			const row = r.followups.find((f) => f.drug === "Symbicort");
+			const cases = await api.listCases({ patientId: row.patient_id });
+			assert.equal(cases.cases.length, 1);
+			assert.equal(cases.cases[0].drug, "Symbicort");
+			// Wrong id returns nothing rather than somebody else's records.
+			const missing = await api.listCases({
+				patientId: "00000000-0000-0000-0000-000000000000",
+			});
+			assert.deepEqual(missing.cases, []);
+		});
+
+		it("filters by device and by product", async () => {
+			const byDevice = await api.listCases({ device: "MDI" });
+			assert.equal(byDevice.cases.length, 2, "both fixtures are pMDI");
+			const byDrug = await api.listCases({ drug: "Breztri" });
+			assert.equal(byDrug.cases.length, 1);
+			assert.equal(byDrug.cases[0].drug, "Breztri");
 		});
 	});
 }

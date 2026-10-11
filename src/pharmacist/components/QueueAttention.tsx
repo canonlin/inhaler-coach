@@ -36,7 +36,7 @@ export function QueueAttention({
 	closedToday,
 }: {
 	rows: Followup[];
-	view: "today" | "all";
+	view: "today" | "open" | "all" | "cases";
 	closedToday: number;
 }) {
 	const stats = useMemo(() => {

@@ -13,7 +13,29 @@
  * input, ring, muted surfaces) are added so every surface draws from the same
  * names rather than inventing its own.
  */
+/*
+ * Type scale.
+ *
+ * Role-named, and the whole point is that `base` is a floor rather than a
+ * starting point. See output/design-review/contrast.mjs's sibling check,
+ * type-scale.mjs, which fails the build if an arbitrary text-* size reappears.
+ */
 @theme {
+  --text-meta: 0.75rem;     /* 12px */
+  --text-caption: 0.8125rem;/* 13px */
+  --text-sm: 0.875rem;      /* 14px */
+  --text-base: 1rem;        /* 16px */
+  --text-lg: 1.125rem;      /* 18px */
+  --text-xl: 1.375rem;      /* 22px */
+  --text-metric: 1.875rem;  /* 30px */
+  --text-hero: 2.375rem;    /* 38px */
+
+  /* Spacing: one scale for both surfaces, so a card's padding cannot drift
+     from the card next to it. */
+  --spacing-gutter: 1.5rem;
+  --spacing-stack: 1rem;
+  --spacing-tight: 0.5rem;
+
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-light: #e2e8f0;
