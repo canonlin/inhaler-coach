@@ -44,10 +44,12 @@ import {
 	Button,
 	Card,
 	CardHeader,
+	Checkbox,
 	DataTable,
 	Field,
 	Input,
 	Select,
+	SelectItem,
 	Td,
 	Th,
 } from "./components/ui";
@@ -203,8 +205,8 @@ export function CaseEntry({
 					</h2>
 					<p className="mt-1.5 max-w-prose text-[15px] leading-relaxed text-text-secondary">
 						{askedMrn
-							? "若病人剛做過 AI 練習，這裡會自動帶入他練的那一支。"
-							: "輸入後系統會查有沒有 AI 練習紀錄，有的話直接帶入藥品與判定，你只需要看相機看不到的兩步。"}
+							? "病人做過 AI 練習的話，這裡會自動帶入該次結果。"
+							: "輸入病歷號碼。查得到 AI 練習紀錄就直接帶入藥品與判定，你只需要看相機看不到的兩步。"}
 					</p>
 
 					{!askedMrn && (
@@ -326,10 +328,12 @@ export function CaseEntry({
 							<Select
 								id="pharmacist"
 								value={pharmacist}
-								onChange={(e) => setPharmacist(e.target.value)}
+								onValueChange={(v) => setPharmacist(v)}
 							>
 								{PHARMACISTS.map((p) => (
-									<option key={p}>{p}</option>
+									<SelectItem key={p} value={p}>
+										{p}
+									</SelectItem>
 								))}
 							</Select>
 						</Field>
@@ -338,10 +342,12 @@ export function CaseEntry({
 							<Select
 								id="campus"
 								value={campus}
-								onChange={(e) => setCampus(e.target.value)}
+								onValueChange={(v) => setCampus(v)}
 							>
 								{CAMPUSES.map((c) => (
-									<option key={c}>{c}</option>
+									<SelectItem key={c} value={c}>
+										{c}
+									</SelectItem>
 								))}
 							</Select>
 						</Field>
@@ -413,16 +419,15 @@ export function CaseEntry({
 												</Badge>
 											</Td>
 											<Td>
-												<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-sm text-text-secondary">
-													<input
-														type="checkbox"
-														className="size-4"
+												<label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-base text-text-secondary">
+													<Checkbox
+														id={`demo-${s.code}`}
 														checked={Boolean(demonstrated[s.code])}
-														onChange={(e) =>
+														onCheckedChange={(v) =>
 															setDemonstrated(
 																(prev: Record<string, boolean>) => ({
 																	...prev,
-																	[s.code]: e.target.checked,
+																	[s.code]: v === true,
 																}),
 															)
 														}

@@ -19,7 +19,7 @@ import { fetchSummary, type Summary } from "../api-client";
 import { EngagementPanel } from "./components/EngagementPanel";
 import { OutcomeSummary } from "./components/OutcomeSummary";
 import { StepPareto } from "./components/StepPareto";
-import { Card, CardHeader, Select } from "./components/ui";
+import { Card, CardHeader, Select, SelectItem } from "./components/ui";
 
 export function Outcomes() {
 	const [data, setData] = useState<Summary | null>(null);
@@ -62,13 +62,14 @@ export function Outcomes() {
 					<label htmlFor="stage">階段</label>
 					<Select
 						id="stage"
+						placeholder="選擇階段"
 						value={stage}
-						onChange={(e) => setStage(e.target.value)}
+						onValueChange={(v) => setStage(v)}
 						className="w-36"
 					>
-						<option value="">全部</option>
-						<option value="改善前">改善前</option>
-						<option value="改善後">改善後</option>
+						<SelectItem value="">全部</SelectItem>
+						<SelectItem value={"改善前"}>改善前</SelectItem>
+						<SelectItem value={"改善後"}>改善後</SelectItem>
 					</Select>
 				</div>
 			</div>
@@ -92,7 +93,7 @@ export function Outcomes() {
 			<Card>
 				<CardHeader
 					title="民眾有在用嗎"
-					description="以「人」計數，不是次數。一個人練習四次仍算一位。回答系統有沒有被真的使用，不是操作有沒有變好。"
+					description="以「人」計數。同一個人練習四次仍算一位。這裡看的是有沒有人在用，不是操作有沒有進步。"
 				/>
 				<EngagementPanel e={data.engagement ?? null} />
 			</Card>

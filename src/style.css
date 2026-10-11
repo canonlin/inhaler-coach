@@ -18,17 +18,24 @@
   --color-surface: #ffffff;
   --color-surface-light: #e2e8f0;
   --color-surface-muted: #f1f5f9;
-  --color-border: #cbd5e1;
+  /* The boundary of every control that has to be identified: inputs,
+     selects, the close-field. 1.4.11 wants 3:1 against the surface it
+     sits on; the old #cbd5e1 managed 1.48 on white, which made the edge
+     of a text field invisible to anyone with reduced contrast
+     sensitivity. */
+  --color-border: #64748b;
   --color-border-subtle: #e2e8f0;
   --color-text: #0f172a;
   --color-text-secondary: #475569;
   --color-text-muted: #64748b;
-  --color-primary: #e11d48;
+  /* Coaching-app brand red.
+     Nudged one step darker than the original #e11d48: that value measured
+     4.28:1 on the tinted and muted surfaces the primary is actually drawn on,
+     below the 4.5 that body text needs. #d81b45 clears 4.60 on the worst of
+     the three and keeps the same hue, so the app still reads as the same red. */
+  --color-primary: #d81b45;
   --color-primary-dark: #be123c;
   --color-primary-foreground: #ffffff;
-  /* Selected navigation item. A tint rather than the solid brand colour: in a
-     sidebar the active row is the only thing lit, and tinting it keeps the
-     brand red available for the numbers that carry meaning. */
   --color-primary-soft: #fff1f4;
   --color-success: #047857;
   --color-success-soft: #ecfdf5;
@@ -37,7 +44,11 @@
   --color-danger: #b91c1c;
   --color-danger-soft: #fef2f2;
   --color-accent: #0f172a;
-  --color-ring: #38bdf8;
+  /* Focus indicator. 1.4.11 wants 3:1 against both the control and the
+     page behind it, so this is checked against white, surface-muted and
+     primary-soft and judged on the worst: #38bdf8 fell to 1.96, meaning
+     keyboard focus was effectively invisible. */
+  --color-ring: #0369a1;
 
   --font-sans: 'jf-openhuninn', 'Noto Sans TC', system-ui, sans-serif;
   --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -77,6 +88,32 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * The pharmacist end's own palette.
+ *
+ * Scoped rather than global because the two surfaces genuinely differ. The
+ * coaching app is for older adults on a phone and the warm red carries the
+ * brand; a clinical back office needs red to mean overdue and error, and only
+ * that. Sharing the hue made thirty-four overdue badges, the active nav item and
+ * every primary button the same colour, which is how a screen ends up looking
+ * like an alarm no matter what the data says.
+ *
+ * Overriding the custom properties on the container recolours every `primary-*`
+ * utility inside it — Tailwind resolves them through the variables — and leaves
+ * `--color-danger` and `--color-warning` alone, so red still only ever appears
+ * where something is wrong.
+ *
+ * Contrast against white, measured rather than assumed:
+ *   #115e59 as brand text   7.58  (AA needs 4.5)
+ *   #ffffff on #115e59      7.58  primary button label
+ *   #0c4a4e on #ecfdfb      8.90  active nav row
+ */
+.surface-admin {
+  --color-primary: #115e59;
+  --color-primary-dark: #0b3f3c;
+  --color-primary-soft: #ecfdfb;
+}
+
 /* The document scrolls again. It carried overflow: hidden for the 3D patient
    coaching loop, which needs no page scroll because its <main> is
    position: fixed with inset-0 and clips its own overflow (see App.tsx). That
@@ -93,7 +130,10 @@ button,
 }
 
 :focus-visible {
-  outline: 3px solid #38bdf8;
+  /* Reads the token rather than a literal: the old hard-coded #38bdf8 sat at
+     1.96:1 against the surfaces it is drawn on, so this rule silently kept the
+     inaccessible ring in place after the token was corrected. */
+  outline: 3px solid var(--color-ring);
   outline-offset: 3px;
 }
 

@@ -93,8 +93,13 @@ before(async () => {
 	page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 	page.on("pageerror", (e) => consoleErrors.push(String(e)));
 	page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-	await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
 
+	// The navigation badge reads the queue as the page loads and caches it. It
+	// has to open only after the rows below exist, or it caches a count of zero
+	// for the whole file and the badge test fails or passes depending on what
+	// the previous run left in the database — which is exactly the ambient-data
+	// trap this file's own comment below warns about.
+	//
 	// The outcomes view summarises every case in the database, so this test has
 	// to own the database state to assert anything about it. Both other
 	// database-backed files truncate on entry; without truncating here too, this
@@ -129,6 +134,9 @@ before(async () => {
 		timepoint: "M1",
 		steps: { MDI_壓: "正確", MDI_吸: "正確" },
 	});
+
+	// Only now is the state this test intends to measure.
+	await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
 });
 
 /** POST to the API this test started. */
@@ -221,11 +229,12 @@ describe("pharmacist tabs", () => {
 
 	it("refuses to headline a rate it cannot test", async () => {
 		// 改善前 only: there is no "after" cohort, so no comparison exists.
-		await page.selectOption("#stage", "改善前");
-		await page.waitForFunction(
-			() => document.querySelector("#stage")?.value === "改善前",
-			{ timeout: 5000 },
-		);
+		//
+		// Opened and picked rather than selectOption: the filter is a Radix
+		// select, which is a button plus a listbox, not a native <select>. This
+		// is also the only form that would fail if the trigger stopped opening.
+		await page.click("#stage");
+		await page.getByRole("option", { name: "改善前" }).click();
 		await page.waitForTimeout(400);
 
 		// The band itself is always present; what must not appear is a rate.
@@ -244,8 +253,9 @@ describe("pharmacist tabs", () => {
 		const tile = (await page.textContent("[data-testid=outcome-summary]")) ?? "";
 		assert.match(tile, /改善前 1 例、改善後 0 例/);
 
-		// Leave the filter as found for the tests that follow.
-		await page.selectOption("#stage", "");
+		// Back to 全部 so the tests that follow see both cohorts.
+		await page.click("#stage");
+		await page.getByRole("option", { name: "全部", exact: true }).click();
 		await page.waitForTimeout(300);
 	});
 
@@ -348,6 +358,53 @@ describe("pharmacist tabs", () => {
 		}, before);
 		// By exact accessible name: "完成" also matches "未完成".
 		await page.getByRole("button", { name: /標記為完成$/ }).first().click();
+
+		/*
+		 * Completing opens the M1 assessment rather than dismissing the row,
+		 * because a close that records nothing leaves the queue shorter and the
+		 * outcomes page unchanged. This drives the form the pharmacist uses, so
+		 * the button and the feature are tested together.
+		 */
+		const submit = page.getByRole("button", { name: /結案並記錄 M1/ });
+		await submit.waitFor({ timeout: 15_000 });
+
+		// One click per step. Clicking "first until none are left" would keep
+		// hitting the same button — the label does not change when a verdict is
+		// picked, only its styling — so the count never falls and the loop spins.
+		const correct = page.getByRole("button", { name: /^正確$/ });
+		for (let i = (await correct.count()) - 1; i >= 0; i -= 1) {
+			await correct.nth(i).click();
+		}
+		/*
+		 * Answer whatever knowledge questions the form rendered, rather than
+		 * naming two of them. The ids come from the question index, which is
+		 * 1-based over a 0-based array — so MDI yields #k3 and #k7, not #k2 and
+		 * #k6 — and a hardcoded pair silently leaves one unanswered whenever the
+		 * targeted set changes.
+		 */
+		const answers = page.locator("button[id^='k']");
+		const asked = await answers.count();
+		assert.ok(asked > 0, "the assessment should ask knowledge questions");
+		for (let i = 0; i < asked; i += 1) {
+			await answers.nth(i).click();
+			await page.getByRole("option", { name: "對", exact: true }).click();
+		}
+
+		// waitForFunction's second argument is the value passed into the page,
+		// and the options are third — passing options second silently leaves the
+		// 30s default in force.
+		await page.waitForFunction(
+			() => {
+				const b = [...document.querySelectorAll("button")].find((x) =>
+					/結案並記錄 M1/.test(x.textContent ?? ""),
+				);
+				return Boolean(b && !b.disabled);
+			},
+			null,
+			{ timeout: 15_000 },
+		);
+		await submit.click();
+
 		await page.waitForFunction(
 			(sel) => document.querySelectorAll(sel).length === window.__before - 1,
 			QUEUE_ROWS,
@@ -357,7 +414,35 @@ describe("pharmacist tabs", () => {
 		assert.equal(after, before - 1, "the row must leave the queue");
 
 		const banner = (await page.textContent("[data-testid=followup-tally]")) ?? "";
-		assert.match(banner, /今天已完成 1 件/);
+		assert.match(banner, /今日結案 1 件/);
+	});
+
+	/*
+	 * The whole point of routing the close through the assessment: completing a
+	 * follow-up has to leave an M1 behind, or the queue can be emptied without
+	 * the outcomes gaining a case from real work.
+	 */
+	it("records the M1 the completion produced", async () => {
+		const res = await fetch(`http://localhost:${API_PORT}/api/cases?limit=200`);
+		const json = await res.json();
+		const m1 = (json.cases ?? []).filter((c) => c.timepoint === "M1");
+
+		// The seed already contains one M1, so "at least one" would be satisfied
+		// by the fixture and prove nothing. The completion has to have added one.
+		assert.equal(
+			m1.length,
+			2,
+			`seed contributes 1 M1; completing must add another, saw ${m1.length}`,
+		);
+
+		// And it must carry verdicts, not just a row: a follow-up closed without
+		// a recorded assessment is the dead end this replaced.
+		const produced = m1.find((c) => c.steps && Object.keys(c.steps).length > 0);
+		assert.ok(produced, "the M1 must carry step verdicts");
+		assert.ok(
+			Object.keys(produced.steps).length >= 2,
+			`expected the camera-blind steps, got ${JSON.stringify(produced.steps)}`,
+		);
 	});
 
 	it("records who closed it, in the database", async () => {

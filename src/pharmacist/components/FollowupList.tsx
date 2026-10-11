@@ -17,10 +17,19 @@ import {
 	fetchFollowups,
 } from "../../api-client.js";
 import { PHARMACISTS } from "../../domain/roster.js";
-import { STEP_BY_CODE } from "../../domain/steps.js";
 import { cn } from "../../lib/utils";
 import { invalidateFollowupCount } from "../useFollowupCounts";
-import { Badge, Button, Card, DataTable, Select, Td, Th } from "./ui";
+import { FollowupAssessment } from "./FollowupAssessment";
+import {
+	Badge,
+	Button,
+	Card,
+	DataTable,
+	Select,
+	SelectItem,
+	Td,
+	Th,
+} from "./ui";
 
 const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> =
 	{
@@ -39,6 +48,8 @@ export function FollowupList() {
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
 	const [conflict, setConflict] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
+	const [assessing, setAssessing] = useState<Followup | null>(null);
 	const [closedToday, setClosedToday] = useState<number>(0);
 	// Asked once for the whole queue rather than once per row.
 	const [who, setWho] = useState(PHARMACISTS[0] ?? "");
@@ -111,6 +122,15 @@ export function FollowupList() {
 
 	return (
 		<div className="space-y-4">
+			{notice && (
+				<div
+					role="status"
+					className="rounded-md border border-success/30 bg-success-soft px-4 py-3 text-sm font-semibold text-success"
+				>
+					{notice}
+				</div>
+			)}
+
 			{conflict && (
 				<div
 					role="alert"
@@ -147,11 +167,13 @@ export function FollowupList() {
 					<Select
 						id="closer"
 						value={who}
-						onChange={(e) => setWho(e.target.value)}
+						onValueChange={(v) => setWho(v)}
 						className="w-40"
 					>
 						{PHARMACISTS.map((p) => (
-							<option key={p}>{p}</option>
+							<SelectItem key={p} value={p}>
+								{p}
+							</SelectItem>
 						))}
 					</Select>
 				</div>
@@ -162,10 +184,28 @@ export function FollowupList() {
 				className="text-base text-text-secondary"
 				role="status"
 			>
-				{closedToday > 0
-					? `今天已完成 ${closedToday} 件。`
-					: "今天還沒完成任何一件。"}
+				{closedToday > 0 ? `今日結案 ${closedToday} 件` : "今日尚未結案"}
 			</p>
+
+			{/*
+			 * Completing a follow-up is the M1 assessment, so it opens the form
+			 * rather than dismissing the row. A one-click close could be done
+			 * from anywhere and recorded nothing; this is the only path that
+			 * produces the case the plan's before/after is built on.
+			 */}
+			{assessing && (
+				<FollowupAssessment
+					followup={assessing}
+					pharmacist={who}
+					onCancel={() => setAssessing(null)}
+					onDone={(message) => {
+						setAssessing(null);
+						setClosedToday((n) => n + 1);
+						invalidateFollowupCount();
+						void load().then(() => setNotice(message));
+					}}
+				/>
+			)}
 
 			{!sorted.length ? (
 				<Card className="p-6 text-base text-text-secondary">
@@ -187,7 +227,7 @@ export function FollowupList() {
 								<Th className="w-20">病歷</Th>
 								<Th>藥品</Th>
 								<Th>任務</Th>
-								<Th className="w-28">期限</Th>
+								<Th className="w-32">期限</Th>
 								<Th className="w-24">原評估者</Th>
 								<Th className="w-44">結案</Th>
 							</tr>
@@ -229,20 +269,28 @@ export function FollowupList() {
 									 */}
 									<Td>
 										<p className="whitespace-nowrap text-text">{f.task}</p>
+										{/*
+										 * A count, not the list.
+										 *
+										 * Listing every wrong step here put seven red chips
+										 * on every row — the seeded cases are mostly wrong
+										 * on most steps — which is the same mistake as
+										 * labelling all eight Pareto rows "80% key band":
+										 * a marker on everything marks nothing, and the row
+										 * grew tall enough to push the queue off screen.
+										 *
+										 * This row is for triaging. The step names are
+										 * where the work happens, in the assessment form.
+										 */}
 										{f.wrongSteps.length > 0 && (
-											<p className="mt-0.5 flex flex-wrap gap-1">
-												{f.wrongSteps.map((code) => (
-													<span
-														key={code}
-														className="rounded bg-danger-soft px-1.5 py-0.5 text-[13px] text-danger"
-													>
-														{STEP_BY_CODE[code]?.text ?? code}
-													</span>
-												))}
+											<p className="mt-0.5 text-[13px] text-text-muted">
+												待複評 {f.wrongSteps.length} 步
 											</p>
 										)}
 									</Td>
-									<Td className="font-mono tabular-nums">{f.due_end}</Td>
+									<Td className="whitespace-nowrap font-mono tabular-nums">
+										{f.due_end}
+									</Td>
 									<Td className="text-text-secondary">{f.pharmacist ?? "—"}</Td>
 									<Td>
 										{/*
@@ -258,7 +306,7 @@ export function FollowupList() {
 												variant="secondary"
 												disabled={busy === f.id}
 												aria-label={`將 …${f.mrn_tail} 的追蹤標記為完成`}
-												onClick={() => close(f, "done")}
+												onClick={() => setAssessing(f)}
 											>
 												完成
 											</Button>

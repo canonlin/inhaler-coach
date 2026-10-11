@@ -123,6 +123,16 @@ export async function closeFollowup(input: {
 	by: string;
 	status?: "done" | "missed";
 	note?: string;
+	/**
+	 * What the patient did at the re-check. Present on a completion, absent on a
+	 * miss — the endpoint records the M1 only when this arrives, and a rejected
+	 * assessment leaves the follow-up open.
+	 */
+	assessment?: {
+		steps: Record<string, "正確" | "錯誤" | "na">;
+		knowledge: Record<string, "對" | "不對">;
+		demonstrated: Record<string, boolean>;
+	};
 }) {
 	const res = await fetch(`${base}/api/followups/close`, {
 		method: "POST",
@@ -132,7 +142,14 @@ export async function closeFollowup(input: {
 	const json = await res.json();
 	if (!res.ok || json.ok === false)
 		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as { ok: true; id: string; status: string; completed_by: string };
+	return json as {
+		ok: true;
+		id: string;
+		status: string;
+		completed_by: string;
+		/** Only when an assessment was recorded, so closed and measured differ. */
+		assessment?: { mrn_tail: string; steps: number };
+	};
 }
 
 export interface Followup {

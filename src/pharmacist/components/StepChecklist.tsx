@@ -8,7 +8,16 @@
 import type { Drug } from "../../api-client";
 import type { Step } from "../../domain/steps.js";
 import { cn } from "../../lib/utils";
-import { Badge, Button, Card, CardHeader, DataTable, Td, Th } from "./ui";
+import {
+	Badge,
+	Button,
+	Card,
+	CardHeader,
+	Checkbox,
+	DataTable,
+	Td,
+	Th,
+} from "./ui";
 
 export function StepChecklist({
 	steps,
@@ -94,15 +103,14 @@ export function StepChecklist({
 									</div>
 								</Td>
 								<Td>
-									<label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-sm text-text-secondary">
-										<input
-											type="checkbox"
-											className="size-4"
+									<label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-base text-text-secondary">
+										<Checkbox
+											id={`demo-${step.code}`}
 											checked={Boolean(demonstrated[step.code])}
-											onChange={(e) =>
+											onCheckedChange={(v) =>
 												onDemonstrate({
 													...demonstrated,
-													[step.code]: e.target.checked,
+													[step.code]: v === true,
 												})
 											}
 										/>

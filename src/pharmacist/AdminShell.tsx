@@ -33,7 +33,7 @@ export function AdminShell({
 	children?: React.ReactNode;
 }) {
 	return (
-		<div className="flex min-h-dvh bg-bg">
+		<div className="surface-admin flex min-h-dvh bg-bg">
 			<SideNav />
 
 			{/* The content region scrolls; the navigation does not, so the three

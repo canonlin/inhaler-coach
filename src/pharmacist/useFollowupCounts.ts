@@ -30,9 +30,18 @@ function publish(open: number | null) {
 	for (const fn of listeners) fn(open);
 }
 
-/** Drop the cached count so the next reader asks the API again. */
+/**
+ * Drop the cached count and refetch for everyone currently looking.
+ *
+ * Clearing the cache alone is not enough: the sidebar is mounted on every
+ * screen, so its effect has already run and it would keep rendering the old
+ * number until the next navigation. That produced a badge reading 1 beside a
+ * queue page that had just closed its only row and correctly read 0 — the two
+ * figures for the same thing disagreeing on the same screen.
+ */
 export function invalidateFollowupCount() {
 	cached = null;
+	void load();
 }
 
 async function load() {

@@ -9,8 +9,13 @@
  * Every radius is the same value on purpose. Mixed radii read as "assembled
  * from parts", which is exactly how the pharmacist end looked before.
  */
+
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
+import * as LabelPrimitive from "@radix-ui/react-label";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
+import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
@@ -73,21 +78,142 @@ export const Input = React.forwardRef<
 ));
 Input.displayName = "Input";
 
+/**
+ * Select, built on Radix the way shadcn/ui builds it: a button that opens a
+ * listbox, not a native <select>.
+ *
+ * The native control was the last native form element left in the pharmacist
+ * end, and it behaves badly for the two things this screen does. It cannot be
+ * opened from the keyboard's type-ahead on a tablet without the on-screen
+ * keyboard covering the list, and it renders the platform's own popup, so the
+ * follow-up queue's 「結案者」 looked like a different control from every
+ * Button beside it.
+ *
+ * Radix also brings behaviour that has to be built by hand here: the trigger is
+ * a real button with aria-haspopup, and `required` is not a thing — see
+ * SelectItem below.
+ */
 export const Select = React.forwardRef<
-	HTMLSelectElement,
-	React.SelectHTMLAttributes<HTMLSelectElement>
+	HTMLButtonElement,
+	Omit<
+		React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>,
+		"children"
+	> & {
+		children: React.ReactNode;
+		className?: string;
+		/** Forwarded to the trigger: it is the focusable button, and a label's
+		 *  htmlFor has to reach that rather than the hidden native select Radix
+		 *  keeps for form submission. */
+		id?: string;
+		/** Shown while nothing is chosen.
+		 *
+		 *  This is not a nicety: Radix rejects `value=""`, because an empty
+		 *  string is how it spells "no selection". Carrying the old
+		 *  `<option value="">—</option>` across would either throw or silently
+		 *  read as a real answer to the knowledge question, which is the one
+		 *  thing an unanswered question must not do. */
+		placeholder?: string;
+	}
+>(({ className, children, id, placeholder, ...props }, ref) => (
+	<SelectPrimitive.Root {...props}>
+		<SelectPrimitive.Trigger
+			ref={ref}
+			id={id}
+			className={cn(
+				"flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-2 text-base text-text",
+				"data-placeholder:text-text-muted",
+				"focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring focus-visible:border-primary",
+				"disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted",
+				"[&>span]:truncate",
+				className,
+			)}
+		>
+			<SelectPrimitive.Value />
+			<SelectPrimitive.Icon asChild>
+				<ChevronDown
+					className="size-4 shrink-0 opacity-60"
+					aria-hidden="true"
+				/>
+			</SelectPrimitive.Icon>
+		</SelectPrimitive.Trigger>
+		<SelectPrimitive.Portal>
+			<SelectPrimitive.Content
+				position="popper"
+				sideOffset={4}
+				className={cn(
+					"z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-md border border-border bg-surface shadow-md",
+					"data-[state=open]:animate-in data-[state=open]:fade-in-0",
+				)}
+			>
+				<SelectPrimitive.Viewport className="p-1">
+					{children}
+				</SelectPrimitive.Viewport>
+			</SelectPrimitive.Content>
+		</SelectPrimitive.Portal>
+	</SelectPrimitive.Root>
+));
+Select.displayName = "Select";
+
+/**
+ * One option.
+ *
+ * Radix has no `required` on items, so the empty placeholder carries it: a
+ * select that has not been answered is marked `aria-invalid` rather than being
+ * silently equal to a real choice.
+ */
+export function SelectItem({
+	value,
+	children,
+	className,
+}: {
+	value: string;
+	children: React.ReactNode;
+	className?: string;
+}) {
+	return (
+		<SelectPrimitive.Item
+			value={value}
+			className={cn(
+				"relative flex cursor-pointer select-none items-center rounded px-2 py-1.5 text-base text-text outline-none",
+				"data-highlighted:bg-surface-muted data-highlighted:text-text",
+				"data-disabled:pointer-events-none data-disabled:opacity-50",
+				className,
+			)}
+		>
+			<SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+		</SelectPrimitive.Item>
+	);
+}
+
+/**
+ * Checkbox, built on Radix.
+ *
+ * The two native checkboxes in the assessment were invisible targets on a
+ * tablet — a 16px square is below the 44px target a hand needs, and the whole
+ * point of this end is large targets. Radix renders a button with role=checkbox,
+ * which takes the same padding as everything else here.
+ */
+export const Checkbox = React.forwardRef<
+	HTMLButtonElement,
+	React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
 >(({ className, ...props }, ref) => (
-	<select
+	<CheckboxPrimitive.Root
 		ref={ref}
 		className={cn(
-			"min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-base text-text",
-			"focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring focus-visible:border-primary",
+			"flex size-6 shrink-0 items-center justify-center rounded border-2 border-border bg-surface",
+			"data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+			"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+			"disabled:cursor-not-allowed disabled:opacity-50",
 			className,
 		)}
 		{...props}
-	/>
+	>
+		<CheckboxPrimitive.Indicator>
+			<Check className="size-4" strokeWidth={3} aria-hidden="true" />
+		</CheckboxPrimitive.Indicator>
+	</CheckboxPrimitive.Root>
 ));
-Select.displayName = "Select";
+Checkbox.displayName = "Checkbox";
 
 /**
  * A labelled form field.
@@ -111,9 +237,12 @@ export function Field({
 }) {
 	return (
 		<div className={cn("flex flex-col gap-1.5", className)}>
-			<label htmlFor={htmlFor} className="text-sm font-semibold text-text">
+			<LabelPrimitive.Root
+				htmlFor={htmlFor}
+				className="text-[15px] font-semibold text-text"
+			>
 				{label}
-			</label>
+			</LabelPrimitive.Root>
 			{children}
 			{hint && (
 				<p className="text-[15px] leading-relaxed text-text-muted">{hint}</p>
