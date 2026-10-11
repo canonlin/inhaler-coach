@@ -332,6 +332,53 @@ describe("pharmacist tabs", () => {
 		);
 	});
 
+	/*
+	 * The queue must not blank out when it is navigated to.
+	 *
+	 * It used to: the navigation badge and the queue page each fetched
+	 * /api/followups, so the page started from null on every mount and showed
+	 * 「載入中」 for about a second even though the sidebar already held the
+	 * answer. Measured across a tab switch, the table went visible → loading →
+	 * visible, which in a back office reads as the page being unreliable.
+	 *
+	 * Asserted on the rendered frames rather than on a settled screenshot,
+	 * because the whole defect lives in the transition and a final-state check
+	 * cannot see it.
+	 */
+	it("shows the queue immediately, never blanking on the way in", async () => {
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 15_000 });
+
+		const frames = await page.evaluate(async () => {
+			const out = [];
+			const nav = document.querySelector('nav[aria-label="藥師工作區"]');
+			const back = nav.querySelector('a[href="/admin/followups"]');
+			back.click();
+			// Sample every frame until the table is back, so any loading state
+			// in between is caught rather than skipped over.
+			for (let i = 0; i < 60; i += 1) {
+				out.push({
+					loading: (document.body.textContent ?? "").includes("載入中"),
+					table: document.querySelector("[data-testid=followup-queue]") !== null,
+				});
+				if (out.at(-1).table) break;
+				await new Promise((r) => requestAnimationFrame(r));
+			}
+			return out;
+		});
+
+		assert.ok(
+			frames.length > 0 && frames.at(-1).table,
+			"the queue should render after switching to it",
+		);
+		const blanked = frames.filter((f) => f.loading && !f.table);
+		assert.equal(
+			blanked.length,
+			0,
+			`the queue showed ${blanked.length} loading frame(s) on entry; it should render from the shared fetch`,
+		);
+	});
+
 	it("starts case entry at one field again", async () => {
 		await page.click(`${NAV} a:has-text("收案評估")`);
 		await page.waitForSelector("#mrn", { timeout: 10_000 });
@@ -344,6 +391,58 @@ describe("pharmacist tabs", () => {
 		assert.equal(controls, 1, `case entry should open with one control, got ${controls}`);
 	});
 
+	/*
+	 * Attention first, checked as a property rather than a look.
+	 *
+	 * The queue used to stamp every row with the same 「逾期」, so the column
+	 * ranked nothing and the eye had nothing to follow. Two things have to hold:
+	 * the panel states the real spread, and the rows carry a figure that can
+	 * differ between them.
+	 */
+	it("puts the queue's real state above the list", async () => {
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector("[data-testid=queue-attention]", { timeout: 15_000 });
+
+		const panel = (await page.textContent("[data-testid=queue-attention]")) ?? "";
+		const rows = await page.$$eval(QUEUE_ROWS, (n) =>
+			n.map((tr) => tr.querySelector("tbody, tr")?.textContent ?? tr.textContent ?? ""),
+		);
+		const open = rows.length;
+		assert.ok(open > 0, "the seeded queue should not be empty");
+
+		// Every row states a day count rather than the bare word, so the column
+		// can actually be compared.
+		const counts = await page.$$eval(QUEUE_ROWS, (n) =>
+			n.map((tr) => {
+				const m = (tr.textContent ?? "").match(/逾期\s*(\d+)\s*天/);
+				return m ? Number(m[1]) : null;
+			}),
+		);
+		assert.ok(
+			counts.every((c) => c !== null && c > 0),
+			`every overdue row needs a day count, got ${JSON.stringify(counts)}`,
+		);
+
+		// The panel reports the same population the table lists.
+		assert.match(
+			panel,
+			new RegExp(`${open} 件`),
+			`the panel should account for all ${open} rows, got: ${panel}`,
+		);
+		// Worst and median must both be stated, and worst cannot be smaller.
+		const nums = [...panel.matchAll(/(\d+)\s*天/g)].map((m) => Number(m[1]));
+		assert.ok(nums.length >= 3, `expected worst/median/earliest, got: ${panel}`);
+		assert.ok(
+			nums[0] >= nums[1] && nums[1] >= nums[2],
+			`worst >= median >= earliest, got ${nums.join(", ")} in: ${panel}`,
+		);
+	});
+
+	/*
+	 * The whole point of routing the close through the assessment: completing a
+	 * follow-up has to leave an M1 behind, or the queue can be emptied without
+	 * the outcomes gaining a case from real work.
+	 */
 	it("closes a follow-up and takes it off the queue", async () => {
 		// Work out how many rows are open, then close one for real through the
 		// button the pharmacist uses. A function that works while its button does
@@ -413,15 +512,13 @@ describe("pharmacist tabs", () => {
 		const after = await page.$$eval(QUEUE_ROWS, (n) => n.length);
 		assert.equal(after, before - 1, "the row must leave the queue");
 
-		const banner = (await page.textContent("[data-testid=followup-tally]")) ?? "";
-		assert.match(banner, /今日結案 1 件/);
+		// The attention panel is what the close has to update: it is the first
+		// thing on the queue page, and a stale count there would send the
+		// pharmacist back for work already done.
+		const done = (await page.textContent("[data-testid=followup-done]")) ?? "";
+		assert.match(done, /M1 評估/, `got ${done}`);
 	});
 
-	/*
-	 * The whole point of routing the close through the assessment: completing a
-	 * follow-up has to leave an M1 behind, or the queue can be emptied without
-	 * the outcomes gaining a case from real work.
-	 */
 	it("records the M1 the completion produced", async () => {
 		const res = await fetch(`http://localhost:${API_PORT}/api/cases?limit=200`);
 		const json = await res.json();

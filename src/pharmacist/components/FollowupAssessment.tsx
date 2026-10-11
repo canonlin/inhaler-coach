@@ -32,7 +32,6 @@ import {
 import { DRUG_BY_NAME, type Drug } from "../../domain/drugs.js";
 import { KNOWLEDGE, type KnowledgeQuestion } from "../../domain/roster.js";
 import {
-	applicableSteps,
 	pharmacistSteps,
 	STEP_BY_CODE,
 	type Step,
@@ -87,10 +86,6 @@ export function FollowupAssessment({
 	 * patient do.
 	 */
 	const kind = followup.device ?? "MDI";
-	const all: Step[] = useMemo(
-		() => (drug ? applicableSteps(kind, drug) : []),
-		[drug, kind],
-	);
 	const manual: Step[] = useMemo(
 		() => (drug ? pharmacistSteps(kind, drug) : []),
 		[drug, kind],

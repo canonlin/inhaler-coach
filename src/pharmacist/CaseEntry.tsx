@@ -53,7 +53,7 @@ import {
 	Td,
 	Th,
 } from "./components/ui";
-import { invalidateFollowupCount } from "./useFollowupCounts.js";
+import { refreshFollowups } from "./useFollowups.js";
 
 /** Two questions, chosen by device. The device dictates what patients get wrong. */
 function targetedQuestions(device: string): KnowledgeQuestion[] {
@@ -181,7 +181,7 @@ export function CaseEntry({
 			// stale the moment this resolves. The badge is on screen right now —
 			// it is the sidebar — so leaving it to expire would show a queue that
 			// is one shorter than the one the pharmacist just added to.
-			invalidateFollowupCount();
+			refreshFollowups();
 			setSteps({});
 			setDemonstrated({});
 			setKnowledge({});
@@ -419,9 +419,10 @@ export function CaseEntry({
 												</Badge>
 											</Td>
 											<Td>
-												<label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-base text-text-secondary">
+												<div className="inline-flex min-h-11 items-center gap-2.5 text-base text-text-secondary">
 													<Checkbox
 														id={`demo-${s.code}`}
+														aria-label={`${s.text} 示範過`}
 														checked={Boolean(demonstrated[s.code])}
 														onCheckedChange={(v) =>
 															setDemonstrated(
@@ -433,7 +434,7 @@ export function CaseEntry({
 														}
 													/>
 													示範過
-												</label>
+												</div>
 											</Td>
 										</tr>
 									))}

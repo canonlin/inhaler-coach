@@ -9,17 +9,14 @@
  * nothing, and the pharmacist's actual question — what is due today — had no
  * view.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import {
-	closeFollowup,
-	type Followup,
-	fetchFollowups,
-} from "../../api-client.js";
+import { closeFollowup, type Followup } from "../../api-client.js";
 import { PHARMACISTS } from "../../domain/roster.js";
 import { cn } from "../../lib/utils";
-import { invalidateFollowupCount } from "../useFollowupCounts";
+import { useFollowups } from "../useFollowups";
 import { FollowupAssessment } from "./FollowupAssessment";
+import { QueueAttention } from "./QueueAttention";
 import {
 	Badge,
 	Button,
@@ -38,14 +35,22 @@ const PRIORITY: Record<Followup["priority"], { label: string; rank: number }> =
 		P3: { label: "排程", rank: 2 },
 	};
 
+/** Whole days past the deadline. Zero or less means not yet due. */
+function daysLate(dueEnd: string): number {
+	const today = new Date().toISOString().slice(0, 10);
+	return Math.floor((Date.parse(today) - Date.parse(dueEnd)) / 86_400_000);
+}
+
 const VIEWS = [
 	{ id: "today", label: "今日待辦" },
 	{ id: "all", label: "全部未完成" },
 ] as const;
 
 export function FollowupList() {
-	const [rows, setRows] = useState<Followup[] | null>(null);
-	const [error, setError] = useState<string | null>(null);
+	// Shared with the navigation badge, so this page renders the moment it is
+	// mounted instead of blanking to 「載入中」 while a second copy of the same
+	// request is already on its way.
+	const { rows, refresh } = useFollowups();
 	const [busy, setBusy] = useState<string | null>(null);
 	const [conflict, setConflict] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
@@ -55,31 +60,15 @@ export function FollowupList() {
 	const [who, setWho] = useState(PHARMACISTS[0] ?? "");
 	const [view, setView] = useState<(typeof VIEWS)[number]["id"]>("today");
 
-	const load = useCallback(async () => {
-		try {
-			const d = await fetchFollowups();
-			setRows(d.followups);
-			setError(null);
-		} catch (e) {
-			setError((e as Error).message);
-		}
-	}, []);
-
-	useEffect(() => {
-		void load();
-	}, [load]);
-
 	async function close(row: Followup, status: "done" | "missed") {
 		setBusy(row.id);
 		setConflict(null);
 		try {
 			await closeFollowup({ id: row.id, by: who, status });
 			setClosedToday((n) => n + 1);
-			// The sidebar's count is on screen right now; leaving it to expire
-			// would leave it one higher than the queue the pharmacist is looking
-			// at, on the screen where they are about to work.
-			invalidateFollowupCount();
-			await load();
+			// One owner means one refresh: the list and the navigation badge are
+			// the same data now, so they cannot drift apart.
+			refresh();
 		} catch (e) {
 			// A 409 means someone already closed it. Show it rather than
 			// pretending the queue still agrees with the screen.
@@ -97,10 +86,10 @@ export function FollowupList() {
 		};
 	}, [rows]);
 
-	if (error)
-		return (
-			<Card className="p-6 text-sm text-danger">讀不到追蹤清單：{error}</Card>
-		);
+	/*
+	 * Null means never fetched. Distinct from an empty list, which is a real
+	 * answer and gets the empty state rather than a spinner.
+	 */
 	if (!rows)
 		return <Card className="p-6 text-base text-text-secondary">載入中…</Card>;
 
@@ -125,6 +114,7 @@ export function FollowupList() {
 			{notice && (
 				<div
 					role="status"
+					data-testid="followup-done"
 					className="rounded-md border border-success/30 bg-success-soft px-4 py-3 text-sm font-semibold text-success"
 				>
 					{notice}
@@ -179,14 +169,6 @@ export function FollowupList() {
 				</div>
 			</div>
 
-			<p
-				data-testid="followup-tally"
-				className="text-base text-text-secondary"
-				role="status"
-			>
-				{closedToday > 0 ? `今日結案 ${closedToday} 件` : "今日尚未結案"}
-			</p>
-
 			{/*
 			 * Completing a follow-up is the M1 assessment, so it opens the form
 			 * rather than dismissing the row. A one-click close could be done
@@ -201,11 +183,13 @@ export function FollowupList() {
 					onDone={(message) => {
 						setAssessing(null);
 						setClosedToday((n) => n + 1);
-						invalidateFollowupCount();
-						void load().then(() => setNotice(message));
+						refresh();
+						setNotice(message);
 					}}
 				/>
 			)}
+
+			<QueueAttention rows={sorted} view={view} closedToday={closedToday} />
 
 			{!sorted.length ? (
 				<Card className="p-6 text-base text-text-secondary">
@@ -251,8 +235,20 @@ export function FollowupList() {
 									 */}
 									<Td>
 										{f.overdue || f.dueSoon ? (
+											/*
+											 * The number, not the word.
+											 *
+											 * Every open row here was stamped with the
+											 * same 「逾期」, which is a fact that was true of
+											 * all of them and therefore true of none in
+											 * particular — the column carried no ranking at
+											 * all, so the eye had nothing to follow. Days
+											 * late varies from 98 to 159 in the seeded data,
+											 * and a figure sorts and compares where a badge
+											 * cannot.
+											 */
 											<Badge tone={f.overdue ? "danger" : "warning"}>
-												{f.overdue ? "逾期" : "近期"}
+												{f.overdue ? `逾期 ${daysLate(f.due_end)} 天` : "近期"}
 											</Badge>
 										) : (
 											<span className="text-text-muted">—</span>

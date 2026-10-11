@@ -103,9 +103,10 @@ export function StepChecklist({
 									</div>
 								</Td>
 								<Td>
-									<label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-base text-text-secondary">
+									<div className="inline-flex min-h-11 items-center gap-2.5 text-base text-text-secondary">
 										<Checkbox
 											id={`demo-${step.code}`}
+											aria-label={`${step.text} 示範過`}
 											checked={Boolean(demonstrated[step.code])}
 											onCheckedChange={(v) =>
 												onDemonstrate({
@@ -115,7 +116,7 @@ export function StepChecklist({
 											}
 										/>
 										示範過
-									</label>
+									</div>
 								</Td>
 							</tr>
 						);

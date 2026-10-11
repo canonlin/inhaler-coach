@@ -15,7 +15,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { TABS } from "./tabs";
-import { useFollowupCounts } from "./useFollowupCounts";
+import { useFollowupCount } from "./useFollowups";
 
 /** Label of the section the current route belongs to, for the top bar. */
 export function sectionFor(pathname: string): string {
@@ -27,7 +27,7 @@ export function sectionFor(pathname: string): string {
 }
 
 export function SideNav() {
-	const openCount = useFollowupCounts();
+	const openCount = useFollowupCount();
 
 	return (
 		<nav
