@@ -189,12 +189,23 @@ export const CLINICAL_DRUG_CARDS = [
 ];
 
 function buildDrugPhotoBubble(drug) {
+	const imageUrl =
+		drug.imageUrl ||
+		drug.image_url ||
+		"https://inhaler-coach.vercel.app/drugs/rapihaler.png";
+	const deviceType = drug.deviceType || drug.type || "MDI 定量噴霧";
+	const hasIcs = Boolean(drug.hasIcs ?? drug.ICS);
+	const color = drug.color || "#0D9488";
+	const name = drug.name || drug.displayName || drug.id;
+	const colorShape = drug.colorShape || "";
+	const technique = drug.technique || "";
+
 	return {
 		type: "bubble",
 		size: "kilo",
 		hero: {
 			type: "image",
-			url: drug.imageUrl,
+			url: imageUrl,
 			size: "full",
 			aspectRatio: "20:13",
 			aspectMode: "cover",
@@ -211,16 +222,16 @@ function buildDrugPhotoBubble(drug) {
 					contents: [
 						{
 							type: "text",
-							text: drug.deviceType,
+							text: deviceType,
 							size: "xxs",
-							color: drug.color,
+							color: color,
 							weight: "bold",
 						},
 						{
 							type: "text",
-							text: drug.hasIcs ? "含類固醇" : "無類固醇",
+							text: hasIcs ? "含類固醇" : "無類固醇",
 							size: "xxs",
-							color: drug.hasIcs ? "#DC2626" : "#059669",
+							color: hasIcs ? "#DC2626" : "#059669",
 							align: "end",
 							weight: "bold",
 						},
@@ -228,26 +239,34 @@ function buildDrugPhotoBubble(drug) {
 				},
 				{
 					type: "text",
-					text: drug.name,
+					text: name,
 					weight: "bold",
 					size: "sm",
 					color: "#0F172A",
 					wrap: true,
 				},
-				{
-					type: "text",
-					text: drug.colorShape,
-					size: "xs",
-					color: "#64748B",
-				},
-				{
-					type: "text",
-					text: drug.technique,
-					size: "xxs",
-					color: drug.color,
-					weight: "bold",
-					wrap: true,
-				},
+				colorShape
+					? {
+							type: "text",
+							text: colorShape,
+							size: "xs",
+							color: "#64748B",
+						}
+					: {
+							type: "filler",
+						},
+				technique
+					? {
+							type: "text",
+							text: technique,
+							size: "xxs",
+							color: color,
+							weight: "bold",
+							wrap: true,
+						}
+					: {
+							type: "filler",
+						},
 			],
 		},
 		footer: {
@@ -262,10 +281,10 @@ function buildDrugPhotoBubble(drug) {
 						type: "postback",
 						label: `👉 我是用這瓶`,
 						data: `action=select_drug&drug=${drug.id}`,
-						displayText: `我用的是這瓶：${drug.colorShape}【${drug.name}】`,
+						displayText: `我用的是這瓶：${colorShape ? `${colorShape} ` : ""}【${name}】`,
 					},
 					style: "primary",
-					color: drug.color,
+					color: color,
 					height: "sm",
 				},
 			],
@@ -274,13 +293,17 @@ function buildDrugPhotoBubble(drug) {
 }
 
 /** 2. 全藥品實物圖片輪播卡片 (Photo Carousel) - 直覺指認實物外觀 */
-export function buildDrugSelectCarousel() {
+export function buildDrugSelectCarousel(drugsList) {
+	const list =
+		Array.isArray(drugsList) && drugsList.length > 0
+			? drugsList
+			: CLINICAL_DRUG_CARDS;
 	return {
 		type: "flex",
 		altText: "請左右滑動照片，點選與您手中一模一樣的吸入劑",
 		contents: {
 			type: "carousel",
-			contents: CLINICAL_DRUG_CARDS.map(buildDrugPhotoBubble),
+			contents: list.map(buildDrugPhotoBubble),
 		},
 	};
 }
@@ -530,13 +553,20 @@ export function buildDualTagProfileFlex({ drug, hasRescue }) {
 }
 
 /** 5. 示範影片卡片 (Video Card) */
-export function buildVideoCardFlex({ deviceType }) {
-	const stepText =
+export function buildVideoCardFlex({ deviceType, videoInfo }) {
+	const defaultSteps =
 		deviceType === "MDI"
 			? "1. 充分上下搖勻 5 秒\n2. 先吐氣到底（遠離吸嘴）\n3. 緊含吸嘴，按壓同時慢深吸氣 5 秒\n4. 移開吸嘴閉氣 5 秒以上\n5. 若含類固醇記得漱口"
 			: deviceType === "DPI"
 				? "1. 撥開外蓋聽到喀聲完成備藥\n2. 先吐氣到底（切勿對吸嘴吹氣）\n3. 緊含吸嘴，快速深長用力吸到底\n4. 移開吸嘴閉氣 5 秒以上\n5. 若含類固醇記得漱口"
 				: "1. 旋轉底座掀開保護蓋\n2. 先吐氣到底（遠離吸嘴）\n3. 緊含吸嘴，按鈕配合軟霧慢深吸氣\n4. 移開吸嘴閉氣 5 秒以上\n5. 關上保護蓋防塵";
+
+	const stepText = videoInfo?.description || videoInfo?.steps || defaultSteps;
+	const title = videoInfo?.title || `【${deviceType} 吸入劑】標準操作示範`;
+	const videoUrl =
+		videoInfo?.videoUrl ||
+		videoInfo?.url ||
+		"https://www.youtube.com/results?search_query=%E5%8F%B0%E5%A4%A7%E9%86%AB%E9%99%A2+%E5%90%B8%E5%85%A5%E5%8A%99%E6%95%99%E5%AD%B8";
 
 	return {
 		type: "flex",
@@ -557,7 +587,7 @@ export function buildVideoCardFlex({ deviceType }) {
 					},
 					{
 						type: "text",
-						text: `【${deviceType} 吸入劑】標準操作示範`,
+						text: title,
 						size: "lg",
 						weight: "bold",
 						color: "#FFFFFF",
@@ -588,7 +618,7 @@ export function buildVideoCardFlex({ deviceType }) {
 						action: {
 							type: "uri",
 							label: "▶️ 立即觀看示範短片 (約2分鐘)",
-							uri: "https://www.youtube.com/results?search_query=%E5%8F%B0%E5%A4%A7%E9%86%AB%E9%99%A2+%E5%90%B8%E5%85%A5%E5%8A%99%E6%95%99%E5%AD%B8",
+							uri: videoUrl,
 						},
 						style: "primary",
 						color: "#2563EB",
@@ -601,37 +631,46 @@ export function buildVideoCardFlex({ deviceType }) {
 }
 
 /** 6. 隨堂測驗題目卡片 (Quiz Card) */
-export function buildQuizCardFlex({ deviceType }) {
-	const qInfo =
-		deviceType === "MDI"
-			? {
-					title: "MDI 隨堂小測驗",
-					q: "使用 MDI 定量噴霧吸入劑時，吸氣與按壓的正確配合方式為何？",
-					options: [
-						{ id: "A", text: "先按壓藥罐噴出，再把嘴巴湊上去吸" },
-						{ id: "B", text: "按壓藥罐的瞬間，同步緩慢且深長吸氣 5 秒" },
-						{ id: "C", text: "快速大口吸一瞬間，不需要按壓" },
-					],
-				}
-			: deviceType === "DPI"
+export function buildQuizCardFlex({ deviceType, quizInfo }) {
+	let qInfo;
+	if (quizInfo && quizInfo.question) {
+		qInfo = {
+			title: quizInfo.title || `${deviceType} 隨堂小測驗`,
+			q: quizInfo.question,
+			options: quizInfo.options || [],
+		};
+	} else {
+		qInfo =
+			deviceType === "MDI"
 				? {
-						title: "DPI 隨堂小測驗",
-						q: "使用 DPI 乾粉吸入劑（如易利達/都保）時，正確的吸氣方式是哪一項？",
+						title: "MDI 隨堂小測驗",
+						q: "使用 MDI 定量噴霧吸入劑時，吸氣與按壓的正確配合方式為何？",
 						options: [
-							{ id: "A", text: "深、快、用力且平穩地吸氣到底" },
-							{ id: "B", text: "非常緩慢輕柔地吸氣" },
-							{ id: "C", text: "對著吸入器吸嘴往裡面大力吐氣" },
+							{ id: "A", text: "先按壓藥罐噴出，再把嘴巴湊上去吸" },
+							{ id: "B", text: "按壓藥罐的瞬間，同步緩慢且深長吸氣 5 秒" },
+							{ id: "C", text: "快速大口吸一瞬間，不需要按壓" },
 						],
 					}
-				: {
-						title: "SMI 隨堂小測驗",
-						q: "使用 SMI 軟霧吸入劑（適倍樂 Respimat）時，吸氣與按壓的配合方式為何？",
-						options: [
-							{ id: "A", text: "按下釋放鈕的同時，緩慢且深長吸氣" },
-							{ id: "B", text: "按下之後憋氣 10 秒，再大口用力吸" },
-							{ id: "C", text: "像抽煙一樣快速吸入一小口" },
-						],
-					};
+				: deviceType === "DPI"
+					? {
+							title: "DPI 隨堂小測驗",
+							q: "使用 DPI 乾粉吸入劑（如易利達/都保）時，正確的吸氣方式是哪一項？",
+							options: [
+								{ id: "A", text: "深、快、用力且平穩地吸氣到底" },
+								{ id: "B", text: "非常緩慢輕柔地吸氣" },
+								{ id: "C", text: "對著吸入器吸嘴往裡面大力吐氣" },
+							],
+						}
+					: {
+							title: "SMI 隨堂小測驗",
+							q: "使用 SMI 軟霧吸入劑（適倍樂 Respimat）時，吸氣與按壓的配合方式為何？",
+							options: [
+								{ id: "A", text: "按下釋放鈕的同時，緩慢且深長吸氣" },
+								{ id: "B", text: "按下之後憋氣 10 秒，再大口用力吸" },
+								{ id: "C", text: "像抽煙一樣快速吸入一小口" },
+							],
+						};
+	}
 
 	return {
 		type: "flex",

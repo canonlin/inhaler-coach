@@ -5,6 +5,10 @@
  * PHI rule: a response may carry mrn_tail, never mrn_hash.
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
@@ -22,6 +26,16 @@ import {
 	stepErrorRates,
 	summarise,
 } from "./metrics.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function loadDefaultJson(relPath) {
+	try {
+		return JSON.parse(readFileSync(resolve(__dirname, relPath), "utf8"));
+	} catch {
+		return null;
+	}
+}
 
 class HttpError extends Error {
 	constructor(status, message) {
@@ -762,6 +776,63 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		return line.engagement({ since: since ?? "1970-01-01" });
 	}
 
+	/** GET /api/admin/config — fetch dynamic configuration for videos, quizzes, and drug photos */
+	async function getAdminConfig() {
+		const defaults = {
+			videos: loadDefaultJson("../src/line/data/videos.json") ?? [],
+			quizzes: loadDefaultJson("../src/line/data/quizzes.json") ?? {},
+			drugs: loadDefaultJson("../src/line/data/drugs.json") ?? [],
+		};
+
+		try {
+			const { rows } = await query(
+				"SELECT config_key, config_value, updated_at, updated_by FROM admin_config",
+			);
+			const out = { ...defaults, updated: {} };
+			for (const r of rows) {
+				const val =
+					typeof r.config_value === "string"
+						? JSON.parse(r.config_value)
+						: r.config_value;
+				out[r.config_key] = val;
+				out.updated[r.config_key] = {
+					at: r.updated_at,
+					by: r.updated_by,
+				};
+			}
+			return { ok: true, config: out };
+		} catch {
+			return { ok: true, config: { ...defaults, updated: {} } };
+		}
+	}
+
+	/** POST /api/admin/config — update dynamic configuration */
+	async function updateAdminConfig(body) {
+		const key = body?.key || body?.section;
+		const value = body?.value ?? body?.data;
+		const user = body?.user || "admin";
+
+		if (!key || !["videos", "quizzes", "drugs"].includes(key)) {
+			bad("Invalid config key. Allowed: videos, quizzes, drugs");
+		}
+		if (value === undefined) {
+			bad("Value is required");
+		}
+
+		try {
+			await query(
+				`INSERT INTO admin_config (config_key, config_value, updated_at, updated_by)
+				 VALUES ($1, $2, now(), $3)
+				 ON CONFLICT (config_key) DO UPDATE
+				 SET config_value = $2, updated_at = now(), updated_by = $3`,
+				[key, JSON.stringify(value), user],
+			);
+			return { ok: true, key, updated: true };
+		} catch (err) {
+			return { ok: false, error: err.message };
+		}
+	}
+
 	return {
 		health,
 		createCase,
@@ -779,6 +850,8 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		lineSend,
 		lineEvent,
 		lineEngagement,
+		getAdminConfig,
+		updateAdminConfig,
 		lineChannel: line.channel,
 		lineTransport: line.transport,
 	};

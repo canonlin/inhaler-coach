@@ -20,6 +20,7 @@ import { useFollowupCount } from "./useFollowups";
 /** Label of the section the current route belongs to, for the top bar. */
 export function sectionFor(pathname: string): string {
 	const tail = pathname.replace(/\/+$/, "");
+	if (tail.endsWith("/settings")) return "衛教內容設定";
 	const hit = [...TABS]
 		.reverse()
 		.find((t) => t.path && tail.endsWith(`/${t.path}`));
@@ -30,10 +31,7 @@ export function SideNav() {
 	const openCount = useFollowupCount();
 
 	return (
-		<nav
-			aria-label="藥師工作區"
-			className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col border-e border-border-subtle bg-surface"
-		>
+		<aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col border-e border-border-subtle bg-surface">
 			{/*
 			 * The platform name, not a product name. Symbicort Rapihaler is the
 			 * pilot device in the plan's title ("以…為例"), and the record screen
@@ -47,42 +45,60 @@ export function SideNav() {
 				<p className="mt-0.5 text-caption text-text-muted">QCC 吸入劑衛教</p>
 			</div>
 
-			<ul className="grow overflow-y-auto p-3">
-				{TABS.map((t) => {
-					const to = t.path ? `/admin/${t.path}` : "/admin";
-					const badge = t.path === "followups" ? openCount : null;
-					return (
-						<li key={t.label}>
-							<NavLink
-								to={to}
-								end
-								className={({ isActive }) =>
-									cn(
-										"flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2.5 text-base font-semibold transition-colors",
-										isActive
-											? "bg-primary-soft text-primary"
-											: "text-text-secondary hover:bg-surface-muted hover:text-text",
-									)
-								}
-							>
-								<span>{t.label}</span>
-								{badge != null && badge > 0 && (
-									<span
-										data-testid="queue-count"
-										/* Decorative: the count is announced as part of the
-										   link, and a bare number beside the label reads as
-										   noise to a screen reader on every visit. */
-										aria-hidden="true"
-										className="rounded-full bg-surface-muted px-2 py-0.5 text-caption font-bold tabular-nums text-text-secondary"
-									>
-										{badge}
-									</span>
-								)}
-							</NavLink>
-						</li>
-					);
-				})}
-			</ul>
-		</nav>
+			<nav aria-label="藥師工作區" className="grow overflow-y-auto">
+				<ul className="p-3">
+					{TABS.map((t) => {
+						const to = t.path ? `/admin/${t.path}` : "/admin";
+						const badge = t.path === "followups" ? openCount : null;
+						return (
+							<li key={t.label}>
+								<NavLink
+									to={to}
+									end
+									className={({ isActive }) =>
+										cn(
+											"flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2.5 text-base font-semibold transition-colors",
+											isActive
+												? "bg-primary-soft text-primary"
+												: "text-text-secondary hover:bg-surface-muted hover:text-text",
+										)
+									}
+								>
+									<span>{t.label}</span>
+									{badge != null && badge > 0 && (
+										<span
+											data-testid="queue-count"
+											/* Decorative: the count is announced as part of the
+											   link, and a bare number beside the label reads as
+											   noise to a screen reader on every visit. */
+											aria-hidden="true"
+											className="rounded-full bg-surface-muted px-2 py-0.5 text-caption font-bold tabular-nums text-text-secondary"
+										>
+											{badge}
+										</span>
+									)}
+								</NavLink>
+							</li>
+						);
+					})}
+				</ul>
+			</nav>
+
+			<div className="border-t border-border-subtle p-3">
+				<NavLink
+					to="/admin/settings"
+					className={({ isActive }) =>
+						cn(
+							"flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2.5 text-base font-semibold transition-colors",
+							isActive
+								? "bg-primary-soft text-primary"
+								: "text-text-secondary hover:bg-surface-muted hover:text-text",
+						)
+					}
+				>
+					<span>⚙️ 衛教內容設定</span>
+				</NavLink>
+			</div>
+		</aside>
 	);
 }

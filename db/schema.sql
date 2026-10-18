@@ -235,3 +235,12 @@ CREATE TABLE IF NOT EXISTS line_medications (
   created_at  timestamptz NOT NULL DEFAULT now(),
   UNIQUE (patient_id, role)
 );
+
+-- ── admin_config ────────────────────────────────────────────────────────────
+-- Dynamic configuration for educational videos, drug photos, and quiz items.
+CREATE TABLE IF NOT EXISTS admin_config (
+  config_key   text PRIMARY KEY,
+  config_value jsonb NOT NULL,
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  updated_by   text DEFAULT 'admin'
+);

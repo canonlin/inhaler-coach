@@ -115,17 +115,41 @@ function buildDefaultHelpMenu() {
 	};
 }
 
+async function getDynamicConfig(query, key, fallback) {
+	if (!query) return fallback;
+	try {
+		const { rows } = await query(
+			`SELECT config_value FROM admin_config WHERE config_key = $1`,
+			[key],
+		);
+		if (rows.length && rows[0].config_value) {
+			const val = rows[0].config_value;
+			return typeof val === "string" ? JSON.parse(val) : val;
+		}
+	} catch {
+		// fallback gracefully
+	}
+	return fallback;
+}
+
 async function routeTextMessage(text, lineUserId, query) {
 	if (/選藥|我的吸入劑|報到|開始選擇/i.test(text)) {
-		return buildDrugSelectCarousel();
+		const drugs = await getDynamicConfig(query, "drugs", null);
+		return buildDrugSelectCarousel(drugs);
 	}
 	if (/操作影片|影片|教學|看影片/i.test(text)) {
 		const deviceType = await lookupPatientDevice(query, lineUserId);
-		return buildVideoCardFlex({ deviceType: deviceType || "MDI" });
+		const videos = await getDynamicConfig(query, "videos", null);
+		const videoInfo = Array.isArray(videos)
+			? videos.find((v) => v.type === deviceType || v.device === deviceType)
+			: videos?.[deviceType];
+		return buildVideoCardFlex({ deviceType: deviceType || "MDI", videoInfo });
 	}
 	if (/隨堂測驗|測驗|考試|自我測驗/i.test(text)) {
 		const deviceType = await lookupPatientDevice(query, lineUserId);
-		return buildQuizCardFlex({ deviceType: deviceType || "MDI" });
+		const quizData = await getDynamicConfig(query, "quizzes", quizzes);
+		const quizInfo = quizData?.[deviceType]?.[0] || quizData?.[deviceType];
+		return buildQuizCardFlex({ deviceType: deviceType || "MDI", quizInfo });
 	}
 	if (/回診|回診提醒/i.test(text)) {
 		return buildClinicReminderFlex();
@@ -185,7 +209,8 @@ async function persistMedications(patientId, query, drug, hasRescue) {
 async function routePostback(params, patientId, query) {
 	const action = params.get("action");
 	if (action === "start_register") {
-		return buildDrugSelectCarousel();
+		const drugs = await getDynamicConfig(query, "drugs", null);
+		return buildDrugSelectCarousel(drugs);
 	}
 	if (action === "select_drug") {
 		return buildRescuePromptFlex(params.get("drug"));
@@ -201,21 +226,34 @@ async function routePostback(params, patientId, query) {
 			};
 		}
 		await persistMedications(patientId, query, drug, hasRescue);
+		const videos = await getDynamicConfig(query, "videos", null);
+		const videoInfo = Array.isArray(videos)
+			? videos.find((v) => v.type === drug.type || v.device === drug.type)
+			: videos?.[drug.type];
 		return [
 			buildDualTagProfileFlex({ drug, hasRescue }),
-			buildVideoCardFlex({ deviceType: drug.type }),
+			buildVideoCardFlex({ deviceType: drug.type, videoInfo }),
 		];
 	}
 	if (action === "view_video") {
-		return buildVideoCardFlex({ deviceType: params.get("type") || "MDI" });
+		const deviceType = params.get("type") || "MDI";
+		const videos = await getDynamicConfig(query, "videos", null);
+		const videoInfo = Array.isArray(videos)
+			? videos.find((v) => v.type === deviceType || v.device === deviceType)
+			: videos?.[deviceType];
+		return buildVideoCardFlex({ deviceType, videoInfo });
 	}
 	if (action === "start_quiz") {
-		return buildQuizCardFlex({ deviceType: params.get("type") || "MDI" });
+		const deviceType = params.get("type") || "MDI";
+		const quizData = await getDynamicConfig(query, "quizzes", quizzes);
+		const quizInfo = quizData?.[deviceType]?.[0] || quizData?.[deviceType];
+		return buildQuizCardFlex({ deviceType, quizInfo });
 	}
 	if (action === "quiz_answer") {
 		const deviceType = params.get("type") || "MDI";
 		const ans = params.get("ans");
-		const q = quizzes[deviceType]?.[0];
+		const quizData = await getDynamicConfig(query, "quizzes", quizzes);
+		const q = quizData?.[deviceType]?.[0] || quizData?.[deviceType];
 		const isCorrect = q?.correctAnswer === ans;
 		const explanation =
 			q?.explanation || "請牢記吸入劑五大標準步驟，依裝置特性配合吸氣與閉氣。";

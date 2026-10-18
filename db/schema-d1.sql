@@ -53,3 +53,10 @@ CREATE TABLE IF NOT EXISTS line_medications (
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (patient_id, role)
 );
+
+CREATE TABLE IF NOT EXISTS admin_config (
+  config_key   TEXT PRIMARY KEY,
+  config_value TEXT NOT NULL,
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by   TEXT DEFAULT 'admin'
+);

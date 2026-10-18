@@ -339,3 +339,81 @@ export async function fetchPendingSession(
 		throw new Error(json.error ?? `HTTP ${res.status}`);
 	return json as PendingSession;
 }
+
+export interface AdminDrugCard {
+	id: string;
+	name: string;
+	deviceType: string;
+	containsSteroid?: boolean;
+	hasIcs?: boolean;
+	rinseMouthNeeded?: boolean;
+	colorShape?: string;
+	imageUrl: string;
+	technique?: string;
+	quickTip?: string;
+}
+
+export interface AdminVideoConfig {
+	id?: string;
+	type?: string;
+	scope?: string;
+	deviceType: string;
+	title: string;
+	duration?: string;
+	videoUrl: string;
+	embedUrl?: string;
+	steps?: string[];
+	description?: string;
+}
+
+export interface AdminQuizOption {
+	id: string;
+	text: string;
+}
+
+export interface AdminQuizQuestion {
+	id: string;
+	question: string;
+	options: AdminQuizOption[];
+	answer?: number;
+	correctAnswer?: string;
+	explanation: string;
+}
+
+export interface AdminConfigResponse {
+	ok: true;
+	config: {
+		videos: AdminVideoConfig[];
+		quizzes: Record<string, AdminQuizQuestion[]>;
+		drugs: AdminDrugCard[];
+		updated?: Record<string, { at: string; by: string }>;
+	};
+}
+
+export async function fetchAdminConfig(
+	key?: string,
+): Promise<AdminConfigResponse> {
+	return get<AdminConfigResponse>(
+		"/api/admin/config",
+		key ? { key } : undefined,
+	);
+}
+
+export async function saveAdminConfig(
+	key: "videos" | "quizzes" | "drugs",
+	value:
+		| AdminVideoConfig[]
+		| Record<string, AdminQuizQuestion[]>
+		| AdminDrugCard[],
+	user = "藥劑部管理員",
+) {
+	const res = await fetch(`${base}/api/admin/config`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ key, value, user }),
+	});
+	const json = await res.json();
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as { ok: true; key: string; updated: boolean };
+}

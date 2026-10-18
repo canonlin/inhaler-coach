@@ -22,6 +22,7 @@ import { LineMockup } from "./line-mockup/LineMockup";
 import { AdminShell } from "./pharmacist/AdminShell";
 import { CaseEntry } from "./pharmacist/CaseEntry";
 import { FollowupList } from "./pharmacist/components/FollowupList";
+import { ContentSettings } from "./pharmacist/ContentSettings";
 import { Outcomes } from "./pharmacist/Outcomes";
 import { sectionFor } from "./pharmacist/SideNav";
 
@@ -46,6 +47,7 @@ export const routes: RouteObject[] = [
 			{ index: true, element: <CaseEntry /> },
 			{ path: "followups", element: <FollowupList /> },
 			{ path: "outcomes", element: <Outcomes /> },
+			{ path: "settings", element: <ContentSettings /> },
 		],
 	},
 	{
