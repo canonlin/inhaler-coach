@@ -633,7 +633,7 @@ export function buildVideoCardFlex({ deviceType, videoInfo }) {
 /** 6. 隨堂測驗題目卡片 (Quiz Card) */
 export function buildQuizCardFlex({ deviceType, quizInfo }) {
 	let qInfo;
-	if (quizInfo && quizInfo.question) {
+	if (quizInfo?.question) {
 		qInfo = {
 			title: quizInfo.title || `${deviceType} 隨堂小測驗`,
 			q: quizInfo.question,

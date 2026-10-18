@@ -21,8 +21,8 @@ import { VideosPage } from "./line/pages/VideosPage";
 import { LineMockup } from "./line-mockup/LineMockup";
 import { AdminShell } from "./pharmacist/AdminShell";
 import { CaseEntry } from "./pharmacist/CaseEntry";
-import { FollowupList } from "./pharmacist/components/FollowupList";
 import { ContentSettings } from "./pharmacist/ContentSettings";
+import { FollowupList } from "./pharmacist/components/FollowupList";
 import { Outcomes } from "./pharmacist/Outcomes";
 import { sectionFor } from "./pharmacist/SideNav";
 
