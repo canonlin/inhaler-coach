@@ -10,10 +10,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { describe, it } from "node:test";
 
 import { createD1Adapter } from "../api/d1-adapter.mjs";
+
+let DatabaseSync = null;
+try {
+	const sqlite = await import("node:sqlite");
+	DatabaseSync = sqlite.DatabaseSync;
+} catch {
+	// node:sqlite requires Node.js >= 22.5.0
+}
 
 describe("Cloudflare D1 adapter", () => {
 	it("throws if required credentials or binding are missing", () => {
@@ -158,7 +165,11 @@ describe("Cloudflare D1 adapter", () => {
 });
 
 describe("Cloudflare D1 SQL Schema (schema-d1.sql)", () => {
-	it("executes DDL successfully and satisfies table constraints", () => {
+	it("executes DDL successfully and satisfies table constraints", (t) => {
+		if (!DatabaseSync) {
+			t.skip("node:sqlite requires Node.js >= 22.5.0");
+			return;
+		}
 		const schemaPath = resolve(process.cwd(), "db/schema-d1.sql");
 		const ddl = readFileSync(schemaPath, "utf-8");
 
