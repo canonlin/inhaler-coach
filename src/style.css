@@ -179,3 +179,20 @@ button,
   height: 100% !important;
   border: none !important;
 }
+
+/* Hide browser scrollbars in LINE Mockup and Flex Carousel to match native mobile LINE */
+.no-scrollbar::-webkit-scrollbar,
+.line-chat-area::-webkit-scrollbar,
+.flex-message-container *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.line-chat-area,
+.flex-message-container * {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+

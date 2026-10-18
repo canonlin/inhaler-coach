@@ -18,6 +18,7 @@ export const QUOTA_FREE_KINDS = new Set(["welcome", "reply"]);
  */
 export function createLiveTransport({
 	url = "https://api.line.me/v2/bot/message/push",
+	replyUrl = "https://api.line.me/v2/bot/message/reply",
 	token,
 	fetchImpl = fetch,
 } = {}) {
@@ -42,6 +43,27 @@ export function createLiveTransport({
 				body: res.ok ? undefined : await res.text(),
 			};
 		},
+		/**
+		 * Webhook reply: 100% quota-free (0 NTD).
+		 * @param {string} replyToken
+		 * @param {object|object[]} messages
+		 */
+		async reply(replyToken, messages) {
+			const payloadMessages = Array.isArray(messages) ? messages : [messages];
+			const res = await fetchImpl(replyUrl, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ replyToken, messages: payloadMessages }),
+			});
+			return {
+				ok: res.ok,
+				status: res.status,
+				body: res.ok ? undefined : await res.text(),
+			};
+		},
 	};
 }
 
@@ -49,16 +71,28 @@ export function createLiveTransport({
  * Captures instead of sending. Used by tests and by the pre-launch dry run so
  * that a campaign can be inspected before a single person is messaged.
  *
- * @param {{insert: Function}} deps
+ * @param {{insert: Function, recordReply?: Function}} deps
  */
-export function createRecordingTransport({ insert }) {
+export function createRecordingTransport({ insert, recordReply }) {
 	if (typeof insert !== "function")
 		throw new Error("RecordingTransport needs an insert function");
 
+	const capturedReplies = [];
+
 	return {
 		channel: "recording",
+		capturedReplies,
 		async send(to, message) {
 			await insert({ to, message });
+			return { ok: true, status: 0 };
+		},
+		async reply(replyToken, messages) {
+			const payloadMessages = Array.isArray(messages) ? messages : [messages];
+			const entry = { replyToken, messages: payloadMessages };
+			capturedReplies.push(entry);
+			if (typeof recordReply === "function") {
+				await recordReply(entry);
+			}
 			return { ok: true, status: 0 };
 		},
 	};

@@ -21,6 +21,7 @@
         "@types/react-dom": "^19.2.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "line-flex-message-renderer": "^1.6.0",
         "lucide-react": "^1.31.0",
         "motion": "^13.1.0",
         "onnxruntime-web": "^1.27.0",
@@ -442,6 +443,8 @@
     "lightningcss-win32-arm64-msvc": ["lightningcss-win32-arm64-msvc@1.33.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA=="],
 
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.33.0", "", { "os": "win32", "cpu": "x64" }, "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA=="],
+
+    "line-flex-message-renderer": ["line-flex-message-renderer@1.6.0", "", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-f9F5J1vL5zbPcMA9P9So89WqC4MFmt3tlbsGFS8SaYR0wjh3Kb0ebqvK0xwZOIPhHUJhx1H187sAH3z9JhqhtQ=="],
 
     "long": ["long@4.0.0", "", {}, "sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA=="],
 

@@ -7,3 +7,18 @@ dist/
 # they run in the gate and stay tracked. Screenshots are evidence of a past
 # run and go stale, so they do not.
 output/design-review/*.png
+
+# Local dev, test results and caches
+.vercel/
+.playwright-cli/
+test-results/
+__pycache__/
+*.pyc
+*.log
+training/negative_eval/
+
+# Runtime assets copied/downloaded by copy-ort.mjs
+public/ort/
+public/mediapipe/
+public/models/mediapipe/
+

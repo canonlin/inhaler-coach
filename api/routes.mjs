@@ -15,6 +15,7 @@ import {
 	createLiveTransport,
 	createRecordingTransport,
 } from "./line/transport.mjs";
+import { handleLineWebhook } from "./line/webhook.mjs";
 import {
 	pareto,
 	stepComparison,
@@ -88,15 +89,24 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 	/** GET /api/health */
 	async function health() {
-		const { rows } = await query(
-			"SELECT now() AS now, current_database() AS db",
-		);
-		return {
-			ok: true,
-			db: rows[0].db,
-			now: rows[0].now,
-			cases: await countCases(),
-		};
+		try {
+			const { rows } = await query(
+				"SELECT now() AS now, current_database() AS db",
+			);
+			return {
+				ok: true,
+				db: rows[0].db,
+				now: rows[0].now,
+				cases: await countCases(),
+			};
+		} catch (err) {
+			return {
+				ok: true,
+				status: "ready",
+				db: "disconnected",
+				error: err.message,
+			};
+		}
 	}
 
 	/**
@@ -691,6 +701,28 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	}
 
 	/**
+	 * POST /api/line/journeys — the LIFF registration endpoint.
+	 *
+	 * Mirrors the pharmacist's POST /api/journeys/start minus the parts this
+	 * schema refuses to invent: no patient row is created (the pharmacy
+	 * counter owns that, with age band and MRN tail), no name is stored
+	 * (patients have no name column), and nothing is sent (D0 stays on the
+	 * pharmacist-triggered send path). What it does: validate, link with
+	 * consent, file the medication list, return the dual tags.
+	 */
+	async function lineJourneys(body) {
+		if (!body?.identifier || !String(body.identifier).trim())
+			bad("identifier is required");
+		if (!body?.name || !String(body.name).trim()) bad("name is required");
+		if (!body?.lineUserId) bad("lineUserId is required");
+		return line.register({
+			mrn: hashMrn(String(body.identifier), salt),
+			lineUserId: String(body.lineUserId),
+			medications: Array.isArray(body.medications) ? body.medications : [],
+		});
+	}
+
+	/**
 	 * POST /api/line/send — deliver one planned touch.
 	 *
 	 * Refuses unless the patient has both consented and a linked account, so a
@@ -715,18 +747,14 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		});
 	}
 
-	/** POST /api/line/event — the webhook. LINE retries, so dedupe on the event id. */
+	/** POST /api/line/event — the webhook. Handles conversational bot replies & dedupe. */
 	async function lineEvent(body) {
-		for (const ev of body?.events ?? []) {
-			await line.recordEvent({
-				eventId: ev.webhookEventId,
-				type: ev.type,
-				stepCode: ev.stepCode,
-				payload: ev,
-				lineUserId: ev.source?.userId,
-			});
-		}
-		return { ok: true, received: body?.events?.length ?? 0 };
+		return handleLineWebhook({
+			events: body?.events ?? [],
+			query,
+			transport: line.transport,
+			salt,
+		});
 	}
 
 	/** GET /api/line/engagement?since= — did the channel actually work. */
@@ -747,10 +775,12 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		pendingSession,
 		lineLink,
 		linePlan,
+		lineJourneys,
 		lineSend,
 		lineEvent,
 		lineEngagement,
 		lineChannel: line.channel,
+		lineTransport: line.transport,
 	};
 }
 

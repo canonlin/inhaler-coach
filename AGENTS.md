@@ -20,10 +20,16 @@ This is a **bun** project: `bun.lock` is the only lockfile and CI installs with
 
 `bun run test` requires `DATABASE_URL`. The API, metrics and LINE tests query a
 real Postgres, and the gate exits non-zero without one rather than skipping. CI
-provides a `postgres:16-alpine` service for this; locally it is
-`postgres://postgres:devpw@localhost:55432/inhaler` in the `inhaler-pg`
-container. The suite runs with `--test-concurrency=1` because those files
-truncate shared tables.
+provides a `postgres:16-alpine` service. Locally, point `DATABASE_URL` at the
+project's Neon database — the backend decision is recorded in
+`docs/superpowers/specs/2026-10-09-v2-unified-platform-design.md` §2. There is
+no local Postgres and none should be started. The connection string lives in
+`.env`, which is git-ignored; it is a credential, not a config value.
+
+**The suite truncates tables.** Use a database you are willing to lose. The suite
+runs with `--test-concurrency=1` because those files truncate shared tables.
+`bun run seed:demo` truncates too, and what it writes is demo data, not study
+data — read "Durable facts" below before quoting any number it produces.
 
 ## What this repository is
 

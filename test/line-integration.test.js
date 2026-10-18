@@ -44,7 +44,7 @@ if (true) {
 			}),
 		});
 		await pool.query(
-			"TRUNCATE line_events, line_deliveries, line_identities, followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
+			"TRUNCATE line_events, line_deliveries, line_identities, line_medications, followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
 		);
 	});
 
@@ -95,6 +95,104 @@ if (true) {
 				() => line.link({ mrn: hashMrn("NOBODY", SALT), lineUserId: "U_X" }),
 				/patient not found/,
 			);
+		});
+	});
+
+	describe("LIFF registration", () => {
+		const maintenance = [{ role: "maintenance", drugId: "Symbicort_Rapihaler" }];
+
+		it("files the medication list and returns the dual tags", async () => {
+			await aCaseWithError();
+			const r = await api.lineJourneys({
+				identifier: "LINE000001",
+				name: "王○明",
+				lineUserId: "U_LINE_REG",
+				medications: [
+					...maintenance,
+					{ role: "rescue", drugId: "Ventolin_Evohaler" },
+				],
+			});
+			assert.equal(r.ok, true);
+			assert.equal(
+				r.tag1,
+				"裝置分類：保養用藥：定量吸入劑（MDI）｜緊急用藥：定量吸入劑（MDI）",
+			);
+			assert.equal(r.tag2, "用途分類：保養用藥｜緊急用藥");
+			const { rows } = await pool.query(
+				"SELECT role, drug_id, device_line, ics FROM line_medications ORDER BY role",
+			);
+			assert.deepEqual(
+				rows.map((m) => [m.role, m.drug_id, m.device_line, m.ics]),
+				[
+					["maintenance", "Symbicort_Rapihaler", "MDI", true],
+					["rescue", "Ventolin_Evohaler", "MDI", false],
+				],
+			);
+			const consent = await pool.query(
+				"SELECT consent_line FROM patients WHERE mrn_hash = $1",
+				[hashMrn("LINE000001", SALT)],
+			);
+			assert.equal(consent.rows[0].consent_line, true);
+		});
+
+		it("refuses a rescue drug that is not Ventolin", async () => {
+			await assert.rejects(
+				() =>
+					api.lineJourneys({
+						identifier: "LINE000001",
+						name: "王○明",
+						lineUserId: "U_X",
+						medications: [
+							...maintenance,
+							{ role: "rescue", drugId: "Bevespi_Aerosphere" },
+						],
+					}),
+				/只允許 Ventolin/,
+			);
+		});
+
+		it("refuses an unknown drug id", async () => {
+			await assert.rejects(
+				() =>
+					api.lineJourneys({
+						identifier: "LINE000001",
+						name: "王○明",
+						lineUserId: "U_X",
+						medications: [{ role: "maintenance", drugId: "Nope_Inhaler" }],
+					}),
+				/找不到藥品/,
+			);
+		});
+
+		it("refuses an unknown identifier rather than creating a patient", async () => {
+			await assert.rejects(
+				() =>
+					api.lineJourneys({
+						identifier: "NOBODY",
+						name: "王○明",
+						lineUserId: "U_X",
+						medications: maintenance,
+					}),
+				/請先至藥局建檔/,
+			);
+			const { rows } = await pool.query(
+				"SELECT count(*)::int AS n FROM patients WHERE mrn_hash = $1",
+				[hashMrn("NOBODY", SALT)],
+			);
+			assert.equal(rows[0].n, 0);
+		});
+
+		it("re-registration replaces the medication list", async () => {
+			await api.lineJourneys({
+				identifier: "LINE000001",
+				name: "王○明",
+				lineUserId: "U_LINE_REG",
+				medications: maintenance,
+			});
+			const { rows } = await pool.query(
+				"SELECT count(*)::int AS n FROM line_medications",
+			);
+			assert.equal(rows[0].n, 1);
 		});
 	});
 

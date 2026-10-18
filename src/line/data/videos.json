@@ -1,0 +1,50 @@
+[
+	{
+		"id": "MDI_BASIC",
+		"title": "MDI 定量吸入劑操作教學",
+		"scope": "device",
+		"type": "MDI",
+		"drugId": null,
+		"source": "official_or_manufacturer",
+		"description": "學習按壓藥罐時，配合緩慢、深長吸氣的正確方式。",
+		"thumbnailUrl": null,
+		"videoUrl": null,
+		"status": "preparing"
+	},
+	{
+		"id": "DPI_BASIC",
+		"title": "DPI 乾粉吸入劑操作教學",
+		"scope": "device",
+		"type": "DPI",
+		"drugId": null,
+		"source": "official_or_manufacturer",
+		"description": "學習含緊吸嘴後，深、快、用力吸氣的正確方式。",
+		"thumbnailUrl": null,
+		"videoUrl": null,
+		"status": "preparing"
+	},
+	{
+		"id": "SMI_BASIC",
+		"title": "SMI 軟霧吸入劑操作教學",
+		"scope": "device",
+		"type": "SMI",
+		"drugId": null,
+		"source": "official_or_manufacturer",
+		"description": "學習配合軟霧釋放，緩慢且深長吸氣的正確方式。",
+		"thumbnailUrl": null,
+		"videoUrl": null,
+		"status": "preparing"
+	},
+	{
+		"id": "VENTOLIN_OFFICIAL",
+		"title": "Ventolin Evohaler 正確操作教學",
+		"scope": "drug",
+		"type": "MDI",
+		"drugId": "Ventolin_Evohaler",
+		"source": "official_or_manufacturer",
+		"description": "Ventolin Evohaler 專屬正確操作影片。",
+		"thumbnailUrl": null,
+		"videoUrl": null,
+		"status": "preparing"
+	}
+]

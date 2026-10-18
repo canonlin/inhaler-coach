@@ -22,7 +22,20 @@ const PAGES = [
 	["admin", "/admin"],
 	["queue", "/admin/followups"],
 	["outcomes", "/admin/outcomes"],
+	["line", "/line"],
+	["line-register", "/line/register"],
+	["line-videos", "/line/videos"],
+	["line-quiz", "/line/quiz"],
 ];
+
+// A11Y_ONLY=/line,/line/quiz runs a subset (vite only — the LIFF pages are
+// static and need no API, so they can be checked without a database).
+const ONLY = process.env.A11Y_ONLY?.split(",").map((s) => s.trim());
+const TARGETS = ONLY ? PAGES.filter(([, p]) => ONLY.includes(p)) : PAGES;
+if (ONLY && TARGETS.length === 0) {
+	console.error(`A11Y_ONLY matched no pages: ${ONLY.join(",")}`);
+	process.exit(1);
+}
 
 /** WCAG AA: 4.5:1 for body text, 3:1 for text at 18.66px+ bold or 24px+. */
 function luminance(rgb) {
@@ -42,7 +55,7 @@ function contrast(fg, bg) {
 const browser = await chromium.launch();
 const findings = [];
 
-for (const [name, path] of PAGES) {
+for (const [name, path] of TARGETS) {
 	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 	await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
 	await page.waitForTimeout(1200);

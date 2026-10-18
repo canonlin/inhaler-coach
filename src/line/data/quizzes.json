@@ -1,0 +1,68 @@
+{
+	"MDI": [
+		{
+			"id": "MDI_Q1",
+			"question": "使用 MDI 時，正確的吸氣方式是哪一項？",
+			"options": [
+				{
+					"id": "A",
+					"text": "深、快、用力吸氣"
+				},
+				{
+					"id": "B",
+					"text": "配合按壓藥罐，緩慢且深長吸氣"
+				},
+				{
+					"id": "C",
+					"text": "不需要吸氣"
+				}
+			],
+			"correctAnswer": "B",
+			"explanation": "MDI 需要在按下藥罐時，同步緩慢且深長地吸氣。"
+		}
+	],
+	"DPI": [
+		{
+			"id": "DPI_Q1",
+			"question": "使用 DPI 時，正確的吸氣方式是哪一項？",
+			"options": [
+				{
+					"id": "A",
+					"text": "深、快、用力吸氣"
+				},
+				{
+					"id": "B",
+					"text": "非常緩慢地吸氣"
+				},
+				{
+					"id": "C",
+					"text": "向吸嘴內吐氣"
+				}
+			],
+			"correctAnswer": "A",
+			"explanation": "DPI 需要足夠的吸氣力量，才能將乾粉吸入肺部。"
+		}
+	],
+	"SMI": [
+		{
+			"id": "SMI_Q1",
+			"question": "使用 SMI 時，正確的吸氣方式是哪一項？",
+			"options": [
+				{
+					"id": "A",
+					"text": "配合軟霧釋放，緩慢且深長吸氣"
+				},
+				{
+					"id": "B",
+					"text": "快速吸一小口"
+				},
+				{
+					"id": "C",
+					"text": "完全不需要吸氣"
+				}
+			],
+			"correctAnswer": "A",
+			"explanation": "SMI 應配合軟霧釋放速度，緩慢且深長地吸氣。"
+		}
+	]
+}

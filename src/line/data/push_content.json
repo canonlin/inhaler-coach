@@ -1,0 +1,254 @@
+{
+	"D0": {
+		"title": "歡迎加入 InhaSync™",
+		"message": "您好，歡迎加入 InhaSync™ 吸入劑智慧衛教。系統將依您目前使用的吸入劑與裝置，提供個人化的衛教提醒與操作複習。",
+		"show_medication_summary": true,
+
+		"video": {
+			"enabled": false,
+			"selection_strategy": "drug_then_device",
+			"fallback_to_device": true,
+			"show_if_unavailable": false,
+			"unavailable_message": "目前尚未提供對應操作影片。",
+			"note": "操作影片尚待藥師提供，取得正式影片後再啟用。"
+		},
+
+		"intro_card": {
+			"enabled": false,
+			"image_path": null,
+			"preview_image_path": null,
+			"alt_text": "InhaSync™ D0 首次衛教介紹圖卡",
+			"status": "pending_confirmation",
+			"note": "D0 介紹圖卡內容與圖片尚待藥師確認。"
+		}
+	},
+
+	"D3": {
+		"title": "InhaSync™ Day 3 使用前準備",
+		"enabled": true,
+
+		"content_by_device": {
+			"MDI": {
+				"topic": "使用前準備",
+				"message": "MDI 使用前準備：使用前請先充分搖晃吸入器。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng1_mdi_not_shaken.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng1_mdi_not_shaken_preview.jpg",
+					"alt_text": "MDI 使用前充分搖晃提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"DPI": {
+				"topic": "使用前準備",
+				"message": "DPI 使用前準備：請依照吸入器操作方式完成開蓋與備藥。",
+
+				"image": {
+					"enabled": false,
+					"image_path": null,
+					"preview_image_path": null,
+					"alt_text": null
+				},
+
+				"video_id": null,
+				"status": "text_only"
+			},
+
+			"SMI": {
+				"topic": "使用前準備",
+				"message": "SMI 使用前準備：請依照吸入器操作方式完成旋轉與備藥。",
+
+				"image": {
+					"enabled": false,
+					"image_path": null,
+					"preview_image_path": null,
+					"alt_text": null
+				},
+
+				"video_id": null,
+				"status": "text_only"
+			}
+		}
+	},
+
+	"D7": {
+		"title": "InhaSync™ Day 7 吸入前先吐氣",
+		"enabled": true,
+
+		"content_by_device": {
+			"MDI": {
+				"topic": "吸入前先吐氣",
+				"message": "使用吸入劑前，請先將氣吐出，再開始吸入藥物。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng2_no_exhale_before_inhaling.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng2_no_exhale_before_inhaling_preview.jpg",
+					"alt_text": "吸入前先吐氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"DPI": {
+				"topic": "吸入前先吐氣",
+				"message": "使用吸入劑前，請先將氣吐出，再開始吸入藥物。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng2_no_exhale_before_inhaling.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng2_no_exhale_before_inhaling_preview.jpg",
+					"alt_text": "吸入前先吐氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"SMI": {
+				"topic": "吸入前先吐氣",
+				"message": "使用吸入劑前，請先將氣吐出，再開始吸入藥物。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng2_no_exhale_before_inhaling.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng2_no_exhale_before_inhaling_preview.jpg",
+					"alt_text": "吸入前先吐氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			}
+		}
+	},
+
+	"D14": {
+		"title": "InhaSync™ Day 14 吸入技巧",
+		"enabled": true,
+
+		"content_by_device": {
+			"MDI": {
+				"topic": "按壓同步＋慢吸",
+				"message": "MDI 吸入時，請在按壓藥罐的同時緩慢、深長吸氣。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng3_mdi_unsynchronized.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng3_mdi_unsynchronized_preview.jpg",
+					"alt_text": "MDI 壓吸同步提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"DPI": {
+				"topic": "快、深、有力吸氣",
+				"message": "DPI 吸入時，請快速、深且有力地吸氣。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng4_dpi_inhale_too_weak.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng4_dpi_inhale_too_weak_preview.jpg",
+					"alt_text": "DPI 快、深、有力吸氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"SMI": {
+				"topic": "按壓同步＋慢吸",
+				"message": "SMI 吸入時，請配合藥霧釋放，緩慢且深長吸氣。",
+
+				"image": {
+					"enabled": false,
+					"image_path": null,
+					"preview_image_path": null,
+					"alt_text": null
+				},
+
+				"video_id": null,
+				"status": "text_only"
+			}
+		}
+	},
+
+	"D28": {
+		"title": "InhaSync™ Day 28 吸後確認與回診提醒",
+		"enabled": true,
+
+		"content_by_device": {
+			"MDI": {
+				"topic": "吸後確認＋回診提醒",
+				"message": "吸入藥物後請記得閉氣，再緩慢恢復呼吸。請持續依照正確方式使用吸入劑，並依院方安排回診。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng6_no_breath_hold.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng6_no_breath_hold_preview.jpg",
+					"alt_text": "吸入後閉氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"DPI": {
+				"topic": "吸後確認＋回診提醒",
+				"message": "吸入藥物後請記得閉氣，再緩慢恢復呼吸。請持續依照正確方式使用吸入劑，並依院方安排回診。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng6_no_breath_hold.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng6_no_breath_hold_preview.jpg",
+					"alt_text": "吸入後閉氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			},
+
+			"SMI": {
+				"topic": "吸後確認＋回診提醒",
+				"message": "吸入藥物後請記得閉氣，再緩慢恢復呼吸。請持續依照正確方式使用吸入劑，並依院方安排回診。",
+
+				"image": {
+					"enabled": true,
+					"image_path": "/static/education_cards/ng_cards/ng6_no_breath_hold.png",
+					"preview_image_path": "/static/education_cards/previews/ng_cards_ng6_no_breath_hold_preview.jpg",
+					"alt_text": "吸入後閉氣提醒"
+				},
+
+				"video_id": null,
+				"status": "ready_for_test"
+			}
+		},
+
+		"ICS_reminder": {
+			"enabled": true,
+			"message": "此藥含吸入型類固醇（ICS），使用後請漱口。"
+		}
+	},
+
+	"rescue_extra_reminder": {
+		"title": "InhaSync™ 緊急用吸入劑提醒",
+		"enabled": true,
+		"message": "這是您的緊急用吸入劑使用提醒。",
+
+		"image": {
+			"enabled": false,
+			"image_path": null,
+			"preview_image_path": null,
+			"alt_text": null
+		},
+
+		"video_id": null,
+		"note": "提醒日期由 rescue_reminder_day 人工設定。"
+	}
+}

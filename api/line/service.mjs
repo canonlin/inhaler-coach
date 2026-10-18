@@ -12,10 +12,56 @@ import {
 	CRITICAL_STEP_CODES,
 	STEP_BY_CODE,
 } from "../../src/domain/steps.js";
+import { buildDualTags, findDrug, validateRegistration } from "./catalog.mjs";
 import { buildSchedule, renderMessage, setCriticalCodes } from "./schedule.mjs";
 import { countsAgainstQuota, quotaCheck } from "./transport.mjs";
 
 setCriticalCodes(CRITICAL_STEP_CODES);
+
+/** Filed by register(): one row per role, replaced on re-registration. */
+async function registerJourney(query, { mrn, lineUserId, medications }) {
+	const problem = validateRegistration({
+		name: "present",
+		identifier: "present",
+		medications,
+	});
+	if (problem) throw new HttpError(400, problem);
+
+	const { rows } = await query("SELECT id FROM patients WHERE mrn_hash = $1", [
+		mrn,
+	]);
+	if (!rows[0]) throw new HttpError(404, "找不到病歷資料，請先至藥局建檔。");
+	const patientId = rows[0].id;
+
+	await query("UPDATE patients SET consent_line = true WHERE id = $1", [
+		patientId,
+	]);
+	await query(
+		`INSERT INTO line_identities (patient_id, line_user_id) VALUES ($1,$2)
+		 ON CONFLICT (line_user_id) DO UPDATE SET patient_id = EXCLUDED.patient_id`,
+		[patientId, lineUserId],
+	);
+	await query("DELETE FROM line_medications WHERE patient_id = $1", [
+		patientId,
+	]);
+	const filed = [];
+	for (const m of medications) {
+		const drug = findDrug(m.drugId);
+		await query(
+			`INSERT INTO line_medications
+			   (patient_id, role, drug_id, drug_name, device_line, ics)
+			 VALUES ($1,$2,$3,$4,$5,$6)`,
+			[patientId, m.role, drug.id, drug.displayName, drug.type, drug.ICS],
+		);
+		filed.push({ role: m.role, drugName: drug.displayName });
+	}
+	return {
+		ok: true,
+		patientId,
+		medications: filed,
+		...buildDualTags(medications),
+	};
+}
 
 class HttpError extends Error {
 	constructor(status, message) {
@@ -164,6 +210,22 @@ export function makeLineService({ query, transport }) {
 	}
 
 	/**
+	 * Register a LIFF journey: validate, link the LINE account with consent,
+	 * and file the medication list. The patient record itself must already
+	 * exist (built at the pharmacy counter with age band and MRN tail) — this
+	 * endpoint links to it, it does not invent one. The name is checked for
+	 * presence and never stored: patients carry no name column by design.
+	 *
+	 * `mrn` is the stored hash, as in link(): no plain identifier reaches here.
+	 *
+	 * Module-level rather than a closure: it needs only query, and keeping it
+	 * out stops makeLineService growing past the function-size budget.
+	 */
+	async function register(args) {
+		return registerJourney(query, args);
+	}
+
+	/**
 	 * Did the LINE channel actually work?
 	 *
 	 * Two independent aggregates joined per kind. A response is only meaningful
@@ -203,7 +265,9 @@ export function makeLineService({ query, transport }) {
 		plan,
 		send,
 		recordEvent,
+		register,
 		engagement,
 		channel: transport.channel,
+		transport,
 	};
 }

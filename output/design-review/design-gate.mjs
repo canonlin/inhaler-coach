@@ -17,6 +17,18 @@
  */
 import { execSync } from "node:child_process";
 
+// File size needs no servers, so it runs before the preflight: a file that
+// does two jobs fails here even on a machine with nothing started.
+try {
+	const out = execSync("node output/design-review/file-size.mjs", {
+		encoding: "utf8",
+	});
+	console.log(`✓ file size\n${out.trim()}\n`);
+} catch (e) {
+	console.log(`✗ file size\n${(e.stdout ?? "").trim()}\n`);
+	process.exit(1);
+}
+
 const TARGETS = [
 	["API", "http://localhost:4183/api/followups", "DATABASE_URL=… PORT=4183 node scripts/dev-api.mjs"],
 	["vite", "http://localhost:4185/admin", "VITE_API_PROXY=http://localhost:4183 bunx vite --port 4185"],

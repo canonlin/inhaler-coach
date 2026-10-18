@@ -217,3 +217,21 @@ CREATE TABLE IF NOT EXISTS line_events (
   payload       jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- ── line_medications ────────────────────────────────────────────────────
+-- What the patient registered in LIFF: maintenance + optional rescue, with the
+-- pharmacist's own device classes (MDI/DPI/SMI) and ICS flag. The repo's
+-- four-class taxonomy (MDI/ELP/BRZ/RSP) maps per drug, not per class — see
+-- src/line/devices.ts — so device_line is stored verbatim and never coerced.
+-- Re-registration replaces the list: one patient, one current list.
+CREATE TABLE IF NOT EXISTS line_medications (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id  uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  role        text NOT NULL CHECK (role IN ('maintenance', 'rescue')),
+  drug_id     text NOT NULL,
+  drug_name   text NOT NULL,
+  device_line text NOT NULL CHECK (device_line IN ('MDI', 'DPI', 'SMI')),
+  ics         boolean NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (patient_id, role)
+);

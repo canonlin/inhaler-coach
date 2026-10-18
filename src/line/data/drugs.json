@@ -1,0 +1,114 @@
+[
+	{
+		"id": "Symbicort_Rapihaler",
+		"displayName": "Symbicort Rapihaler 120 puff/btl",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Seretide_Evohaler",
+		"displayName": "Seretide Evohaler 50/125/250",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Flixotide_Evohaler",
+		"displayName": "Flixotide Evohaler 50mcg/dose",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Duasma_MDI",
+		"displayName": "Duasma HFA 200 MDI",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Breztri_Aerosphere",
+		"displayName": "Breztri Aerosphere 120 puff/btl",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Trimbow_Inhalation",
+		"displayName": "Trimbow Inhalation Solution",
+		"type": "MDI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Bevespi_Aerosphere",
+		"displayName": "Bevespi Aerosphere 120 dose/box",
+		"type": "MDI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Ventolin_Evohaler",
+		"displayName": "Ventolin Evohaler",
+		"type": "MDI",
+		"ICS": false,
+		"roles": ["rescue"]
+	},
+	{
+		"id": "Relvar_Ellipta",
+		"displayName": "Relvar Ellipta Inh Powder",
+		"type": "DPI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Trelegy_92",
+		"displayName": "Trelegy 92/55/22 (Ellipta)",
+		"type": "DPI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Trelegy_184",
+		"displayName": "Trelegy 184/55/22 (Ellipta)",
+		"type": "DPI",
+		"ICS": true,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Anoro_Ellipta",
+		"displayName": "Anoro Ellipta Inh Powder",
+		"type": "DPI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Ultibro_Breezhaler",
+		"displayName": "Ultibro Breezhaler 30 dose",
+		"type": "DPI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Spiolto_Respimat",
+		"displayName": "Spiolto Respimat 60 puff",
+		"type": "SMI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Striverdi_Respimat",
+		"displayName": "Striverdi Respimat 60 puff",
+		"type": "SMI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
+		"id": "Spiriva_Respimat",
+		"displayName": "Spiriva Respimat 60 puff",
+		"type": "SMI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	}
+]

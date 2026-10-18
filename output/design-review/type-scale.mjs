@@ -23,7 +23,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = "src/pharmacist";
+const ROOTS = ["src/pharmacist", "src/line"];
 
 /** Sizes defined in the scale, in px, smallest first. */
 const SCALE = {
@@ -66,7 +66,8 @@ function walk(dir) {
 
 const findings = [];
 
-for (const file of walk(ROOT)) {
+for (const root of ROOTS) {
+	for (const file of walk(root)) {
 	const lines = fs.readFileSync(file, "utf8").split("\n");
 
 	lines.forEach((line, i) => {
@@ -124,6 +125,7 @@ for (const file of walk(ROOT)) {
 			}
 		}
 	});
+	}
 }
 
 if (findings.length === 0) {

@@ -128,7 +128,7 @@ export const Select = React.forwardRef<
 				className,
 			)}
 		>
-			<SelectPrimitive.Value />
+			<SelectPrimitive.Value placeholder={placeholder} />
 			<SelectPrimitive.Icon asChild>
 				<ChevronDown
 					className="size-4 shrink-0 opacity-60"
