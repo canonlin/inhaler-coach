@@ -125,74 +125,78 @@ export const CLINICAL_DRUG_CARDS = [
 		name: "都保噴霧 (Symbicort)",
 		spec: "Rapihaler 120 puff",
 		deviceType: "MDI 定量噴霧",
-		colorShape: "🔴 紅白色・L型噴罐",
+		colorShape: "紅白色・L型噴罐",
 		technique: "口訣：上下搖勻・慢深吸 5 秒",
 		hasIcs: true,
 		color: "#2563EB",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/rapihaler.png",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/rapihaler.png",
 	},
 	{
 		id: "Relvar_Ellipta",
 		name: "易利達 (Relvar Ellipta)",
 		spec: "Inhalation Powder 30 dose",
 		deviceType: "DPI 乾粉吸入",
-		colorShape: "🟡 灰黃色・扁圓盤盒",
+		colorShape: "灰黃色・扁圓盤盒",
 		technique: "口訣：推開蓋喀一聲・快深用力吸",
 		hasIcs: true,
 		color: "#059669",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/ellipta_real.jpg",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/ellipta_real.jpg",
 	},
 	{
 		id: "Spiolto_Respimat",
 		name: "適倍樂 (Spiolto Respimat)",
 		spec: "Respimat 60 puff",
 		deviceType: "SMI 軟霧吸入",
-		colorShape: "⚪ 灰白色・圓柱長筒",
+		colorShape: "灰白色・圓柱長筒",
 		technique: "口訣：轉開按・配合軟霧慢深吸",
 		hasIcs: false,
 		color: "#0D9488",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/respimat_real.jpg",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/respimat_real.jpg",
 	},
 	{
 		id: "Ventolin_Evohaler",
 		name: "備思復 (Ventolin Evohaler)",
 		spec: "Evohaler 200 dose",
 		deviceType: "MDI 急救噴霧",
-		colorShape: "🔵 藍色瓶蓋・隨身急救小噴罐",
+		colorShape: "藍色瓶蓋・隨身急救小噴罐",
 		technique: "口訣：氣喘發作時吸 1~2 吸",
 		hasIcs: false,
 		color: "#0284C7",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/ventolin_real.jpg",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/ventolin_real.jpg",
 	},
 	{
 		id: "Seretide_Evohaler",
 		name: "續利得 (Seretide Evohaler)",
 		spec: "Evohaler 120 puff",
 		deviceType: "MDI 定量噴霧",
-		colorShape: "🟣 紫色・L型噴罐",
+		colorShape: "紫色・L型噴罐",
 		technique: "口訣：上下搖勻・慢深吸 5 秒",
 		hasIcs: true,
 		color: "#7E22CE",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/seretide_real.jpg",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/seretide_real.jpg",
 	},
 	{
 		id: "Ultibro_Breezhaler",
 		name: "昂滋 (Ultibro Breezhaler)",
 		spec: "Breezhaler 30 dose",
 		deviceType: "DPI 膠囊吸入",
-		colorShape: "🟢 藍白色・膠囊雙側按鈕",
+		colorShape: "藍白色・膠囊雙側按鈕",
 		technique: "口訣：刺孔後快深吸・有嗡嗡聲",
 		hasIcs: false,
 		color: "#0F766E",
-		imageUrl: "https://inhaler-coach.vercel.app/drugs/breezhaler_real.jpg",
+		imageUrl: "https://inhaler-coach-pink.vercel.app/drugs/breezhaler_real.jpg",
 	},
 ];
 
 function buildDrugPhotoBubble(drug) {
-	const imageUrl =
+	const rawUrl =
 		drug.imageUrl ||
 		drug.image_url ||
-		"https://inhaler-coach.vercel.app/drugs/rapihaler.png";
+		"https://inhaler-coach-pink.vercel.app/drugs/rapihaler.png";
+	const imageUrl = rawUrl.replace(
+		"https://inhaler-coach.vercel.app",
+		"https://inhaler-coach-pink.vercel.app",
+	);
 	const deviceType = drug.deviceType || drug.type || "MDI 定量噴霧";
 	const hasIcs = Boolean(drug.hasIcs ?? drug.ICS);
 	const color = drug.color || "#0D9488";

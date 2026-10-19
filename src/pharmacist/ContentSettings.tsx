@@ -37,6 +37,48 @@ import { Button, Input } from "./components/ui";
 
 type ActiveTab = "drugs" | "videos" | "quizzes";
 
+/**
+ * 藥品圖片預覽元件
+ *
+ * 1. 網址正規化：若網址為舊網域 (inhaler-coach.vercel.app/drugs/...) 或當前網域，
+ *    自動轉換為相對路徑 /drugs/...，直接由當前 host 讀取，避免跨網域 404 與憑證問題。
+ * 2. 徹底防閃爍／死循環：若圖片讀取失敗，以 React state 記錄錯誤並平順切換至 Icon 佔位符，
+ *    絕不於 onError 中重設 src 造成無限輪迴閃爍。
+ */
+function DrugImagePreview({ src, alt }: { src?: string; alt?: string }) {
+	const [hasError, setHasError] = useState(false);
+
+	const resolvedSrc = src
+		? src.replace(/^https?:\/\/(inhaler-coach|inhaler-coach-pink)\.vercel\.app/, "")
+		: "";
+
+	useEffect(() => {
+		setHasError(false);
+	}, [src]);
+
+	if (!resolvedSrc || hasError) {
+		return (
+			<div className="flex h-full w-full flex-col items-center justify-center bg-slate-100 p-2 text-center text-slate-400 select-none">
+				<Pill className="mb-1 h-7 w-7 text-slate-300" aria-hidden="true" />
+				<span className="text-[10px] font-medium leading-tight text-slate-400">
+					{src ? "圖片無法載入" : "尚未設定圖片"}
+				</span>
+			</div>
+		);
+	}
+
+	return (
+		<img
+			src={resolvedSrc}
+			alt={alt || "藥品外觀"}
+			className="h-full w-full object-cover"
+			onError={() => {
+				setHasError(true);
+			}}
+		/>
+	);
+}
+
 export function ContentSettings() {
 	const [activeTab, setActiveTab] = useState<ActiveTab>("drugs");
 	const [loading, setLoading] = useState(true);
@@ -119,7 +161,7 @@ export function ContentSettings() {
 			deviceType: "MDI 定量噴霧",
 			colorShape: "外觀顏色特徵",
 			technique: "口訣：",
-			imageUrl: "https://inhaler-coach.vercel.app/drugs/rapihaler.png",
+			imageUrl: "/drugs/rapihaler.png",
 			hasIcs: false,
 			enabled: true,
 		};
@@ -484,15 +526,7 @@ export function ContentSettings() {
 									<div className="flex items-start gap-4">
 										{/* Photo Preview */}
 										<div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-md border border-border bg-slate-100">
-											<img
-												src={drug.imageUrl}
-												alt={drug.name}
-												className="h-full w-full object-cover"
-												onError={(e) => {
-													(e.target as HTMLImageElement).src =
-														"https://inhaler-coach.vercel.app/drugs/rapihaler.png";
-												}}
-											/>
+											<DrugImagePreview src={drug.imageUrl} alt={drug.name} />
 										</div>
 
 										{/* Primary Fields */}
