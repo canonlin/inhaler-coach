@@ -17,6 +17,7 @@ export const TABS = [
 	{ path: undefined, label: "收案評估", end: "收案評估" },
 	{ path: "followups", label: "追蹤清單", end: "追蹤清單" },
 	{ path: "outcomes", label: "成效", end: "成效" },
+	{ path: "settings", label: "衛教內容", end: "衛教內容" },
 ] as const satisfies readonly TabDef[];
 
 export type TabPath = (typeof TABS)[number]["path"];

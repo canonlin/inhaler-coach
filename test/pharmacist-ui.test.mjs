@@ -216,7 +216,7 @@ describe("pharmacist tabs", () => {
 		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
 			n.map((x) => x.textContent.trim()),
 		);
-		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效"]);
+		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效", "衛教內容"]);
 		assert.equal(
 			await page.$$eval(NAV, (n) => n.length),
 			1,
@@ -326,6 +326,15 @@ describe("pharmacist tabs", () => {
 		// should not restate either.
 		assert.doesNotMatch(rest, /追蹤完成率/);
 		assert.doesNotMatch(rest, /近 7 天活躍/);
+	});
+
+	it("shows the education content management inside the pharmacist app", async () => {
+		await page.click(`${NAV} a:has-text("衛教內容")`);
+		await page.waitForSelector("[data-testid=content-settings]", {
+			timeout: 15_000,
+		});
+		assert.equal((await page.textContent("h1"))?.trim(), "衛教內容");
+		assert.equal(await page.$$eval(NAV, (n) => n.length), 1);
 	});
 
 	/*

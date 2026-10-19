@@ -9,7 +9,20 @@
  * 變更後即時寫入 DB (admin_config)，LINE Bot Webhook 與卡片將即時讀取最新內容生效。
  */
 
-import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import {
+	AlertCircle,
+	Check,
+	CheckCircle2,
+	Eye,
+	EyeOff,
+	HelpCircle,
+	Pill,
+	Plus,
+	RotateCw,
+	Save,
+	Trash2,
+	Video,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
 	type AdminConfigResponse,
@@ -73,7 +86,7 @@ export function ContentSettings() {
 			await saveAdminConfig(section, dataToSave, "雲林分院藥劑部管理員");
 			setStatusMessage({
 				type: "success",
-				text: `✅ ${getTabLabel(section)}已成功儲存！LINE Bot 將即時套用最新設定。`,
+				text: `${getTabLabel(section)}已成功儲存！LINE Bot 將即時套用最新設定。`,
 			});
 			setTimeout(() => setStatusMessage(null), 4000);
 		} catch (err) {
@@ -274,16 +287,15 @@ export function ContentSettings() {
 	const inactiveQuizCount = quizCount - activeQuizCount;
 
 	return (
-		<div className="space-y-6 p-6">
+		<div data-testid="content-settings" className="space-y-6">
 			{/* Top Header */}
 			<div className="flex flex-col gap-2 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="text-2xl font-bold tracking-tight text-primary">
-						LINE 衛教內容與素材上稿中心
-					</h1>
-					<p className="text-sm text-text-muted">
-						雲林分院專屬後台：支援隨時新增上稿、修改資訊，以及一鍵「上架／下架」衛教卡片，即時於
-						LINE Bot 生效。
+					<h2 className="text-xl font-bold tracking-tight text-primary">
+						LINE 衛教素材管理與上稿
+					</h2>
+					<p className="mt-1 text-sm text-text-secondary">
+						雲林分院專屬後台：隨時新增上稿、修改圖文、一鍵上架／下架，變更將即時同步於 LINE 官方帳號。
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
@@ -293,6 +305,7 @@ export function ContentSettings() {
 						onClick={loadConfig}
 						disabled={loading || saving}
 					>
+						<RotateCw className="mr-1.5 h-4 w-4" />
 						重新載入
 					</Button>
 					<Button
@@ -301,6 +314,7 @@ export function ContentSettings() {
 						onClick={() => handleSave(activeTab)}
 						disabled={loading || saving}
 					>
+						<Save className="mr-1.5 h-4 w-4" />
 						{saving ? "儲存中..." : `儲存${getTabLabel(activeTab)}`}
 					</Button>
 				</div>
@@ -309,13 +323,18 @@ export function ContentSettings() {
 			{/* Status Banner */}
 			{statusMessage && (
 				<div
-					className={`rounded-md p-4 text-sm font-medium ${
+					className={`flex items-center gap-2.5 rounded-md p-4 text-sm font-medium ${
 						statusMessage.type === "success"
 							? "border border-emerald-300 bg-emerald-50 text-emerald-800"
 							: "border border-rose-300 bg-rose-50 text-rose-800"
 					}`}
 				>
-					{statusMessage.text}
+					{statusMessage.type === "success" ? (
+						<CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+					) : (
+						<AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+					)}
+					<span>{statusMessage.text}</span>
 				</div>
 			)}
 
@@ -327,18 +346,30 @@ export function ContentSettings() {
 							key={tab}
 							type="button"
 							onClick={() => setActiveTab(tab)}
-							className={`border-b-2 px-4 py-2.5 text-base font-semibold transition-colors ${
+							className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-base font-semibold transition-colors ${
 								activeTab === tab
 									? "border-primary text-primary"
 									: "border-transparent text-text-secondary hover:text-text"
 							}`}
 						>
-							{tab === "drugs" &&
-								`💊 藥品實物卡片 (${activeDrugCount}/${drugCount})`}
-							{tab === "videos" &&
-								`📹 衛教示範短片 (${activeVideoCount}/${videoCount})`}
-							{tab === "quizzes" &&
-								`✍️ 隨堂測驗題庫 (${activeQuizCount}/${quizCount})`}
+							{tab === "drugs" && (
+								<>
+									<Pill className="h-4 w-4" />
+									<span>藥品實物卡片 ({activeDrugCount}/{drugCount})</span>
+								</>
+							)}
+							{tab === "videos" && (
+								<>
+									<Video className="h-4 w-4" />
+									<span>衛教示範短片 ({activeVideoCount}/{videoCount})</span>
+								</>
+							)}
+							{tab === "quizzes" && (
+								<>
+									<HelpCircle className="h-4 w-4" />
+									<span>隨堂測驗題庫 ({activeQuizCount}/{quizCount})</span>
+								</>
+							)}
 						</button>
 					))}
 				</div>
@@ -363,12 +394,14 @@ export function ContentSettings() {
 							<div className="flex items-center gap-2 text-xs text-text-muted">
 								<span>總共 {drugCount} 筆</span>
 								<span>•</span>
-								<span className="font-semibold text-emerald-700">
-									🟢 已上架 {activeDrugCount} 筆 (LINE 端輪播顯示，上限 10 筆)
+								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									已上架 {activeDrugCount} 筆 (LINE 端輪播顯示，上限 10 筆)
 								</span>
 								<span>•</span>
-								<span className="text-slate-500">
-									⚪ 已下架 {inactiveDrugCount} 筆
+								<span className="inline-flex items-center gap-1.5 text-slate-500">
+									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									已下架 {inactiveDrugCount} 筆
 								</span>
 							</div>
 						</div>
@@ -541,7 +574,7 @@ export function ContentSettings() {
 													next[index] = { ...drug, colorShape: e.target.value };
 													setConfig({ ...config, drugs: next });
 												}}
-												placeholder="例如：🔴 紅白色・L型噴罐"
+												placeholder="例如：紅白色・L型噴罐"
 											/>
 										</div>
 
@@ -594,12 +627,14 @@ export function ContentSettings() {
 							<div className="flex items-center gap-2 text-xs text-text-muted">
 								<span>總共 {videoCount} 部</span>
 								<span>•</span>
-								<span className="font-semibold text-emerald-700">
-									🟢 已上架 {activeVideoCount} 部 (長輩點選影片時播放)
+								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									已上架 {activeVideoCount} 部 (長輩點選影片時播放)
 								</span>
 								<span>•</span>
-								<span className="text-slate-500">
-									⚪ 已下架 {inactiveVideoCount} 部
+								<span className="inline-flex items-center gap-1.5 text-slate-500">
+									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									已下架 {inactiveVideoCount} 部
 								</span>
 							</div>
 						</div>
@@ -780,12 +815,14 @@ export function ContentSettings() {
 							<div className="flex items-center gap-2 text-xs text-text-muted">
 								<span>總共 {quizCount} 題</span>
 								<span>•</span>
-								<span className="font-semibold text-emerald-700">
-									🟢 已上架 {activeQuizCount} 題 (LINE 端隨堂測驗開放)
+								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									已上架 {activeQuizCount} 題 (LINE 端隨堂測驗開放)
 								</span>
 								<span>•</span>
-								<span className="text-slate-500">
-									⚪ 已下架 {inactiveQuizCount} 題
+								<span className="inline-flex items-center gap-1.5 text-slate-500">
+									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									已下架 {inactiveQuizCount} 題
 								</span>
 							</div>
 						</div>
@@ -981,9 +1018,14 @@ export function ContentSettings() {
 																				: "bg-surface-muted text-text-muted hover:bg-surface-border"
 																		}`}
 																	>
-																		{q.correctAnswer === opt.id
-																			? "✓ 正確解答"
-																			: "設為正解"}
+																		{q.correctAnswer === opt.id ? (
+																			<span className="inline-flex items-center gap-1">
+																				<Check className="h-3.5 w-3.5" />
+																				正確解答
+																			</span>
+																		) : (
+																			"設為正解"
+																		)}
 																	</button>
 																	<button
 																		type="button"

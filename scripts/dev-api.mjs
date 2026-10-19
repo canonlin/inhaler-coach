@@ -33,6 +33,8 @@ const ROUTES = {
 	"POST /api/line/send": "lineSend",
 	"POST /api/line/event": "lineEvent",
 	"GET /api/line/engagement": "lineEngagement",
+	"GET /api/admin/config": "getAdminConfig",
+	"POST /api/admin/config": "updateAdminConfig",
 };
 
 const port = Number(process.env.PORT ?? 4183);

@@ -12,15 +12,28 @@
  * navigation is how back offices surface work, and leaving it in the list page
  * means finding out there is a queue only by going to look.
  */
+import {
+	BarChart3,
+	BookOpen,
+	ClipboardCheck,
+	ListTodo,
+} from "lucide-react";
+import type { ElementType } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { TABS } from "./tabs";
 import { useFollowupCount } from "./useFollowups";
 
+const TAB_ICONS: Record<string, ElementType> = {
+	收案評估: ClipboardCheck,
+	追蹤清單: ListTodo,
+	成效: BarChart3,
+	衛教內容: BookOpen,
+};
+
 /** Label of the section the current route belongs to, for the top bar. */
 export function sectionFor(pathname: string): string {
 	const tail = pathname.replace(/\/+$/, "");
-	if (tail.endsWith("/settings")) return "衛教內容設定";
 	const hit = [...TABS]
 		.reverse()
 		.find((t) => t.path && tail.endsWith(`/${t.path}`));
@@ -50,6 +63,7 @@ export function SideNav() {
 					{TABS.map((t) => {
 						const to = t.path ? `/admin/${t.path}` : "/admin";
 						const badge = t.path === "followups" ? openCount : null;
+						const Icon = TAB_ICONS[t.label];
 						return (
 							<li key={t.label}>
 								<NavLink
@@ -64,7 +78,15 @@ export function SideNav() {
 										)
 									}
 								>
-									<span>{t.label}</span>
+									<span className="flex items-center gap-2.5">
+										{Icon && (
+											<Icon
+												className="h-4 w-4 shrink-0 text-current"
+												aria-hidden="true"
+											/>
+										)}
+										{t.label}
+									</span>
 									{badge != null && badge > 0 && (
 										<span
 											data-testid="queue-count"
@@ -83,22 +105,6 @@ export function SideNav() {
 					})}
 				</ul>
 			</nav>
-
-			<div className="border-t border-border-subtle p-3">
-				<NavLink
-					to="/admin/settings"
-					className={({ isActive }) =>
-						cn(
-							"flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2.5 text-base font-semibold transition-colors",
-							isActive
-								? "bg-primary-soft text-primary"
-								: "text-text-secondary hover:bg-surface-muted hover:text-text",
-						)
-					}
-				>
-					<span>⚙️ 衛教內容設定</span>
-				</NavLink>
-			</div>
 		</aside>
 	);
 }
