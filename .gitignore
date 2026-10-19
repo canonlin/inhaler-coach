@@ -22,3 +22,4 @@ public/ort/
 public/mediapipe/
 public/models/mediapipe/
 
+.env*
