@@ -132,24 +132,61 @@ async function getDynamicConfig(query, key, fallback) {
 	return fallback;
 }
 
+function findActiveVideo(videos, deviceType) {
+	if (!videos) return null;
+	const activeVideos = Array.isArray(videos)
+		? videos.filter((v) => v.enabled !== false && v.status !== "inactive")
+		: [];
+	return (
+		activeVideos.find(
+			(v) =>
+				v.type === deviceType ||
+				v.device === deviceType ||
+				v.deviceType === deviceType,
+		) || activeVideos[0]
+	);
+}
+
+function findActiveQuiz(quizData, deviceType) {
+	if (!quizData) return null;
+	const list = quizData[deviceType];
+	if (Array.isArray(list)) {
+		return list.find((q) => q.enabled !== false && q.status !== "inactive");
+	}
+	if (list && list.enabled !== false && list.status !== "inactive") {
+		return list;
+	}
+	return null;
+}
+
 async function routeTextMessage(text, lineUserId, query) {
 	if (/選藥|我的吸入劑|報到|開始選擇/i.test(text)) {
 		const drugs = await getDynamicConfig(query, "drugs", null);
 		return buildDrugSelectCarousel(drugs);
 	}
 	if (/操作影片|影片|教學|看影片/i.test(text)) {
-		const deviceType = await lookupPatientDevice(query, lineUserId);
+		const deviceType = (await lookupPatientDevice(query, lineUserId)) || "MDI";
 		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = Array.isArray(videos)
-			? videos.find((v) => v.type === deviceType || v.device === deviceType)
-			: videos?.[deviceType];
-		return buildVideoCardFlex({ deviceType: deviceType || "MDI", videoInfo });
+		const videoInfo = findActiveVideo(videos, deviceType);
+		if (!videoInfo && Array.isArray(videos) && videos.length > 0) {
+			return {
+				type: "text",
+				text: "目前該衛教影片正在更新調整中，暫停播放。如有任何操作疑問，歡迎直接點選『諮詢藥師』由雲林分院藥師為您說明！",
+			};
+		}
+		return buildVideoCardFlex({ deviceType, videoInfo });
 	}
 	if (/隨堂測驗|測驗|考試|自我測驗/i.test(text)) {
-		const deviceType = await lookupPatientDevice(query, lineUserId);
+		const deviceType = (await lookupPatientDevice(query, lineUserId)) || "MDI";
 		const quizData = await getDynamicConfig(query, "quizzes", quizzes);
-		const quizInfo = quizData?.[deviceType]?.[0] || quizData?.[deviceType];
-		return buildQuizCardFlex({ deviceType: deviceType || "MDI", quizInfo });
+		const quizInfo = findActiveQuiz(quizData, deviceType);
+		if (!quizInfo && quizData?.[deviceType]) {
+			return {
+				type: "text",
+				text: "目前該裝置隨堂測驗題目正在由藥師調整更新中，稍後將重新開放，謝謝您的耐心配合！",
+			};
+		}
+		return buildQuizCardFlex({ deviceType, quizInfo });
 	}
 	if (/回診|回診提醒/i.test(text)) {
 		return buildClinicReminderFlex();
@@ -227,9 +264,7 @@ async function routePostback(params, patientId, query) {
 		}
 		await persistMedications(patientId, query, drug, hasRescue);
 		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = Array.isArray(videos)
-			? videos.find((v) => v.type === drug.type || v.device === drug.type)
-			: videos?.[drug.type];
+		const videoInfo = findActiveVideo(videos, drug.type);
 		return [
 			buildDualTagProfileFlex({ drug, hasRescue }),
 			buildVideoCardFlex({ deviceType: drug.type, videoInfo }),
@@ -238,15 +273,25 @@ async function routePostback(params, patientId, query) {
 	if (action === "view_video") {
 		const deviceType = params.get("type") || "MDI";
 		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = Array.isArray(videos)
-			? videos.find((v) => v.type === deviceType || v.device === deviceType)
-			: videos?.[deviceType];
+		const videoInfo = findActiveVideo(videos, deviceType);
+		if (!videoInfo && Array.isArray(videos) && videos.length > 0) {
+			return {
+				type: "text",
+				text: "目前該衛教影片正在更新調整中，暫停播放。如有任何操作疑問，歡迎直接點選『諮詢藥師』由雲林分院藥師為您說明！",
+			};
+		}
 		return buildVideoCardFlex({ deviceType, videoInfo });
 	}
 	if (action === "start_quiz") {
 		const deviceType = params.get("type") || "MDI";
 		const quizData = await getDynamicConfig(query, "quizzes", quizzes);
-		const quizInfo = quizData?.[deviceType]?.[0] || quizData?.[deviceType];
+		const quizInfo = findActiveQuiz(quizData, deviceType);
+		if (!quizInfo && quizData?.[deviceType]) {
+			return {
+				type: "text",
+				text: "目前該裝置隨堂測驗題目正在由藥師調整更新中，稍後將重新開放，謝謝您的耐心配合！",
+			};
+		}
 		return buildQuizCardFlex({ deviceType, quizInfo });
 	}
 	if (action === "quiz_answer") {
@@ -342,4 +387,3 @@ export default async function handler(req, res) {
 	const { default: indexHandler } = await import("../index.mjs");
 	return indexHandler(req, res);
 }
-

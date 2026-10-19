@@ -351,19 +351,24 @@ export interface AdminDrugCard {
 	imageUrl: string;
 	technique?: string;
 	quickTip?: string;
+	enabled?: boolean;
+	status?: string;
 }
 
 export interface AdminVideoConfig {
 	id?: string;
 	type?: string;
 	scope?: string;
-	deviceType: string;
+	device?: string;
+	deviceType?: string;
 	title: string;
 	duration?: string;
 	videoUrl: string;
 	embedUrl?: string;
-	steps?: string[];
+	steps?: string | string[];
 	description?: string;
+	enabled?: boolean;
+	status?: string;
 }
 
 export interface AdminQuizOption {
@@ -378,6 +383,8 @@ export interface AdminQuizQuestion {
 	answer?: number;
 	correctAnswer?: string;
 	explanation: string;
+	enabled?: boolean;
+	status?: string;
 }
 
 export interface AdminConfigResponse {

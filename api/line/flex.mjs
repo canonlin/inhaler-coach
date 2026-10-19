@@ -294,16 +294,27 @@ function buildDrugPhotoBubble(drug) {
 
 /** 2. 全藥品實物圖片輪播卡片 (Photo Carousel) - 直覺指認實物外觀 */
 export function buildDrugSelectCarousel(drugsList) {
-	const list =
+	const source =
 		Array.isArray(drugsList) && drugsList.length > 0
 			? drugsList
 			: CLINICAL_DRUG_CARDS;
+	const activeList = source
+		.filter((d) => d.enabled !== false && d.status !== "inactive")
+		.slice(0, 10);
+
+	if (activeList.length === 0) {
+		return {
+			type: "text",
+			text: "目前藥品清單正在維護更新中，請稍候再試或直接向雲林分院藥師諮詢。",
+		};
+	}
+
 	return {
 		type: "flex",
 		altText: "請左右滑動照片，點選與您手中一模一樣的吸入劑",
 		contents: {
 			type: "carousel",
-			contents: list.map(buildDrugPhotoBubble),
+			contents: activeList.map(buildDrugPhotoBubble),
 		},
 	};
 }

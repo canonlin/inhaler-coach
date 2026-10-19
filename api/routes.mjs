@@ -14,6 +14,7 @@ import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
 import { hashMrn, mrnTail } from "./db.mjs";
+import { CLINICAL_DRUG_CARDS } from "./line/flex.mjs";
 import { makeLineService } from "./line/service.mjs";
 import {
 	createLiveTransport,
@@ -781,7 +782,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		const defaults = {
 			videos: loadDefaultJson("../src/line/data/videos.json") ?? [],
 			quizzes: loadDefaultJson("../src/line/data/quizzes.json") ?? {},
-			drugs: loadDefaultJson("../src/line/data/drugs.json") ?? [],
+			drugs: CLINICAL_DRUG_CARDS,
 		};
 
 		try {
