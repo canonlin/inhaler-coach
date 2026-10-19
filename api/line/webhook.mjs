@@ -337,3 +337,9 @@ async function lookupPatientDevice(query, lineUserId) {
 		return "MDI";
 	}
 }
+
+export default async function handler(req, res) {
+	const { default: indexHandler } = await import("../index.mjs");
+	return indexHandler(req, res);
+}
+

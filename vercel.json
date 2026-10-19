@@ -26,11 +26,11 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "/api/index.mjs?__path=/api/:match*"
+      "destination": "/api?__path=/api/:match*"
     },
     {
-      "source": "/((?!api/|drugs/|mediapipe/|models/|ort/|assets/|favicon\\.ico).*)",
-      "destination": "/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index"
     }
   ]
 }

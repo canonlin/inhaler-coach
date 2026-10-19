@@ -57,18 +57,25 @@ const ROUTES = {
 };
 
 function getNormalizedPath(req) {
-	const xForwardedUri = req.headers?.["x-forwarded-uri"];
-	if (xForwardedUri) return xForwardedUri.split("?")[0];
-
-	const xMatchedPath = req.headers?.["x-matched-path"];
-	if (xMatchedPath && !xMatchedPath.endsWith(".mjs"))
-		return xMatchedPath.split("?")[0];
-
 	const urlObj = new URL(req.url ?? "/", "http://localhost");
 	const pathParam =
 		urlObj.searchParams.get("__path") || urlObj.searchParams.get("path");
 	if (pathParam) {
 		return pathParam.startsWith("/api") ? pathParam : `/api/${pathParam}`;
+	}
+
+	const xForwardedUri = req.headers?.["x-forwarded-uri"];
+	if (xForwardedUri && xForwardedUri !== "/api" && xForwardedUri !== "/api/") {
+		return xForwardedUri.split("?")[0];
+	}
+
+	const xMatchedPath = req.headers?.["x-matched-path"];
+	if (
+		xMatchedPath &&
+		!xMatchedPath.endsWith(".mjs") &&
+		xMatchedPath !== "/api"
+	) {
+		return xMatchedPath.split("?")[0];
 	}
 
 	return (req.url ?? "").split("?")[0];
