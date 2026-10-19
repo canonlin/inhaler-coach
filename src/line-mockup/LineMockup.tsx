@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { ClinicalMetricsCockpit } from "./ClinicalMetricsCockpit";
 import { FlexHarness } from "./FlexHarness";
 import {
 	createDrugSelectCarousel,
@@ -1118,6 +1119,9 @@ export function LineMockup() {
 					{/* RIGHT COLUMN: Pharmacist Discussion Cockpit & Clinical Notes               */}
 					{/* ========================================================================= */}
 					<div className="space-y-6">
+						{/* Clinical Metrics & Scene Division Cockpit for Pharmacist Meeting */}
+						<ClinicalMetricsCockpit />
+
 						{/* 1. Clinical Drug Selector & Photo Carousel Inspector */}
 						<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
 							<div className="flex items-center justify-between mb-3">
