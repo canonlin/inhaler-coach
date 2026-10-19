@@ -50,6 +50,7 @@ const ROUTES = {
 	"POST /api/line/journeys": "lineJourneys",
 	"POST /api/line/send": "lineSend",
 	"POST /api/line/event": "lineEvent",
+	"POST /api/line/webhook": "lineEvent",
 	"GET /api/line/engagement": "lineEngagement",
 	"GET /api/admin/config": "getAdminConfig",
 	"POST /api/admin/config": "updateAdminConfig",
