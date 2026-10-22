@@ -13,7 +13,9 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
-await page.goto(`http://localhost:${PORT}/pharmacist`, { waitUntil: "networkidle" });
+await page.goto(`http://localhost:${PORT}/pharmacist`, {
+	waitUntil: "networkidle",
+});
 
 await page.click('.rx-tabs button:has-text("追蹤清單")');
 await page.waitForSelector(".fu-bar");
@@ -45,12 +47,21 @@ const queue = await page.evaluate(() => ({
 	rows: document.querySelectorAll(".ck-table tbody tr").length,
 	selectsInTable: document.querySelectorAll(".ck-table select").length,
 	selectsOnPage: document.querySelectorAll("select").length,
-	controls: document.querySelectorAll(".ck-table button").length + document.querySelectorAll("select").length,
+	controls:
+		document.querySelectorAll(".ck-table button").length +
+		document.querySelectorAll("select").length,
 }));
 
 console.log(
 	JSON.stringify(
-		{ followupsToday: today, followupsAll: all, failingSteps: failing, allSteps: withClean, queue, errors },
+		{
+			followupsToday: today,
+			followupsAll: all,
+			failingSteps: failing,
+			allSteps: withClean,
+			queue,
+			errors,
+		},
 		null,
 		2,
 	),

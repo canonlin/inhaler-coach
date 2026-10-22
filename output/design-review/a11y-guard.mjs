@@ -261,9 +261,3 @@ if (!findings.length) {
 	}
 }
 process.exit(findings.length ? 1 : 0);
-
-// The evaluate body needs to return its object; kept separate so the rule
-// checks above stay readable.
-function out_findings_placeholder(o) {
-	return o;
-}

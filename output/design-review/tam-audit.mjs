@@ -32,16 +32,22 @@ out.caseEntry_no_session = await page.evaluate(() => ({
 await page.click('.drug-pick .chip:has-text("Symbicort")');
 await page.waitForSelector(".checklist");
 out.caseEntry_after_drug = await page.evaluate(() => ({
-	manualSteps: [...document.querySelectorAll(".checklist .ck .ck-char")].map((n) => n.textContent.trim()),
+	manualSteps: [...document.querySelectorAll(".checklist .ck .ck-char")].map(
+		(n) => n.textContent.trim(),
+	),
 	questions: document.querySelectorAll(".kq li").length,
 	knowledgeCorrect: document.querySelectorAll(".kq button").length / 2,
-	stepControls: document.querySelectorAll(".checklist button, .checklist input").length,
+	stepControls: document.querySelectorAll(".checklist button, .checklist input")
+		.length,
 	aiBlock: Boolean(document.querySelector(".ai-list")),
 	saveDisabled: document.querySelector(".btn-primary")?.disabled,
 	saveLabel: document.querySelector(".btn-primary")?.textContent.trim(),
 	progress: document.querySelector(".rx-progress")?.textContent.trim(),
 }));
-await page.screenshot({ path: "output/design-review/tam-entry-nodata.png", fullPage: true });
+await page.screenshot({
+	path: "output/design-review/tam-entry-nodata.png",
+	fullPage: true,
+});
 
 // ── 追蹤清單 ──────────────────────────────────────────────────────────────
 await page.click('.rx-tabs button:has-text("追蹤清單")');
@@ -51,15 +57,22 @@ out.followups = await page.evaluate(() => {
 	return {
 		rows: rows.length,
 		controlsPerRow: rows[0].querySelectorAll("select,button").length,
-		totalControls: document.querySelectorAll(".ck-table select,.ck-table button").length,
+		totalControls: document.querySelectorAll(
+			".ck-table select,.ck-table button",
+		).length,
 		overdue: rows.filter((r) => r.className === "overdue").length,
 		dueSoon: rows.filter((r) => r.className === "soon").length,
-		distinctTasks: [...new Set(rows.map((r) => r.children[3].textContent.trim()))],
-		filters: document.querySelectorAll(".rx-tabs ~ * select, .rx-tabs ~ * button").length,
-		grouping: document.querySelectorAll(".ck-table tbody tr").length ===
+		distinctTasks: [
+			...new Set(rows.map((r) => r.children[3].textContent.trim())),
+		],
+		filters: document.querySelectorAll(
+			".rx-tabs ~ * select, .rx-tabs ~ * button",
+		).length,
+		grouping:
+			document.querySelectorAll(".ck-table tbody tr").length ===
 			document.querySelectorAll("tbody").length
-			? "none"
-			: "multiple",
+				? "none"
+				: "multiple",
 	};
 });
 
@@ -67,7 +80,10 @@ out.followups = await page.evaluate(() => {
 await page.click('.rx-tabs button:has-text("成效")');
 await page.waitForSelector(".verdict");
 out.outcomes = await page.evaluate(() => ({
-	verdict: document.querySelector(".verdict-number")?.textContent.replace(/\s+/g, " ").trim(),
+	verdict: document
+		.querySelector(".verdict-number")
+		?.textContent.replace(/\s+/g, " ")
+		.trim(),
 	stepRows: document.querySelectorAll(".steps tbody tr").length,
 	stepRowsAtZero: [...document.querySelectorAll(".steps tbody tr")].filter(
 		(r) => r.textContent.includes("0 /"),

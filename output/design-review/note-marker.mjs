@@ -12,7 +12,7 @@
  * accepting it. So any element carrying the note class must also carry the
  * marker. This fails the build rather than the reader.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const NOTE_CLASS = "border-t border-border";
@@ -52,8 +52,8 @@ for (const file of files) {
 		const body = lines
 			.slice(i + 1, i + 16)
 			.join(" ")
-			.replace(/\{[\s\S]*?\*\/\}/g, "")          // JSX comments
-			.replace(/<[^>]*>/g, "")                         // tags
+			.replace(/\{[\s\S]*?\*\/\}/g, "") // JSX comments
+			.replace(/<[^>]*>/g, "") // tags
 			.replace(/\s+/g, " ")
 			.trim();
 		const firstText = body;
@@ -61,9 +61,10 @@ for (const file of files) {
 			findings.push({
 				file,
 				line: i + 1,
-				detail: `a note does not open with ${MARKER} — it reads as `
-					+ `body text, or as a typo in the copy. First line is: `
-					+ `${firstText ? firstText.slice(0, 40) : "(empty)"}`,
+				detail:
+					`a note does not open with ${MARKER} — it reads as ` +
+					`body text, or as a typo in the copy. First line is: ` +
+					`${firstText ? firstText.slice(0, 40) : "(empty)"}`,
 			});
 		}
 	});

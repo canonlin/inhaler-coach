@@ -7,7 +7,9 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
 
 await page.goto(`${BASE}/line-mockup`, { waitUntil: "networkidle" });
 await page.waitForTimeout(700);
-await page.screenshot({ path: "output/design-review/shot-line-1-register.png" });
+await page.screenshot({
+	path: "output/design-review/shot-line-1-register.png",
+});
 
 // Journey quiz scenario links out to the real page; shoot the page itself.
 await page.goto(`${BASE}/line/quiz`, { waitUntil: "networkidle" });

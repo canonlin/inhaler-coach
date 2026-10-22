@@ -15,7 +15,9 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
-await page.goto(`http://localhost:${PORT}/pharmacist`, { waitUntil: "networkidle" });
+await page.goto(`http://localhost:${PORT}/pharmacist`, {
+	waitUntil: "networkidle",
+});
 await page.click('.rx-tabs button:has-text("成效")');
 await page.waitForSelector(".funnel-chain", { timeout: 15_000 });
 await page.waitForTimeout(400);
@@ -30,6 +32,9 @@ const read = await page.evaluate(() => ({
 	active: [...document.querySelectorAll(".hint")].pop()?.textContent.trim(),
 }));
 
-await page.screenshot({ path: "output/design-review/engagement.png", fullPage: true });
+await page.screenshot({
+	path: "output/design-review/engagement.png",
+	fullPage: true,
+});
 console.log(JSON.stringify({ read, errors }, null, 2));
 await browser.close();

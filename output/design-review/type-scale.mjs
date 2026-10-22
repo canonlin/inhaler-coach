@@ -45,7 +45,14 @@ const SIZE_CLASS = /text-(?:\[[0-9.]+[a-z]*\]|(?:xs|sm|base|lg|xl|[2-9]xl))\b/g;
 
 /** Where content is allowed to be small, and where it may be large. */
 const SMALL_OK = new Set(["text-meta", "text-caption", "text-sm"]);
-const LARGE_OK = new Set(["text-xl", "text-metric", "text-2xl", "text-3xl", "text-4xl", "text-hero"]);
+const LARGE_OK = new Set([
+	"text-xl",
+	"text-metric",
+	"text-2xl",
+	"text-3xl",
+	"text-4xl",
+	"text-hero",
+]);
 
 /** Lines that are explicitly labels, counts or hints rather than content. */
 const SMALL_EXEMPT = [
@@ -68,63 +75,71 @@ const findings = [];
 
 for (const root of ROOTS) {
 	for (const file of walk(root)) {
-	const lines = fs.readFileSync(file, "utf8").split("\n");
+		const lines = fs.readFileSync(file, "utf8").split("\n");
 
-	lines.forEach((line, i) => {
-		const code = line.replace(/\/\/.*$/, "");
-		if (!code.trim()) return;
-		if (SMALL_EXEMPT.some((re) => re.test(line))) return;
+		lines.forEach((line, i) => {
+			const code = line.replace(/\/\/.*$/, "");
+			if (!code.trim()) return;
+			if (SMALL_EXEMPT.some((re) => re.test(line))) return;
 
-		for (const m of code.matchAll(SIZE_CLASS)) {
-			const cls = m[0];
+			for (const m of code.matchAll(SIZE_CLASS)) {
+				const cls = m[0];
 
-			// Rule 1: hand-typed sizes.
-			if (cls.startsWith("text-[")) {
-				findings.push({
-					kind: "arbitrary size",
-					file,
-					line: i + 1,
-					cls,
-					why: "font size must come from the scale in style.css",
-				});
-				continue;
+				// Rule 1: hand-typed sizes.
+				if (cls.startsWith("text-[")) {
+					findings.push({
+						kind: "arbitrary size",
+						file,
+						line: i + 1,
+						cls,
+						why: "font size must come from the scale in style.css",
+					});
+					continue;
+				}
+
+				if (!(cls in SCALE)) {
+					findings.push({
+						kind: "unknown size",
+						file,
+						line: i + 1,
+						cls,
+						why: "not a step in the type scale",
+					});
+					continue;
+				}
+
+				// Rule 2: content never below base. column heads and hints are the
+				// exception and they are marked by the caller via SMALL_EXEMPT.
+				if (
+					SCALE[cls] < 16 &&
+					!SMALL_OK.has(cls) &&
+					!/Th\b|Badge|caption|hint|legend/i.test(code)
+				) {
+					findings.push({
+						kind: "too small for content",
+						file,
+						line: i + 1,
+						cls,
+						why: `${SCALE[cls]}px — below the 16px floor for anything a pharmacist reads as content`,
+					});
+				}
+
+				// Rule 3: only metrics go large.
+				if (
+					SCALE[cls] > 18 &&
+					!LARGE_OK.has(cls) &&
+					!/metric|hero/i.test(code)
+				) {
+					findings.push({
+						kind: "too large for body",
+						file,
+						line: i + 1,
+						cls,
+						why: `${SCALE[cls]}px — above lg without a metric; this is how the placeholder outgrew the navigation`,
+					});
+				}
 			}
-
-			if (!(cls in SCALE)) {
-				findings.push({
-					kind: "unknown size",
-					file,
-					line: i + 1,
-					cls,
-					why: "not a step in the type scale",
-				});
-				continue;
-			}
-
-			// Rule 2: content never below base. column heads and hints are the
-			// exception and they are marked by the caller via SMALL_EXEMPT.
-			if (SCALE[cls] < 16 && !SMALL_OK.has(cls) && !/Th\b|Badge|caption|hint|legend/i.test(code)) {
-				findings.push({
-					kind: "too small for content",
-					file,
-					line: i + 1,
-					cls,
-					why: `${SCALE[cls]}px — below the 16px floor for anything a pharmacist reads as content`,
-				});
-			}
-
-			// Rule 3: only metrics go large.
-			if (SCALE[cls] > 18 && !LARGE_OK.has(cls) && !/metric|hero/i.test(code)) {
-				findings.push({
-					kind: "too large for body",
-					file,
-					line: i + 1,
-					cls,
-					why: `${SCALE[cls]}px — above lg without a metric; this is how the placeholder outgrew the navigation`,
-				});
-			}
-		}
-	});
+		});
 	}
 }
 

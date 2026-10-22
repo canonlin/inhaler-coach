@@ -16,7 +16,7 @@
  *
  * Run: node output/design-review/file-size.mjs
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = "src/line";
@@ -42,10 +42,13 @@ for (const file of walk(ROOT)) {
 }
 
 if (over.length === 0) {
-	console.log(`file size: all ${walk(ROOT).length} files fit in ${MAX_LINES} lines`);
+	console.log(
+		`file size: all ${walk(ROOT).length} files fit in ${MAX_LINES} lines`,
+	);
 	process.exit(0);
 }
 
 console.log(`${over.length} file(s) over the ${MAX_LINES}-line budget:\n`);
-for (const f of over) console.log(`  ${f.file}: ${f.lines} lines — split by responsibility`);
+for (const f of over)
+	console.log(`  ${f.file}: ${f.lines} lines — split by responsibility`);
 process.exit(1);

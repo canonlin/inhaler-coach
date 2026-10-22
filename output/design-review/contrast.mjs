@@ -60,7 +60,7 @@ const TEXT = 4.5;
 const NONTEXT = 3.0;
 
 /** [description, foreground, background, threshold] */
-function palette(name, scope) {
+function palette(scope) {
 	const p = (t) => token(t, scope);
 	return [
 		["主色當文字", p("primary"), WHITE, TEXT],
@@ -86,7 +86,7 @@ for (const [title, scope] of [
 	["病人端 / 全站", null],
 	["後台 (.surface-admin)", "surface-admin"],
 ]) {
-	const rows = palette(title, scope);
+	const rows = palette(scope);
 	console.log(`\n${title}`);
 	for (const [desc, fg, bg, need] of rows) {
 		const v = ratio(fg, bg);

@@ -1,81 +1,88 @@
 {
-  "buildCommand": "VITE_BASE=/ bun run build",
-  "functions": {
-    "api/**": {
-      "includeFiles": "src/line/data/*.json"
-    }
-  },
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "crons": [
-    {
-      "path": "/api/line/dispatch",
-      "schedule": "0 1 * * *"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*).wasm",
-      "headers": [
-        { "key": "Content-Type", "value": "application/wasm" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*).mjs",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript" }
-      ]
-    },
-    {
-      "source": "/models/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/((?!api/).*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=63072000; includeSubDomains"
-        }
-      ]
-    },
-    {
-      "source": "/admin",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; media-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:"
-        }
-      ]
-    },
-    {
-      "source": "/admin/(.*)",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; media-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:match*",
-      "destination": "/api?__path=/api/:match*"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index"
-    }
-  ]
+	"buildCommand": "VITE_BASE=/ bun run build",
+	"functions": {
+		"api/**": {
+			"includeFiles": "src/line/data/*.json"
+		}
+	},
+	"outputDirectory": "dist",
+	"cleanUrls": true,
+	"crons": [
+		{
+			"path": "/api/line/dispatch",
+			"schedule": "0 1 * * *"
+		}
+	],
+	"headers": [
+		{
+			"source": "/(.*).wasm",
+			"headers": [
+				{ "key": "Content-Type", "value": "application/wasm" },
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=31536000, immutable"
+				}
+			]
+		},
+		{
+			"source": "/(.*).mjs",
+			"headers": [{ "key": "Content-Type", "value": "application/javascript" }]
+		},
+		{
+			"source": "/models/(.*)",
+			"headers": [
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=31536000, immutable"
+				}
+			]
+		},
+		{
+			"source": "/((?!api/).*)",
+			"headers": [
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "X-Frame-Options", "value": "DENY" },
+				{
+					"key": "Referrer-Policy",
+					"value": "strict-origin-when-cross-origin"
+				},
+				{
+					"key": "Permissions-Policy",
+					"value": "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
+				},
+				{
+					"key": "Strict-Transport-Security",
+					"value": "max-age=63072000; includeSubDomains"
+				}
+			]
+		},
+		{
+			"source": "/admin",
+			"headers": [
+				{
+					"key": "Content-Security-Policy",
+					"value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; media-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:"
+				}
+			]
+		},
+		{
+			"source": "/admin/(.*)",
+			"headers": [
+				{
+					"key": "Content-Security-Policy",
+					"value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; media-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:"
+				}
+			]
+		}
+	],
+	"rewrites": [
+		{
+			"source": "/api/:match*",
+			"destination": "/api?__path=/api/:match*"
+		},
+		{
+			"source": "/((?!api/).*)",
+			"destination": "/index"
+		}
+	]
 }

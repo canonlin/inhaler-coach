@@ -33,7 +33,11 @@ const report = await page.evaluate((floor) => {
 		const cs = getComputedStyle(el);
 		const size = parseFloat(cs.fontSize);
 		if (size < floor) {
-			out.small.push({ text: text.slice(0, 30), size, cls: String(el.className).slice(0, 60) });
+			out.small.push({
+				text: text.slice(0, 30),
+				size,
+				cls: String(el.className).slice(0, 60),
+			});
 		}
 
 		// One client rect per rendered line box.

@@ -39,6 +39,15 @@ task left in the working tree is a finished task that can be lost or drift.
 Commit only what the task produced, never a credential and never PHI. Pushing
 is still the user's call.
 
+## Formatting
+
+**Biome is the format, and the gate enforces it.** `bun run format` writes it
+(`src/ api/ test/ scripts/ output/`); `bun run lint` checks the same set. Do
+not hand-format a file and do not hand-edit whitespace: an edited-by-hand file
+is a file that drifts, and the formatter is the only thing that keeps the
+repository consistent. The bundled third-party assets under `collector/assets/`
+are not ours to format.
+
 ## What this repository is
 
 `inhaler-coach` is the v2 work: a browser-only asthma/COPD inhaler-technique
