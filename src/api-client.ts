@@ -390,12 +390,21 @@ export interface AdminVideoConfig {
 	scope?: string;
 	device?: string;
 	deviceType?: string;
+	/** Which medicine this film teaches; empty means the device family. */
+	drugId?: string | null;
+	/** BCP-47 language of the film, e.g. zh-TW (國語), nan-TW (台語). */
+	lang?: string;
 	title: string;
 	duration?: string;
+	durationSeconds?: number;
 	videoUrl: string;
 	embedUrl?: string;
 	steps?: string | string[];
 	description?: string;
+	/** Who published the film: the society, a hospital, a pharmacist. */
+	source?: string;
+	sourceUrl?: string;
+	thumbnailUrl?: string;
 	enabled?: boolean;
 	status?: string;
 }

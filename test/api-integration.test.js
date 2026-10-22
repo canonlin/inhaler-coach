@@ -618,32 +618,58 @@ if (false) {
 		});
 
 		it("reads and updates admin configuration dynamically", async () => {
-			const initial = await api.getAdminConfig();
-			assert.equal(initial.ok, true);
-			assert.ok(Array.isArray(initial.config.videos));
-			assert.ok(Array.isArray(initial.config.drugs));
-			assert.ok(typeof initial.config.quizzes === "object");
+			// The published videos row is the pharmacist's own content and it
+			// overrides the seed the bot serves. A test that leaves its fixture
+			// behind would make the next run of the suite put a fake film in
+			// front of real patients, so the row is put back the way it was.
+			const before = await pool.query(
+				"SELECT config_value FROM admin_config WHERE config_key = 'videos'",
+			);
+			const restore = async () => {
+				if (before.rows.length) {
+					await pool.query(
+						"UPDATE admin_config SET config_value = $1 WHERE config_key = 'videos'",
+						// pg serialises a JS array as a Postgres array literal, which
+					// is not JSON: the value has to be stringified first.
+					[JSON.stringify(before.rows[0].config_value)],
+					);
+				} else {
+					await pool.query(
+						"DELETE FROM admin_config WHERE config_key = 'videos'",
+					);
+				}
+			};
 
-			// Update videos configuration
-			const updatedVideo = [
-				{
-					id: "TEST_MDI_1",
-					title: "測試專用操作教學",
-					type: "MDI",
-					videoUrl: "https://example.com/test-mdi.mp4",
-				},
-			];
-			const updateRes = await api.updateAdminConfig({
-				key: "videos",
-				value: updatedVideo,
-				user: "head_pharmacist",
-			});
-			assert.equal(updateRes.ok, true);
+			try {
+				const initial = await api.getAdminConfig();
+				assert.equal(initial.ok, true);
+				assert.ok(Array.isArray(initial.config.videos));
+				assert.ok(Array.isArray(initial.config.drugs));
+				assert.ok(typeof initial.config.quizzes === "object");
 
-			const after = await api.getAdminConfig();
-			assert.equal(after.config.videos.length, 1);
-			assert.equal(after.config.videos[0].title, "測試專用操作教學");
-			assert.equal(after.config.updated.videos.by, "head_pharmacist");
+				// Update videos configuration
+				const updatedVideo = [
+					{
+						id: "TEST_MDI_1",
+						title: "測試專用操作教學",
+						type: "MDI",
+						videoUrl: "https://example.com/test-mdi.mp4",
+					},
+				];
+				const updateRes = await api.updateAdminConfig({
+					key: "videos",
+					value: updatedVideo,
+					user: "head_pharmacist",
+				});
+				assert.equal(updateRes.ok, true);
+
+				const after = await api.getAdminConfig();
+				assert.equal(after.config.videos.length, 1);
+				assert.equal(after.config.videos[0].title, "測試專用操作教學");
+				assert.equal(after.config.updated.videos.by, "head_pharmacist");
+			} finally {
+				await restore();
+			}
 		});
 	});
 }

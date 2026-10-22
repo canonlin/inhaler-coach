@@ -13,7 +13,12 @@ import {
 	STEP_BY_CODE,
 } from "../../src/domain/steps.js";
 import { buildDualTags, findDrug, validateRegistration } from "./catalog.mjs";
-import { findActiveQuiz, findActiveVideo, loadLineContent } from "./config.mjs";
+import {
+	findActiveQuiz,
+	findActiveVideo,
+	findAlternateVideo,
+	loadLineContent,
+} from "./config.mjs";
 import {
 	buildJourney,
 	JOURNEY_DAYS,
@@ -345,7 +350,8 @@ export function makeLineService({ query, transport }) {
 		const { rows } = await query(
 			`SELECT c.id AS case_id, c.case_date, c.drug, c.device, c.timepoint,
 			        p.id AS patient_id, p.mrn_tail, li.line_user_id,
-			        COALESCE(lm.device_line, 'MDI') AS device_line
+			        COALESCE(lm.device_line, 'MDI') AS device_line,
+			        lm.drug_id AS drug_id
 			 FROM cases c
 			 JOIN patients p ON p.id = c.patient_id
 			 JOIN line_identities li ON li.patient_id = p.id
@@ -372,7 +378,16 @@ export function makeLineService({ query, transport }) {
 					touch,
 					message: renderJourneyMessage(touch, {
 						drugLabel,
-						videoInfo: findActiveVideo(content.videos, row.device_line),
+						videoInfo: findActiveVideo(
+							content.videos,
+							row.device_line,
+							row.drug_id,
+						),
+						altVideo: findAlternateVideo(
+							content.videos,
+							row.device_line,
+							row.drug_id,
+						),
 						quizInfo: findActiveQuiz(content.quizzes, row.device_line),
 					}),
 				};

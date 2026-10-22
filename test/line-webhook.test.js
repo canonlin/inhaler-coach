@@ -76,7 +76,14 @@ describe("LINE Bot Conversational Webhook Router", () => {
 		assert.equal(env.capturedReplies[0].replyToken, "token-f1");
 		const msg = env.capturedReplies[0].messages[0];
 		assert.equal(msg.type, "flex");
-		assert.match(msg.altText, /歡迎加入臺大醫院雲林分院/);
+		assert.match(msg.altText, /臺大醫院雲林分院 藥劑部/);
+		// The card has to say who it is and where to call, before it asks for
+		// anything: an elderly patient needs the phone number and the 119 rule
+		// in the first screen.
+		const body = JSON.stringify(msg);
+		assert.match(body, /119/);
+		assert.match(body, /532-3911/);
+		assert.match(body, /action=start_register/);
 	});
 
 	it("handles text message '我的吸入劑' by replying with drug carousel", async () => {

@@ -50,6 +50,7 @@ import {
 	createRescuePromptBubble,
 	createVideoBubble,
 	createWelcomeFlexBubble,
+	findMockupVideo,
 } from "./flexTemplates";
 import { RichMenu, type RichMenuAction } from "./RichMenu";
 
@@ -67,6 +68,8 @@ export interface PersonaConfig {
 	colorShape: string;
 	chineseName: string;
 	maintenanceDrug: string;
+	/** 藥品代號：決定機器人會給哪一支官方衛教影片 */
+	maintenanceDrugId: string;
 	rescueDrug?: string;
 	dosageInstruction: string;
 	hasIcs: boolean;
@@ -90,6 +93,7 @@ export const PERSONAS: Record<PatientPersona, PersonaConfig> = {
 		colorShape: "紅白色・L型噴罐",
 		chineseName: "都保噴霧 (Symbicort)",
 		maintenanceDrug: "Symbicort Rapihaler 120 puff/btl",
+		maintenanceDrugId: "Symbicort_Rapihaler",
 		rescueDrug: "Ventolin Evohaler (藍色瓶蓋備思復)",
 		dosageInstruction: "每日早晚各一次，每次按壓吸入 2 下",
 		hasIcs: true,
@@ -130,6 +134,7 @@ export const PERSONAS: Record<PatientPersona, PersonaConfig> = {
 		colorShape: "灰黃色・扁圓盤盒",
 		chineseName: "易利達 (Relvar Ellipta)",
 		maintenanceDrug: "Relvar Ellipta Inhalation Powder 30 dose",
+		maintenanceDrugId: "Relvar_Ellipta",
 		rescueDrug: undefined,
 		dosageInstruction: "每日固定時間吸入 1 次，每次 1 吸",
 		hasIcs: true,
@@ -171,6 +176,7 @@ export const PERSONAS: Record<PatientPersona, PersonaConfig> = {
 		colorShape: "灰白色・圓柱長筒",
 		chineseName: "適倍樂 (Spiolto Respimat)",
 		maintenanceDrug: "Spiolto Respimat 60 puff",
+		maintenanceDrugId: "Spiolto_Respimat",
 		rescueDrug: undefined,
 		dosageInstruction: "每日固定時間一次，每次旋轉掀蓋按壓 2 吸",
 		hasIcs: false,
@@ -675,7 +681,10 @@ export function LineMockup() {
 													onAction={(action) => {
 														if (action.data === "action=start_register") {
 															setActiveStep("step_register");
-														} else if (action.data === "action=view_faq") {
+														} else if (
+															action.text === "常見問答" ||
+															action.data === "action=view_faq"
+														) {
 															setActiveStep("step_d28");
 														}
 													}}
@@ -838,6 +847,10 @@ export function LineMockup() {
 														stepText: persona.deviceAdvice,
 														youtubeUrl:
 															"https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+														video: findMockupVideo(
+															persona.maintenanceDrugId,
+															persona.deviceType,
+														),
 													})}
 													onAction={() => setShowVideoModal(true)}
 												/>

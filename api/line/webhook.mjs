@@ -10,15 +10,14 @@
  * All replies use the Webhook `replyToken`, consuming 0 NTD and 0 push messages against the 200/mo quota.
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { findDrug, RESCUE_ONLY_ID } from "./catalog.mjs";
 import {
+	DEFAULT_QUIZZES,
 	findActiveQuiz,
 	findActiveVideo,
+	findAlternateVideo,
 	getDynamicConfig,
+	loadLineContent,
 } from "./config.mjs";
 import {
 	buildClinicReminderFlex,
@@ -33,11 +32,7 @@ import {
 	buildWelcomeFlex,
 } from "./flex.mjs";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const quizzes = JSON.parse(
-	readFileSync(resolve(__dirname, "../../src/line/data/quizzes.json"), "utf8"),
-);
+const quizzes = DEFAULT_QUIZZES ?? {};
 
 async function recordRawEvent(ev, query) {
 	const { type, source, webhookEventId } = ev;
@@ -120,22 +115,61 @@ function buildDefaultHelpMenu() {
 	};
 }
 
+/**
+ * The films the bot may show.
+ *
+ * Read through loadLineContent, the same place the dispatcher reads them.
+ * The webhook used to read admin_config on its own with no fallback, so a
+ * deployment whose console had never been used showed no film at all while
+ * the scheduler believed it had sent one. One definition of "the current
+ * film" means both readers answer with the same card.
+ */
+async function loadVideos(query) {
+	const { videos } = await loadLineContent(query);
+	return videos;
+}
+
+/**
+ * The instruction film for one device, and the 台語 version if there is one.
+ *
+ * A drug-specific film wins over the generic device film: two pMDIs can still
+ * need different instructions. When the patient has no film of their own, the
+ * card falls back to the society's own manual playlist rather than a dead end.
+ *
+ * @param {object[]|null} videos
+ * @param {string} deviceType
+ * @param {string|null} drugId
+ */
+function buildVideoReply({ videos, deviceType, drugId = null }) {
+	const videoInfo = findActiveVideo(videos, deviceType, drugId);
+	if (!videoInfo) {
+		if (Array.isArray(videos) && videos.length > 0) {
+			return {
+				type: "text",
+				text: "目前該衛教影片正在更新調整中，暫停播放。如有任何操作疑問，歡迎直接點選『諮詢藥師』由雲林分院藥師為您說明！",
+			};
+		}
+		return buildVideoCardFlex({ deviceType, videoInfo: null });
+	}
+	return buildVideoCardFlex({
+		deviceType,
+		videoInfo,
+		altVideo: findAlternateVideo(videos, deviceType, drugId),
+	});
+}
+
 async function routeTextMessage(text, lineUserId, query) {
 	if (/選藥|我的吸入劑|報到|開始選擇/i.test(text)) {
 		const drugs = await getDynamicConfig(query, "drugs", null);
 		return buildDrugSelectCarousel(drugs);
 	}
 	if (/操作影片|影片|教學|看影片/i.test(text)) {
-		const deviceType = (await lookupPatientDevice(query, lineUserId)) || "MDI";
-		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = findActiveVideo(videos, deviceType);
-		if (!videoInfo && Array.isArray(videos) && videos.length > 0) {
-			return {
-				type: "text",
-				text: "目前該衛教影片正在更新調整中，暫停播放。如有任何操作疑問，歡迎直接點選『諮詢藥師』由雲林分院藥師為您說明！",
-			};
-		}
-		return buildVideoCardFlex({ deviceType, videoInfo });
+		const { deviceLine, drugId } = await lookupPatientMedication(
+			query,
+			lineUserId,
+		);
+		const videos = await loadVideos(query);
+		return buildVideoReply({ videos, deviceType: deviceLine, drugId });
 	}
 	if (/隨堂測驗|測驗|考試|自我測驗/i.test(text)) {
 		const deviceType = (await lookupPatientDevice(query, lineUserId)) || "MDI";
@@ -245,24 +279,21 @@ async function routePostback(params, patientId, query) {
 			};
 		}
 		await persistMedications(patientId, query, drug, hasRescue);
-		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = findActiveVideo(videos, drug.type);
+		const videos = await loadVideos(query);
 		return [
 			buildDualTagProfileFlex({ drug, hasRescue }),
-			buildVideoCardFlex({ deviceType: drug.type, videoInfo }),
+			buildVideoReply({
+				videos,
+				deviceType: drug.type,
+				drugId: drug.id,
+			}),
 		];
 	}
 	if (action === "view_video") {
 		const deviceType = params.get("type") || "MDI";
-		const videos = await getDynamicConfig(query, "videos", null);
-		const videoInfo = findActiveVideo(videos, deviceType);
-		if (!videoInfo && Array.isArray(videos) && videos.length > 0) {
-			return {
-				type: "text",
-				text: "目前該衛教影片正在更新調整中，暫停播放。如有任何操作疑問，歡迎直接點選『諮詢藥師』由雲林分院藥師為您說明！",
-			};
-		}
-		return buildVideoCardFlex({ deviceType, videoInfo });
+		const drugId = params.get("drug") || null;
+		const videos = await loadVideos(query);
+		return buildVideoReply({ videos, deviceType, drugId });
 	}
 	if (action === "start_quiz") {
 		const deviceType = params.get("type") || "MDI";
@@ -362,6 +393,34 @@ async function lookupPatientDevice(query, lineUserId) {
 		return rows[0]?.device_line || "MDI";
 	} catch {
 		return "MDI";
+	}
+}
+
+/**
+ * The patient's own medicine and device class, from what they registered.
+ *
+ * The drug matters: the society publishes a film per medicine, and the
+ * patient's own is more useful than the generic one for their device.
+ *
+ * @param {Function} query
+ * @param {string} lineUserId
+ */
+async function lookupPatientMedication(query, lineUserId) {
+	if (!query || !lineUserId) return { deviceLine: "MDI", drugId: null };
+	try {
+		const { rows } = await query(
+			`SELECT lm.device_line, lm.drug_id FROM line_medications lm
+			 JOIN line_identities li ON li.patient_id = lm.patient_id
+			 WHERE li.line_user_id = $1 AND lm.role = 'maintenance'
+			 LIMIT 1`,
+			[lineUserId],
+		);
+		return {
+			deviceLine: rows[0]?.device_line || "MDI",
+			drugId: rows[0]?.drug_id || null,
+		};
+	} catch {
+		return { deviceLine: "MDI", drugId: null };
 	}
 }
 

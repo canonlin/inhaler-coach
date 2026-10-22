@@ -19,7 +19,7 @@ const SYSTEM_NAME = "InhaSync™ 吸入劑智慧衛教";
 export function buildWelcomeFlex() {
 	return {
 		type: "flex",
-		altText: `歡迎加入${HOSPITAL_TITLE} ${SYSTEM_NAME}`,
+		altText: `${HOSPITAL_TITLE} 吸入劑衛教照護，開始選擇您的吸入劑`,
 		contents: {
 			type: "bubble",
 			size: "giga",
@@ -56,7 +56,7 @@ export function buildWelcomeFlex() {
 				contents: [
 					{
 						type: "text",
-						text: "您好！歡迎加入吸入劑專屬衛教照護。",
+						text: "您好，我是雲林分院藥劑部的吸入劑照護小幫手。",
 						weight: "bold",
 						size: "md",
 						color: "#1E293B",
@@ -64,54 +64,81 @@ export function buildWelcomeFlex() {
 					},
 					{
 						type: "text",
-						text: "請告訴我們您目前使用的吸入劑，系統將為您建立專屬用藥檔案、提供操作影片與個人化技巧提醒。",
+						text: "這裡由藥劑部的藥師維護，專門教氣喘與慢性阻塞性肺病病人怎麼用吸入劑。您可以隨時問操作步驟、看示範影片、複習重點，也可以查回診提醒。",
 						size: "sm",
 						color: "#475569",
 						wrap: true,
 					},
 					{
-						type: "box",
-						layout: "vertical",
-						margin: "lg",
-						spacing: "sm",
-						contents: [
-							{
-								type: "button",
-								action: {
-									type: "postback",
-									label: "👉 開始選擇我的吸入劑",
-									data: "action=start_register",
-									displayText: "我要開始選擇吸入劑",
-								},
-								style: "primary",
-								color: "#0D9488",
-								height: "md",
-							},
-							{
-								type: "button",
-								action: {
-									type: "message",
-									label: "常見地雷錯誤防範",
-									text: "常見問答",
-								},
-								style: "secondary",
-								color: "#E2E8F0",
-								height: "md",
-							},
-						],
+						type: "separator",
+						margin: "md",
+					},
+					{
+						type: "text",
+						text: "第一步：先選您現在用的吸入劑，我才知道要教您哪一種。",
+						weight: "bold",
+						size: "sm",
+						color: "#0F172A",
+						wrap: true,
+					},
+					{
+						type: "button",
+						action: {
+							type: "postback",
+							label: "開始選擇我的吸入劑",
+							data: "action=start_register",
+							displayText: "我要開始選擇吸入劑",
+						},
+						style: "primary",
+						color: "#0D9488",
+						margin: "md",
+						height: "md",
+					},
+					{
+						type: "button",
+						action: {
+							type: "message",
+							label: "常見問答（用藥地雷）",
+							text: "常見問答",
+						},
+						style: "secondary",
+						color: "#E2E8F0",
+						margin: "sm",
+						height: "md",
+					},
+					{
+						type: "button",
+						action: {
+							type: "uri",
+							label: "撥打藥局專線",
+							uri: "tel:055323911",
+						},
+						style: "secondary",
+						color: "#E2E8F0",
+						margin: "sm",
+						height: "md",
 					},
 				],
 			},
 			footer: {
 				type: "box",
 				layout: "vertical",
+				spacing: "xs",
 				contents: [
 					{
 						type: "text",
-						text: "💡 提示：點擊下方『開始選擇』即可直接在對話中登記！",
+						text: "若出現呼吸困難、喘不過氣，請立即撥 119。",
 						size: "xs",
-						color: "#94A3B8",
-						align: "center",
+						color: "#B91C1C",
+						weight: "bold",
+						wrap: true,
+					},
+					{
+						type: "text",
+						text: "非緊急的用藥問題，週一至週五 08:30–17:00 請撥門診藥局 (05) 532-3911 轉藥劑部。",
+						size: "xs",
+						color: "#64748B",
+						wrap: true,
 					},
 				],
 			},
@@ -541,7 +568,7 @@ export function buildDualTagProfileFlex({ drug, hasRescue }) {
 								action: {
 									type: "postback",
 									label: "▶️ 看示範影片",
-									data: `action=view_video&type=${drug.type}`,
+									data: `action=view_video&type=${drug.type}&drug=${drug.id}`,
 									displayText: `觀看 ${drug.type} 操作示範短片`,
 								},
 								style: "primary",
@@ -568,7 +595,7 @@ export function buildDualTagProfileFlex({ drug, hasRescue }) {
 }
 
 /** 5. 示範影片卡片 (Video Card) */
-export function buildVideoCardFlex({ deviceType, videoInfo }) {
+export function buildVideoCardFlex({ deviceType, videoInfo, altVideo = null }) {
 	const defaultSteps =
 		deviceType === "MDI"
 			? "1. 充分上下搖勻 5 秒\n2. 先吐氣到底（遠離吸嘴）\n3. 緊含吸嘴，按壓同時慢深吸氣 5 秒\n4. 移開吸嘴閉氣 5 秒以上\n5. 若含類固醇記得漱口"
@@ -576,16 +603,91 @@ export function buildVideoCardFlex({ deviceType, videoInfo }) {
 				? "1. 撥開外蓋聽到喀聲完成備藥\n2. 先吐氣到底（切勿對吸嘴吹氣）\n3. 緊含吸嘴，快速深長用力吸到底\n4. 移開吸嘴閉氣 5 秒以上\n5. 若含類固醇記得漱口"
 				: "1. 旋轉底座掀開保護蓋\n2. 先吐氣到底（遠離吸嘴）\n3. 緊含吸嘴，按鈕配合軟霧慢深吸氣\n4. 移開吸嘴閉氣 5 秒以上\n5. 關上保護蓋防塵";
 
-	const stepText = videoInfo?.description || videoInfo?.steps || defaultSteps;
+	// The steps come from whoever prepared them: an explicit step list first,
+	// then the legacy description the admin console writes, then the society's
+	// five steps for this device.
+	const stepText = videoInfo?.steps || videoInfo?.description || defaultSteps;
 	const title = videoInfo?.title || `【${deviceType} 吸入劑】標準操作示範`;
 	const videoUrl =
 		videoInfo?.videoUrl ||
 		videoInfo?.url ||
-		"https://www.youtube.com/results?search_query=%E5%8F%B0%E5%A4%A7%E9%86%AB%E9%99%A2+%E5%90%B8%E5%85%A5%E5%8A%99%E6%95%99%E5%AD%B8";
+		// No film of our own: send the patient to the society's own manual
+		// playlist rather than to a YouTube search page.
+		"https://www.youtube.com/playlist?list=PLyt_MTzYVDTjdj1f0x4poXWei6SJqEYK-";
+
+	const durationText = formatDuration(videoInfo?.durationSeconds);
+	const sourceLine = videoInfo?.source
+		? `影片來源：${videoInfo.source}${durationText ? `（${durationText}）` : ""}`
+		: null;
+
+	const bodyContents = [];
+	if (videoInfo?.thumbnailUrl) {
+		bodyContents.push({
+			type: "image",
+			url: videoInfo.thumbnailUrl,
+			aspectRatio: "16:9",
+			aspectMode: "cover",
+			action: { type: "uri", label: "播放操作示範影片", uri: videoUrl },
+		});
+	}
+	bodyContents.push(
+		{
+			type: "text",
+			text: "胸腔醫學會標準 5 大步驟：",
+			weight: "bold",
+			size: "sm",
+			color: "#0F172A",
+		},
+		{
+			type: "text",
+			text: stepText,
+			size: "xs",
+			color: "#334155",
+			wrap: true,
+		},
+	);
+	if (sourceLine) {
+		bodyContents.push({
+			type: "text",
+			text: sourceLine,
+			size: "xs",
+			color: "#64748B",
+			wrap: true,
+			margin: "xs",
+		});
+	}
+	bodyContents.push({
+		type: "button",
+		action: {
+			type: "uri",
+			label: durationText
+				? `觀看示範短片（約 ${durationText}）`
+				: "觀看示範短片",
+			uri: videoUrl,
+		},
+		style: "primary",
+		color: "#2563EB",
+		margin: "md",
+		height: "md",
+	});
+	if (altVideo?.videoUrl) {
+		bodyContents.push({
+			type: "button",
+			action: {
+				type: "uri",
+				label: "看台語版",
+				uri: altVideo.videoUrl,
+			},
+			style: "secondary",
+			color: "#E2E8F0",
+			margin: "sm",
+			height: "md",
+		});
+	}
 
 	return {
 		type: "flex",
-		altText: `${deviceType} 吸入劑 2 分鐘標準操作短片`,
+		altText: `${deviceType} 吸入劑 2 分鐘標準操作短片：${title}`,
 		contents: {
 			type: "bubble",
 			size: "giga",
@@ -606,6 +708,7 @@ export function buildVideoCardFlex({ deviceType, videoInfo }) {
 						size: "lg",
 						weight: "bold",
 						color: "#FFFFFF",
+						wrap: true,
 					},
 				],
 			},
@@ -613,36 +716,24 @@ export function buildVideoCardFlex({ deviceType, videoInfo }) {
 				type: "box",
 				layout: "vertical",
 				spacing: "md",
-				contents: [
-					{
-						type: "text",
-						text: "胸腔醫學會標準 5 大步驟：",
-						weight: "bold",
-						size: "sm",
-						color: "#0F172A",
-					},
-					{
-						type: "text",
-						text: stepText,
-						size: "xs",
-						color: "#334155",
-						wrap: true,
-					},
-					{
-						type: "button",
-						action: {
-							type: "uri",
-							label: "▶️ 立即觀看示範短片 (約2分鐘)",
-							uri: videoUrl,
-						},
-						style: "primary",
-						color: "#2563EB",
-						height: "md",
-					},
-				],
+				contents: bodyContents,
 			},
 		},
 	};
+}
+
+/**
+ * Seconds into "3 分 05 秒", because "342" means nothing to an elderly patient.
+ *
+ * @param {number|string|undefined|null} seconds
+ */
+function formatDuration(seconds) {
+	const n = Number(seconds);
+	if (!Number.isFinite(n) || n <= 0) return "";
+	const min = Math.floor(n / 60);
+	const sec = Math.round(n % 60);
+	if (!min) return `${sec} 秒`;
+	return sec ? `${min} 分 ${sec} 秒` : `${min} 分鐘`;
 }
 
 /** 6. 隨堂測驗題目卡片 (Quiz Card) */

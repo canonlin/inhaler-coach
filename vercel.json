@@ -1,5 +1,10 @@
 {
   "buildCommand": "VITE_BASE=/ bun run build",
+  "functions": {
+    "api/**": {
+      "includeFiles": "src/line/data/*.json"
+    }
+  },
   "outputDirectory": "dist",
   "cleanUrls": true,
   "crons": [

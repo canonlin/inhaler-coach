@@ -8,6 +8,7 @@
  */
 
 import rawDrugs from "../line/data/drugs.json";
+import rawVideos from "../line/data/videos.json";
 
 export interface DrugCatalogItem {
 	id: string;
@@ -18,6 +19,42 @@ export interface DrugCatalogItem {
 }
 
 export const DRUGS_CATALOG = rawDrugs as DrugCatalogItem[];
+
+export interface MockupVideo {
+	id: string;
+	title: string;
+	type: string;
+	drugId: string | null;
+	lang: string;
+	durationSeconds?: number;
+	source?: string;
+	videoUrl: string;
+	thumbnailUrl?: string;
+}
+
+const VIDEOS_CATALOG = rawVideos as MockupVideo[];
+
+/**
+ * The instruction film the bot would actually show this patient.
+ *
+ * Same rule as the bot: the patient's own medicine first, then the device
+ * family. The mockup must not promise a film the real bot would not send.
+ */
+export function findMockupVideo(
+	drugId?: string,
+	deviceType?: string,
+): MockupVideo | undefined {
+	const byDrug = drugId
+		? VIDEOS_CATALOG.filter((v) => v.drugId === drugId && v.lang === "zh-TW")
+		: [];
+	if (byDrug.length) return byDrug[0];
+	if (!deviceType) return undefined;
+	return (
+		VIDEOS_CATALOG.find(
+			(v) => !v.drugId && v.type === deviceType && v.lang === "zh-TW",
+		) ?? VIDEOS_CATALOG.find((v) => v.type === deviceType)
+	);
+}
 
 export function findCatalogDrug(id: string): DrugCatalogItem | undefined {
 	return DRUGS_CATALOG.find((d) => d.id === id);
@@ -64,7 +101,7 @@ export function createWelcomeFlexBubble() {
 			contents: [
 				{
 					type: "text",
-					text: "您好！歡迎加入吸入劑專屬衛教照護。",
+					text: "您好，我是雲林分院藥劑部的吸入劑照護小幫手。",
 					weight: "bold",
 					size: "md",
 					color: "#1E293B",
@@ -72,7 +109,7 @@ export function createWelcomeFlexBubble() {
 				},
 				{
 					type: "text",
-					text: "請告訴我們您目前使用的吸入劑，系統將為您建立專屬用藥檔案、提供操作短片與排程提醒。",
+					text: "這裡由藥劑部的藥師維護，專門教氣喘與慢性阻塞性肺病病人怎麼用吸入劑。您可以隨時問操作步驟、看示範影片、複習重點，也可以查回診提醒。",
 					size: "sm",
 					color: "#475569",
 					wrap: true,
@@ -82,40 +119,71 @@ export function createWelcomeFlexBubble() {
 					margin: "md",
 				},
 				{
+					type: "text",
+					text: "第一步：先選您現在用的吸入劑，我才知道要教您哪一種。",
+					weight: "bold",
+					size: "sm",
+					color: "#0F172A",
+					wrap: true,
+				},
+				{
 					type: "button",
 					action: {
 						type: "postback",
-						label: "👉 開始選擇我的吸入劑",
+						label: "開始選擇我的吸入劑",
 						data: "action=start_register",
 						displayText: "我要開始選擇吸入劑",
 					},
 					style: "primary",
 					color: "#0D9488",
 					margin: "md",
+					height: "md",
 				},
 				{
 					type: "button",
 					action: {
-						type: "postback",
-						label: "常見衛教 Q&A 問答",
-						data: "action=view_faq",
-						displayText: "我想看常見衛教問答",
+						type: "message",
+						label: "常見問答（用藥地雷）",
+						text: "常見問答",
 					},
 					style: "secondary",
+					color: "#E2E8F0",
 					margin: "sm",
+					height: "md",
+				},
+				{
+					type: "button",
+					action: {
+						type: "uri",
+						label: "撥打藥局專線",
+						uri: "tel:055323911",
+					},
+					style: "secondary",
+					color: "#E2E8F0",
+					margin: "sm",
+					height: "md",
 				},
 			],
 		},
 		footer: {
 			type: "box",
 			layout: "vertical",
+			spacing: "xs",
 			contents: [
 				{
 					type: "text",
-					text: "💡 提示：點擊上方按鈕直接於對話中指認藥品！",
+					text: "若出現呼吸困難、喘不過氣，請立即撥 119。",
 					size: "xs",
-					color: "#94A3B8",
-					align: "center",
+					color: "#B91C1C",
+					weight: "bold",
+					wrap: true,
+				},
+				{
+					type: "text",
+					text: "非緊急的用藥問題，週一至週五 08:30–17:00 請撥門診藥局 (05) 532-3911 轉藥劑部。",
+					size: "xs",
+					color: "#64748B",
+					wrap: true,
 				},
 			],
 		},
@@ -602,11 +670,70 @@ export function createVideoBubble({
 	deviceType,
 	stepText,
 	youtubeUrl,
+	video,
 }: {
 	deviceType: string;
 	stepText: string;
 	youtubeUrl: string;
+	video?: MockupVideo;
 }) {
+	const title = video?.title ?? `【${deviceType} 吸入劑】標準操作示範`;
+	const url = video?.videoUrl ?? youtubeUrl;
+	const minutes = video?.durationSeconds
+		? Math.round(video.durationSeconds / 60)
+		: null;
+	const sourceLine = video?.source
+		? `影片來源：${video.source}${minutes ? `（約 ${minutes} 分鐘）` : ""}`
+		: null;
+
+	const bodyContents: Record<string, unknown>[] = [];
+	if (video?.thumbnailUrl) {
+		bodyContents.push({
+			type: "image",
+			url: video.thumbnailUrl,
+			aspectRatio: "16:9",
+			aspectMode: "cover",
+			action: { type: "uri", label: "播放操作示範影片", uri: url },
+		});
+	}
+	bodyContents.push(
+		{
+			type: "text",
+			text: "胸腔醫學會標準 5 大步驟：",
+			weight: "bold",
+			size: "sm",
+			color: "#0F172A",
+		},
+		{
+			type: "text",
+			text: stepText,
+			size: "xs",
+			color: "#334155",
+			wrap: true,
+		},
+	);
+	if (sourceLine) {
+		bodyContents.push({
+			type: "text",
+			text: sourceLine,
+			size: "xs",
+			color: "#64748B",
+			wrap: true,
+			margin: "xs",
+		});
+	}
+	bodyContents.push({
+		type: "button",
+		action: {
+			type: "uri",
+			label: minutes ? `觀看示範短片（約 ${minutes} 分鐘）` : "觀看示範短片",
+			uri: url,
+		},
+		style: "primary",
+		color: "#2563EB",
+		height: "sm",
+	});
+
 	return {
 		type: "bubble",
 		size: "giga",
@@ -624,12 +751,13 @@ export function createVideoBubble({
 				},
 				{
 					type: "text",
-					text: `【${deviceType} 吸入劑】標準操作示範`,
+					text: title,
 					size: "lg",
 					weight: "bold",
 					color: "#FFFFFF",
 					margin: "xs",
 					align: "center",
+					wrap: true,
 				},
 			],
 		},
@@ -637,37 +765,7 @@ export function createVideoBubble({
 			type: "box",
 			layout: "vertical",
 			spacing: "md",
-			contents: [
-				{
-					type: "text",
-					text: "胸腔醫學會標準操作口訣：",
-					weight: "bold",
-					size: "sm",
-					color: "#0F172A",
-				},
-				{
-					type: "text",
-					text: stepText,
-					size: "xs",
-					color: "#334155",
-					wrap: true,
-				},
-				{
-					type: "separator",
-					margin: "sm",
-				},
-				{
-					type: "button",
-					action: {
-						type: "uri",
-						label: "▶️ 點擊播放教學短片",
-						uri: youtubeUrl,
-					},
-					style: "primary",
-					color: "#2563EB",
-					height: "sm",
-				},
-			],
+			contents: bodyContents,
 		},
 	};
 }

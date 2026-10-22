@@ -38,6 +38,19 @@ import { Button, Input } from "./components/ui";
 type ActiveTab = "drugs" | "videos" | "quizzes";
 
 /**
+ * The languages the instruction films are published in.
+ *
+ * The list holds a 國語 and a 台語 film of the same device on purpose, so the
+ * pharmacist has to be able to tell them apart at a glance.
+ */
+const VIDEO_LANG_LABEL: Record<string, string> = {
+	"zh-TW": "國語",
+	"nan-TW": "台語",
+	"hak-TW": "客語",
+	"eng-TW": "英文",
+};
+
+/**
  * 藥品圖片預覽元件
  *
  * 1. 網址正規化：若網址為舊網域 (inhaler-coach.vercel.app/drugs/...) 或當前網域，
@@ -728,6 +741,11 @@ export function ContentSettings() {
 													video.deviceType ||
 													"通用"}
 											</span>
+											{video.lang && video.lang !== "zh-TW" ? (
+												<span className="rounded bg-amber-100 px-2.5 py-1 text-meta font-bold text-amber-800">
+													{VIDEO_LANG_LABEL[video.lang] ?? video.lang}
+												</span>
+											) : null}
 											<span className="font-mono text-meta text-text-muted">
 												{video.id}
 											</span>
@@ -812,6 +830,12 @@ export function ContentSettings() {
 												/>
 											</div>
 										</div>
+
+										{video.source ? (
+											<p className="text-meta text-text-muted">
+												影片來源：{video.source}
+											</p>
+										) : null}
 
 										<div>
 											<div className="mb-1 text-meta font-bold text-text-muted">

@@ -5,10 +5,6 @@
  * PHI rule: a response may carry mrn_tail, never mrn_hash.
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
@@ -16,6 +12,7 @@ import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { HttpError } from "./http-error.mjs";
 import { exportEnrollment, importEnrollment } from "./import-export.mjs";
+import { DEFAULT_QUIZZES, DEFAULT_VIDEOS } from "./line/config.mjs";
 import { CLINICAL_DRUG_CARDS } from "./line/flex.mjs";
 import { makeLineService } from "./line/service.mjs";
 import {
@@ -30,16 +27,6 @@ import {
 	summarise,
 } from "./metrics.mjs";
 import { writeXlsx } from "./xlsx.mjs";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function loadDefaultJson(relPath) {
-	try {
-		return JSON.parse(readFileSync(resolve(__dirname, relPath), "utf8"));
-	} catch {
-		return null;
-	}
-}
 
 // Re-exported so the callers that already import HttpError from here keep
 // working; the class itself lives in its own module because the auth layer
@@ -853,8 +840,8 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	/** GET /api/admin/config — fetch dynamic configuration for videos, quizzes, and drug photos */
 	async function getAdminConfig() {
 		const defaults = {
-			videos: loadDefaultJson("../src/line/data/videos.json") ?? [],
-			quizzes: loadDefaultJson("../src/line/data/quizzes.json") ?? {},
+			videos: DEFAULT_VIDEOS ?? [],
+			quizzes: DEFAULT_QUIZZES ?? {},
 			drugs: CLINICAL_DRUG_CARDS,
 		};
 

@@ -68,11 +68,11 @@ export function buildJourney({ caseDate, deviceLine = "MDI" }) {
  * same thing.
  *
  * @param {object} touch
- * @param {{drugLabel?: string, videoInfo?: object|null, quizInfo?: object|null}} ctx
+ * @param {{drugLabel?: string, videoInfo?: object|null, altVideo?: object|null, quizInfo?: object|null}} ctx
  */
 export function renderJourneyMessage(
 	touch,
-	{ drugLabel = "", videoInfo = null, quizInfo = null } = {},
+	{ drugLabel = "", videoInfo = null, altVideo = null, quizInfo = null } = {},
 ) {
 	switch (touch.purpose) {
 		case "care":
@@ -84,6 +84,7 @@ export function renderJourneyMessage(
 			return buildVideoCardFlex({
 				deviceType: touch.deviceLine,
 				videoInfo,
+				altVideo,
 			});
 		case "fortnight":
 			return buildFortnightCheck({ drugLabel });

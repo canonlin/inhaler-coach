@@ -31,6 +31,14 @@ runs with `--test-concurrency=1` because those files truncate shared tables.
 `bun run seed:demo` truncates too, and what it writes is demo data, not study
 data — read "Durable facts" below before quoting any number it produces.
 
+## Commit rule
+
+**Commit the work when it is finished.** A change that has passed
+`bun run check:all` belongs in a commit on `feature/multimodal-v2`; a finished
+task left in the working tree is a finished task that can be lost or drift.
+Commit only what the task produced, never a credential and never PHI. Pushing
+is still the user's call.
+
 ## What this repository is
 
 `inhaler-coach` is the v2 work: a browser-only asthma/COPD inhaler-technique
@@ -42,9 +50,11 @@ a hospital QCC／深耕計畫 quality-improvement layer and a research layer.
 - Management end: QCC metrics, baseline vs. post-intervention analytics.
 - Data backend: consolidated behind one API (see the plan in `docs/`).
 
-Package name is `inhaler-coach-v2`, version `2.0.0`. Deployment target is
-`inhaler-coach.vercel.app`; `https://canonlin.github.io/inhaler-coach/collector/`
-hosts the research data collector.
+Package name is `inhaler-coach-v2`, version `2.0.0`. The production host is
+`https://inhaler-coach-pink.vercel.app` (the Vercel project is
+`gloomcheng-9021s-projects/inhaler-coach`); `inhaler-coach.vercel.app` is not
+the live domain. `https://canonlin.github.io/inhaler-coach/collector/` hosts the
+research data collector.
 
 ## Operating constraints that change results
 
@@ -143,6 +153,29 @@ hosts the research data collector.
   written to a file and handed to the pharmacist over LINE, at the user's
   instruction on 2026-10-22. Treat it as a shared test credential and change
   it if the account is ever anything more than a test.
+- **The instruction films are official, and they live in
+  `src/line/data/videos.json`.** The primary source is the Taiwan Society of
+  Pulmonary and Critical Care Medicine's own 「吸入劑手冊」 playlist
+  (`PLyt_MTzYVDTjdj1f0x4poXWei6SJqEYK-`), 41 films uploaded on the society's
+  own channel in 國語／台語／客語／英語／越南語／印尼語. The society publishes
+  **no Respimat (SMI) film**, so SMI comes from 衛生福利部胸腔病院 (台語) and
+  國立陽明交通大學附設醫院／新北市立聯合醫院藥劑科. The 19 entries are
+  device-level plus drug-level: **the patient's own medicine wins over the
+  generic device film**, because two pMDIs still need different instructions. A
+  台語 film is offered as a second button only when one really exists, never as
+  a Mandarin film under a 台語 label.
+- **Vercel only ships files it can trace.** `src/line/data/*.json` must be read
+  through a literal path (`new URL("../../src/line/data/videos.json",
+  import.meta.url)`); a path built from a variable is not traceable, the file
+  does not reach the function, and the bot then serves no films at all while the
+  repository still looks complete. `vercel.json` also declares
+  `functions.api/**.includeFiles`, and `test/line-videos.test.js` fails if the
+  server's list is empty.
+- **The official account's own greeting and auto-reply are off** (2026-10-22):
+  the webhook is the only responder, so a patient never gets two answers. The
+  welcome card the webhook sends says who it is (雲林分院藥劑部), asks for one
+  thing first (選您的吸入劑), and carries the escalation rules — 呼吸困難撥 119，
+  非緊急撥門診藥局 (05) 532-3911 轉藥劑部.
 
 ## Deployment
 
