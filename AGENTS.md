@@ -185,6 +185,28 @@ research data collector.
   welcome card the webhook sends says who it is (雲林分院藥劑部), asks for one
   thing first (選您的吸入劑), and carries the escalation rules — 呼吸困難撥 119，
   非緊急撥門診藥局 (05) 532-3911 轉藥劑部.
+- **The pharmacist's Checklist is scheduled, not remembered** (10/19 會議【五】):
+  every enrollment enqueues three planned return visits — **D14 / D21 / D28** —
+  and the back office says which patients are due *today*. The days live in
+  `src/domain/followup-schedule.js`; the API enqueues them and the app labels
+  them. A visit is **one day, not a window**, because the queue has to be able
+  to say 「今天」. Closing a visit **supersedes** the same case's other planned
+  visits (`followups.status = 'superseded'`): the patient came back once, so
+  the rest are neither outstanding work nor missed visits, and they are
+  excluded from the follow-up completion rate. A visit closed as *missed*
+  supersedes nothing — the patient may still come on the next one.
+- **The QCC sheet is imported from `/admin/資料匯入`** (the pharmacist asked
+  where to upload the pre-intervention data on 2026-10-22; the endpoint
+  existed but there was no page). The file must be `.xlsx` with a worksheet
+  named 「藥師收案」 and these columns: 病歷號碼、藥師、院區、藥品名稱、收案日期
+  — the list lives in `src/domain/enrollment-sheet.js` and is the same one the
+  importer checks and the screen shows. **The importer refuses a workbook with
+  the wrong headers** and names the missing column, instead of skipping every
+  row. **Nothing is written before a rehearsal**: 「先試算」 parses and reports
+  what would be written (rows read, rows skipped with the sheet's line number,
+  and where the sheet disagrees with itself); 「確認匯入」 only unlocks after
+  that rehearsal, for that file and that stage. Re-running the same file
+  updates the same cases rather than duplicating them.
 
 ## Deployment
 

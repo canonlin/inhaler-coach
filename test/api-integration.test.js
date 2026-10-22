@@ -253,7 +253,18 @@ describe("filtering", () => {
 	});
 });
 describe("follow-up enqueue", () => {
-	it("enqueues a P1 follow-up within 2 weeks for a critical error", async () => {
+	/*
+	 * The return-visit schedule.
+	 *
+	 * 10/19 會議【五】：個案加入後，等他第 28 天（或第 14、21 天）回診時，後台清單會
+	 * 提示今天有哪些病患需要進行 Checklist 追蹤，藥師點進去就能勾選填寫，不需要再
+	 * 人工記日子。
+	 *
+	 * So an enrollment enqueues three planned return visits, and the day of the
+	 * visit is a single day — not a window — because the queue has to be able to
+	 * say 「今天」.
+	 */
+	it("enqueues the three planned return visits", async () => {
 		await api.createCase({
 			mrn: "C777888999",
 			caseDate: "2026-07-01",
@@ -262,17 +273,32 @@ describe("follow-up enqueue", () => {
 			steps: { MDI_搖: "錯誤", MDI_開: "正確" }, // MDI_搖 is critical
 		});
 		const { rows } = await pool.query(
-			`SELECT f.task, f.due_start, f.due_end, f.priority
-				 FROM followups f JOIN patients p ON p.id = f.patient_id
-				 WHERE p.mrn_tail = '99'`,
+			`SELECT f.slot, f.task, f.due_start, f.due_end, f.priority
+			 FROM followups f JOIN patients p ON p.id = f.patient_id
+			 WHERE p.mrn_tail = '99' ORDER BY f.due_start`,
 		);
-		assert.equal(rows.length, 1);
+		assert.equal(rows.length, 3, "one row per planned return visit");
+		assert.deepEqual(
+			rows.map((r) => r.slot),
+			["D14", "D21", "D28"],
+		);
+		assert.deepEqual(
+			rows.map((r) => r.due_start),
+			["2026-07-15", "2026-07-22", "2026-07-29"],
+			"14, 21 and 28 days after the case",
+		);
+		for (const r of rows) {
+			assert.equal(r.due_end, r.due_start, "a visit is one day, not a window");
+		}
+		// A critical error rides on the first visit rather than creating a
+		// second task for the same visit.
 		assert.equal(rows[0].priority, "P1");
-		assert.equal(rows[0].due_start, "2026-07-15", "two weeks after the case");
-		assert.equal(rows[0].due_end, "2026-07-15");
+		assert.match(rows[0].task, /有關鍵錯誤/);
+		assert.equal(rows[1].priority, "P3");
+		assert.equal(rows[2].priority, "P3");
 	});
 
-	it("enqueues a routine M1 follow-up for a non-critical error", async () => {
+	it("enqueues the return visits for a non-critical error too", async () => {
 		await api.createCase({
 			mrn: "D111222333",
 			caseDate: "2026-07-01",
@@ -281,20 +307,24 @@ describe("follow-up enqueue", () => {
 			steps: { MDI_開: "錯誤" }, // MDI_開 is not critical
 		});
 		const { rows } = await pool.query(
-			`SELECT f.priority, f.due_end
-				 FROM followups f JOIN patients p ON p.id = f.patient_id
-				 WHERE p.mrn_tail = '33'`,
+			`SELECT f.slot, f.priority, f.due_end
+			 FROM followups f JOIN patients p ON p.id = f.patient_id
+			 WHERE p.mrn_tail = '33' ORDER BY f.due_start`,
 		);
-		assert.equal(rows.length, 1);
-		assert.equal(rows[0].priority, "P2");
-		assert.equal(
-			rows[0].due_end,
-			"2026-08-12",
-			"six weeks: the routine window",
-		);
+		assert.equal(rows.length, 3);
+		assert.equal(rows[0].priority, "P2", "the first visit is the routine one");
+		assert.equal(rows[0].due_end, "2026-07-15");
 	});
 
-	it("does not enqueue a follow-up when every step was correct", async () => {
+	/*
+	 * The measurement, not just the reminder.
+	 *
+	 * A case with no errors still needs an 「after」 assessment, or the
+	 * before/after the QCC plan is built on has no second side for that
+	 * patient — and the pharmacist would have to remember to book the visit by
+	 * hand, which is the thing the schedule exists to remove.
+	 */
+	it("enqueues the return visits even when every step was correct", async () => {
 		const before = await pool.query("SELECT count(*)::int AS n FROM followups");
 		await api.createCase({
 			mrn: "E444555666",
@@ -302,6 +332,29 @@ describe("follow-up enqueue", () => {
 			pharmacist: "林亭君",
 			drug: "Symbicort",
 			steps: { MDI_搖: "正確", MDI_開: "正確" },
+		});
+		const after = await pool.query("SELECT count(*)::int AS n FROM followups");
+		assert.equal(
+			after.rows[0].n,
+			before.rows[0].n + 3,
+			"three planned return visits",
+		);
+	});
+
+	/*
+	 * The follow-up assessment is an M1, and an M1 that enqueued three more
+	 * visits would grow the queue every time a pharmacist worked through it.
+	 */
+	it("enqueues nothing for an M1", async () => {
+		const before = await pool.query("SELECT count(*)::int AS n FROM followups");
+		await api.createCase({
+			mrn: "F777888999",
+			caseDate: "2026-07-15",
+			pharmacist: "林家薐",
+			drug: "Symbicort",
+			timepoint: "M1",
+			qccStage: "改善後",
+			steps: { MDI_搖: "正確" },
 		});
 		const after = await pool.query("SELECT count(*)::int AS n FROM followups");
 		assert.equal(after.rows[0].n, before.rows[0].n);
@@ -329,10 +382,14 @@ describe("closing a follow-up", () => {
 		return rows;
 	}
 
-	it("enqueues a follow-up when a critical step is wrong", async () => {
+	it("enqueues the return visits when a critical step is wrong", async () => {
 		await aCaseThatNeedsFollowup();
 		const open = await openFollowupsFor("CLOSE0001");
-		assert.equal(open.length, 1, "a wrong critical step must enqueue work");
+		assert.equal(
+			open.length,
+			3,
+			"a critical step must enqueue the planned return visits",
+		);
 	});
 
 	it("closes it and records who closed it", async () => {
@@ -559,7 +616,8 @@ describe("queue rows are actionable", () => {
 
 	it("carries the ids a row needs to be opened", async () => {
 		const r = await api.followups();
-		assert.equal(r.followups.length, 2);
+		// Two enrollments, three planned return visits each.
+		assert.equal(r.followups.length, 6);
 		for (const f of r.followups) {
 			assert.ok(f.case_id, "the row must name the case it came from");
 			assert.ok(f.patient_id, "the row must name the patient");

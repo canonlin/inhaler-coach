@@ -22,6 +22,7 @@ const PAGES = [
 	["admin", "/admin"],
 	["queue", "/admin/followups"],
 	["outcomes", "/admin/outcomes"],
+	["data", "/admin/data"],
 	["line", "/line"],
 	["line-register", "/line/register"],
 	["line-videos", "/line/videos"],
@@ -67,6 +68,7 @@ const NEEDS_SESSION = new Set([
 	"/admin",
 	"/admin/followups",
 	"/admin/outcomes",
+	"/admin/data",
 ]);
 
 for (const [name, path] of TARGETS) {

@@ -47,6 +47,10 @@ export function TodayQueue() {
 	}, []);
 
 	const overdue = rows?.filter((f) => f.overdue).length ?? 0;
+	// Today's return visits. The panel is the first thing the pharmacist sees
+	// when they open the back office, and 「今天誰要回診」 is the question that
+	// decides whether they open 追蹤清單 at all.
+	const dueToday = rows?.filter((f) => f.dueToday).length ?? 0;
 	// Sorted the same way the queue page sorts, so the preview starts with the
 	// row that page would show first rather than an arbitrary one.
 	const preview = rows?.slice(0, PREVIEW) ?? [];
@@ -105,6 +109,17 @@ export function TodayQueue() {
 								{rows.length}
 							</span>
 							<span className="text-caption text-text-secondary">未完成</span>
+						</p>
+						<p>
+							<span
+								className={cn(
+									"block text-metric font-bold tabular-nums",
+									dueToday > 0 ? "text-primary" : "text-text",
+								)}
+							>
+								{dueToday}
+							</span>
+							<span className="text-caption text-text-secondary">今天回診</span>
 						</p>
 						<p>
 							<span

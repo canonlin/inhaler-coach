@@ -17,6 +17,7 @@ for (const [route, name] of [
 	["/admin", "case"],
 	["/admin/followups", "followups"],
 	["/admin/outcomes", "outcomes"],
+	["/admin/data", "data"],
 ]) {
 	const page = await browser.newPage({
 		viewport: { width: 1280, height: 1000 },

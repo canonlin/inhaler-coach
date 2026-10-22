@@ -179,7 +179,9 @@ export const fetchSummary = (params?: { qccStage?: string; target?: number }) =>
 export const fetchReference = () => get<Reference>("/api/reference");
 
 export const fetchFollowups = () =>
-	get<{ followups: Followup[] }>("/api/followups");
+	get<{ followups: Followup[]; dueToday: number; overdue: number }>(
+		"/api/followups",
+	);
 
 /**
  * POST /api/followups/close — record that a follow-up was actually done.
@@ -211,6 +213,8 @@ export async function closeFollowup(input: {
 		completed_by: string;
 		/** Only when an assessment was recorded, so closed and measured differ. */
 		assessment?: { mrn_tail: string; steps: number };
+		/** Other planned return visits this one replaced. */
+		superseded: number;
 	}>(`${base}/api/followups/close`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
@@ -224,6 +228,11 @@ export interface Followup {
 	due_start: string;
 	due_end: string;
 	priority: "P1" | "P2" | "P3";
+	/**
+	 * Which planned return visit this row is — 'D14' | 'D21' | 'D28' — or null
+	 * on a row that predates the schedule.
+	 */
+	slot: string | null;
 	mrn_tail: string;
 	drug: string | null;
 	device: DeviceKind | null;
@@ -234,6 +243,8 @@ export interface Followup {
 	/** Step codes the linked case got wrong — what this follow-up is for. */
 	wrongSteps: string[];
 	overdue: boolean;
+	/** Today is inside the due window: this is the visit happening today. */
+	dueToday: boolean;
 	dueSoon: boolean;
 }
 export interface CaseRow {
@@ -290,6 +301,68 @@ export async function fetchCases(
 		`${base}/api/cases${qs ? `?${qs}` : ""}`,
 	);
 	return (json.cases ?? []) as CaseRow[];
+}
+
+/** What one import read, and what it did about it. */
+export interface ImportReport {
+	ok: true;
+	/** The cohort the rows were filed under: 改善前 or 改善後. */
+	stage: string;
+	/** Rows in the sheet, not counting the header. */
+	rowsRead: number;
+	imported: number;
+	updated: number;
+	/** Rows that could not be read, with the sheet's own line number. */
+	skipped: { line: number; reason: string }[];
+	/** Rows that were read but disagree with the sheet's own summary columns. */
+	warnings: { line: number; message: string }[];
+	/** True when the report is a rehearsal: nothing was written. */
+	dryRun: boolean;
+}
+
+/**
+ * POST /api/import/cases — upload the pharmacist's QCC workbook.
+ *
+ * The body is the file itself rather than a form: the importer reads the
+ * workbook byte-for-byte, and a multipart form would only add a second copy of
+ * the same bytes to parse.
+ *
+ * `dryRun` parses and reports without writing. That is not a convenience: a
+ * sheet of 987 rows with 62 real ones in it cannot be read by eye, and the
+ * importer's job is to say what it read and what disagrees with the sheet
+ * before anything is written.
+ */
+export async function importCases(
+	file: File,
+	{ stage, dryRun }: { stage: string; dryRun: boolean },
+): Promise<ImportReport> {
+	const qs = new URLSearchParams({
+		stage,
+		dry_run: dryRun ? "true" : "false",
+	});
+	return request<ImportReport>(`${base}/api/import/cases?${qs}`, {
+		method: "POST",
+		headers: {
+			"Content-Type":
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		body: file,
+	});
+}
+
+/**
+ * The export's address.
+ *
+ * A link rather than a fetch: the export is a download, and the browser
+ * already knows how to handle one. The session is a cookie, so it rides along
+ * with the navigation.
+ */
+export function exportCasesUrl(params?: { month?: string; stage?: string }) {
+	const qs = new URLSearchParams();
+	if (params?.month) qs.set("month", params.month);
+	if (params?.stage) qs.set("stage", params.stage);
+	const q = qs.toString();
+	return `${base}/api/export/cases.xlsx${q ? `?${q}` : ""}`;
 }
 
 /**

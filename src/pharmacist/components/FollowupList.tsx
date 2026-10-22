@@ -166,7 +166,10 @@ export function FollowupList() {
 	const counts = useMemo(() => {
 		const list = rows ?? [];
 		return {
-			today: list.filter((r) => r.overdue || r.dueSoon).length,
+			// Today, plus what was missed. A return visit that is three days out
+			// is not today's work, and a filter that mixes the two makes the
+			// pharmacist do tomorrow's patients today.
+			today: list.filter((r) => r.overdue || r.dueToday).length,
 			open: list.length,
 			// Filled in once the case list has been opened; null until then,
 			// because the queue knows only what is open. Guessing a number would
@@ -174,6 +177,21 @@ export function FollowupList() {
 			cases: caseCount,
 		};
 	}, [rows, caseCount]);
+
+	/*
+	 * How many return visits are on today, and how many were missed.
+	 *
+	 * This is the question the schedule exists to answer (10/19 會議【五】：
+	 * 後台清單會提示今天有哪些病患需要進行 Checklist 追蹤), so it is counted
+	 * before the table rather than left for the reader to tally.
+	 */
+	const today = useMemo(() => {
+		const list = rows ?? [];
+		return {
+			due: list.filter((r) => r.dueToday).length,
+			late: list.filter((r) => r.overdue).length,
+		};
+	}, [rows]);
 
 	/*
 	 * Arriving at a named case forces the full list. 「今日待辦」 is a filter,
@@ -197,11 +215,11 @@ export function FollowupList() {
 		);
 		const visible =
 			effectiveView === "today"
-				? grouped.filter((r) => r.overdue || r.dueSoon)
+				? grouped.filter((r) => r.overdue || r.dueToday)
 				: grouped;
 		return [...visible].sort((a, b) => {
-			const ra = a.overdue ? 0 : a.dueSoon ? 1 : 2;
-			const rb = b.overdue ? 0 : b.dueSoon ? 1 : 2;
+			const ra = a.overdue ? 0 : a.dueToday ? 1 : 2;
+			const rb = b.overdue ? 0 : b.dueToday ? 1 : 2;
 			// With every row overdue the first term is constant, so the rest of
 			// the comparator is what actually orders the queue.
 			return (
@@ -424,6 +442,35 @@ export function FollowupList() {
 				/>
 			)}
 
+			{/*
+			 * Today's return visits, counted before the table.
+			 *
+			 * The queue is where the pharmacist comes to find out who is coming
+			 * back today, so the answer goes at the top of the screen rather
+			 * than in a column the reader has to scan. 「今天」 and 「逾期」 are
+			 * different work — one is planned, one is behind — so they are
+			 * counted apart instead of being folded into a single number that
+			 * reads the same either way.
+			 */}
+			{effectiveView === "today" && (
+				<div
+					role="status"
+					data-testid="today-checklist"
+					className="rounded-lg border border-border-subtle bg-surface px-5 py-4"
+				>
+					<p className="text-lg font-bold text-text">
+						{today.due > 0
+							? `今天有 ${today.due} 件回診 Checklist`
+							: "今天沒有排定的回診 Checklist"}
+					</p>
+					<p className="mt-1 text-base text-text-secondary">
+						{today.late > 0
+							? `另有 ${today.late} 件逾期未做，點進去補做一樣算。`
+							: "沒有逾期的待辦。"}
+					</p>
+				</div>
+			)}
+
 			{effectiveView !== "cases" && (
 				<QueueAttention
 					rows={sorted}
@@ -451,7 +498,7 @@ export function FollowupList() {
 						: "沒有待追蹤的個案。"}
 					<br />
 					<span className="text-text-muted">
-						追蹤會在收案時依錯誤燈號自動排入。
+						收案之後系統會自動排入第 14、21、28 天的回診 Checklist。
 					</span>
 				</Card>
 			) : (
@@ -501,7 +548,7 @@ export function FollowupList() {
 										 * still orders the queue, one line below.
 										 */}
 										<Td className={cn(isFocus && FOCUS_BAR)}>
-											{f.overdue || f.dueSoon ? (
+											{f.overdue || f.dueToday ? (
 												/*
 												 * The number, not the word.
 												 *
@@ -517,8 +564,15 @@ export function FollowupList() {
 												<Badge tone={f.overdue ? "danger" : "warning"}>
 													{f.overdue
 														? `逾期 ${daysLate(f.due_end)} 天`
-														: "近期"}
+														: "今天"}
 												</Badge>
+											) : f.dueSoon ? (
+												/*
+												 * Within three days. Not today's work, but soon
+												 * enough to prepare for — and the badge says
+												 * which it is, so the day is never a guess.
+												 */
+												<Badge tone="neutral">3 天內</Badge>
 											) : (
 												<span className="text-text-muted">—</span>
 											)}

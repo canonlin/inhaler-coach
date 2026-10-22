@@ -12,7 +12,13 @@
  * navigation is how back offices surface work, and leaving it in the list page
  * means finding out there is a queue only by going to look.
  */
-import { BarChart3, BookOpen, ClipboardCheck, ListTodo } from "lucide-react";
+import {
+	BarChart3,
+	BookOpen,
+	ClipboardCheck,
+	ListTodo,
+	Upload,
+} from "lucide-react";
 import type { ElementType } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
@@ -25,6 +31,7 @@ const TAB_ICONS: Record<string, ElementType> = {
 	追蹤清單: ListTodo,
 	成效: BarChart3,
 	衛教內容: BookOpen,
+	資料匯入: Upload,
 };
 
 /** Label of the section the current route belongs to, for the top bar. */

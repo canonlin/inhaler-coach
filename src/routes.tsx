@@ -24,6 +24,7 @@ import { AuthGate } from "./pharmacist/Auth";
 import { CaseEntry } from "./pharmacist/CaseEntry";
 import { ContentSettings } from "./pharmacist/ContentSettings";
 import { FollowupList } from "./pharmacist/components/FollowupList";
+import { DataTransfer } from "./pharmacist/DataTransfer";
 import { Outcomes } from "./pharmacist/Outcomes";
 import { sectionFor } from "./pharmacist/SideNav";
 
@@ -55,6 +56,7 @@ export const routes: RouteObject[] = [
 			{ path: "followups", element: <FollowupList /> },
 			{ path: "outcomes", element: <Outcomes /> },
 			{ path: "settings", element: <ContentSettings /> },
+			{ path: "data", element: <DataTransfer /> },
 		],
 	},
 	{

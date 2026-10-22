@@ -137,7 +137,9 @@ export function FollowupAssessment({
 			});
 			onDone(
 				res.assessment
-					? `已結案並記錄 M1 評估（${answered} 步、${questions.length} 題）`
+					? `已結案並記錄 M1 評估（${answered} 步、${questions.length} 題）${
+							res.superseded > 0 ? `，另結案 ${res.superseded} 個回診時段` : ""
+						}`
 					: "已結案",
 			);
 		} catch (e) {
@@ -164,7 +166,7 @@ export function FollowupAssessment({
 		<Card>
 			<CardHeader
 				title={`複評 …${followup.mrn_tail} · ${drug.label}`}
-				description="結案後會產生一筆 M1，成效頁的前後比較才有資料。要記的是相機看不到的那幾步，和收案時範圍相同；若只複評上次錯的，改善會被高估。"
+				description={`這是${followup.slot ? `第 ${followup.slot.slice(1)} 天` : "這次"}的回診 Checklist（${followup.task}）。結案後會產生一筆 M1，成效頁的前後比較才有資料；同一個案排定在別天的回診時段會一併結案，不會再跳出來提醒。要記的是相機看不到的那幾步，和收案時範圍相同；若只複評上次錯的，改善會被高估。`}
 				action={
 					<span className="text-sm font-semibold tabular-nums text-text-secondary">
 						步驟 {answered}／{manual.length}

@@ -159,7 +159,12 @@ CREATE TABLE IF NOT EXISTS followups (
   due_start   date NOT NULL,
   due_end     date NOT NULL,
   priority    text NOT NULL CHECK (priority IN ('P1', 'P2', 'P3')),
-  status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'missed')),
+  status      text NOT NULL DEFAULT 'open'
+                CHECK (status IN ('open', 'done', 'missed', 'superseded')),
+  -- Which planned return visit this row is: D14 / D21 / D28 after the case
+  -- date. NULL on rows that predate the schedule (the error-driven ones), so
+  -- an old queue row still reads as "not a scheduled visit".
+  slot        text CHECK (slot IS NULL OR slot IN ('D14', 'D21', 'D28')),
   completed_at timestamptz,
   -- Who closed it. A follow-up that nobody can be shown to have actioned is the
   -- same as no follow-up, and that is exactly what the baseline shows.
@@ -171,6 +176,21 @@ CREATE TABLE IF NOT EXISTS followups (
 );
 
 CREATE INDEX IF NOT EXISTS followups_open_idx ON followups (status, due_start);
+
+-- The same two changes for a database that already has the table. CREATE
+-- TABLE IF NOT EXISTS does not add a column to an existing table, and the
+-- CHECK constraint that rejects 'superseded' is baked into the old definition,
+-- so both have to be spelled out for a live database. Idempotent: safe to
+-- re-run, which is what makes `node scripts/migrate.mjs` repeatable.
+ALTER TABLE followups ADD COLUMN IF NOT EXISTS slot text;
+
+ALTER TABLE followups DROP CONSTRAINT IF EXISTS followups_slot_check;
+ALTER TABLE followups ADD CONSTRAINT followups_slot_check
+  CHECK (slot IS NULL OR slot IN ('D14', 'D21', 'D28'));
+
+ALTER TABLE followups DROP CONSTRAINT IF EXISTS followups_status_check;
+ALTER TABLE followups ADD CONSTRAINT followups_status_check
+  CHECK (status IN ('open', 'done', 'missed', 'superseded'));
 -- ── LINE ────────────────────────────────────────────────────────────────────
 -- Reachability after the encounter. Every table here is written without a LINE
 -- account: the recording transport captures the exact payload instead of

@@ -21,13 +21,18 @@
 import { createHash } from "node:crypto";
 
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
+import {
+	ENROLLMENT_SHEET,
+	REQUIRED_COLUMNS,
+} from "../src/domain/enrollment-sheet.js";
 import { PHARMACISTS } from "../src/domain/roster.js";
 import { ALL_STEP_CODES, CRITICAL_STEP_CODES } from "../src/domain/steps.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { readXlsx } from "./xlsx.mjs";
 
-/** The sheet the pharmacist fills in. */
-export const ENROLLMENT_SHEET = "藥師收案";
+/** The sheet the pharmacist fills in. Defined in the domain, because the back
+ *  office tells the pharmacist what to prepare and the two must agree. */
+export { ENROLLMENT_SHEET };
 
 /** Stage labels the schema accepts. */
 const STAGES = ["改善前", "改善後"];
@@ -92,6 +97,23 @@ export function parseEnrollmentWorkbook(buffer) {
 		);
 	}
 	const [headers = [], ...rows] = sheet.rows;
+	const names = headers.map((h) => String(h).trim());
+
+	/*
+	 * The file is refused before any row is read.
+	 *
+	 * A workbook whose headers do not match has no readable rows, and saying
+	 * so row by row — 「沒有病歷號碼」 nine hundred times — is a message that
+	 * describes the symptom instead of the cause. One line naming the missing
+	 * column is what the pharmacist can act on.
+	 */
+	const missing = REQUIRED_COLUMNS.filter((c) => !names.includes(c));
+	if (missing.length) {
+		throw new Error(
+			`這份檔案缺少必要欄位：${missing.join("、")}。工作表「${sheet.name}」的標題列需要：${REQUIRED_COLUMNS.join("、")}。`,
+		);
+	}
+
 	return {
 		headers,
 		rows: rows.filter((r) => r.some((v) => String(v ?? "").trim() !== "")),

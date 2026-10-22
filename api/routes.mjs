@@ -6,6 +6,11 @@
  */
 
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
+import {
+	RETURN_VISITS,
+	slotPriority,
+	slotTask,
+} from "../src/domain/followup-schedule.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
@@ -163,20 +168,36 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 		// A case with a critical error comes back. This is the prototype's
 		// 燈號 rule: ★ critical error -> re-check within 2 weeks; any other
-		// error -> the routine M1 window; all correct -> no follow-up.
+		// error -> the routine M1 window.
 		const wrongCodes = Object.entries(steps)
 			.filter(([, v]) => v === "錯誤")
 			.map(([code]) => code);
 		const hasCritical = wrongCodes.some((c) => isCritical(c));
-		const followup = hasCritical
-			? { task: "有關鍵錯誤：2 週內再評估", days: 14, priority: "P1" }
-			: wrongCodes.length
-				? {
-						task: `${timepoint === "M0" ? "M1" : timepoint} 評估`,
-						days: 14,
-						priority: "P2",
-					}
-				: null;
+
+		/*
+		 * The return-visit slots.
+		 *
+		 * 10/19 會議記錄【五】：個案加入後，等他第 28 天（或第 14、21 天）回診時，
+		 * 後台清單會提示今天有哪些病患需要進行 Checklist 追蹤，藥師點進去就能勾選填寫，
+		 * 不需要再人工記日子。
+		 *
+		 * So an enrollment enqueues its three planned return visits, and the day
+		 * of the visit is what the queue shows. A critical error rides on the
+		 * first slot instead of creating a second row for the same visit.
+		 *
+		 * Only for an enrollment. A follow-up assessment creates an M1, and an
+		 * M1 that enqueued three more slots would grow the queue every time a
+		 * pharmacist worked through it.
+		 */
+		const slots =
+			timepoint === "M0"
+				? RETURN_VISITS.map((visit) => ({
+						task: slotTask(visit, hasCritical),
+						day: visit.day,
+						priority: slotPriority(visit, hasCritical),
+						slot: visit.slot,
+					}))
+				: [];
 
 		const { rows } = await query(
 			`WITH ins_p AS (
@@ -228,12 +249,18 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			   RETURNING 1
 			 )
 			 , ins_f AS (
-			   INSERT INTO followups (patient_id, case_id, task, due_start, due_end, priority)
-			   SELECT ins_c.patient_id, ins_c.id, $25::text,
-			          (ins_c.case_date + $26::int)::date,
-			          (ins_c.case_date + $27::int)::date,
-			          $28::text
-			   FROM ins_c WHERE $25::text IS NOT NULL
+			   INSERT INTO followups (patient_id, case_id, task, due_start, due_end, priority, slot)
+			   -- One row per planned return visit. The four arrays are parallel:
+			   -- unnest of an empty array yields no rows, which is how an M1 (no
+			   -- slots) inserts nothing at all.
+			   SELECT ins_c.patient_id, ins_c.id, s.task,
+			          (ins_c.case_date + s.day)::date,
+			          (ins_c.case_date + s.day)::date,
+			          s.priority,
+			          s.slot
+			   FROM ins_c
+			   CROSS JOIN unnest($25::text[], $26::int[], $27::text[], $28::text[])
+			        AS s(task, day, priority, slot)
 			   RETURNING 1
 			 )
 			 SELECT ins_c.id, ins_c.record_id, ins_p.mrn_tail,
@@ -270,11 +297,10 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				JSON.stringify(body.stepNotes ?? {}),
 				JSON.stringify(knowledge),
 				JSON.stringify(body.measurements ?? {}),
-				followup?.task ?? null,
-				followup ? followup.days : 0,
-				// A routine window ends six weeks after the critical-error one.
-				followup ? (hasCritical ? 14 : 42) : 0,
-				followup?.priority ?? null,
+				slots.map((s) => s.task),
+				slots.map((s) => s.day),
+				slots.map((s) => s.priority),
+				slots.map((s) => s.slot),
 				JSON.stringify(demonstrated),
 			],
 		);
@@ -378,6 +404,10 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			   (SELECT count(*) FROM followups WHERE status = 'open')::int AS fu_open,
 			   (SELECT count(*) FROM followups WHERE status = 'done')::int AS fu_done,
 			   (SELECT count(*) FROM followups WHERE status = 'missed')::int AS fu_missed,
+			   -- Planned visits that another visit replaced. Not outstanding work
+			   -- and not a missed visit either: the patient came back once and
+			   -- was seen.
+			   (SELECT count(*) FROM followups WHERE status = 'superseded')::int AS fu_superseded,
 			   -- Activity is when something HAPPENED, not when the row was
 			   -- written. cases.created_at defaults to now(), so using it makes
 			   -- every historical case look like activity today: the 61-case
@@ -396,10 +426,17 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		// Only follow-ups whose window has actually arrived count. Counting a
 		// task enqueued today as "not yet due" is not the same as counting it as
 		// missed, and the plan's definition uses the due cohort.
+		//
+		// Superseded visits are excluded from the cohort entirely. A visit that
+		// another visit replaced was never outstanding, so counting it as
+		// "due but not done" would report a completion rate that measures the
+		// schedule rather than the pharmacist.
 		const { rows: dueRows } = await query(
 			`SELECT
-			   count(*) FILTER (WHERE due_end <= current_date)::int AS due,
-			   count(*) FILTER (WHERE due_end <= current_date AND status = 'done')::int AS due_done
+			   count(*) FILTER (WHERE due_end <= current_date
+			                    AND status <> 'superseded')::int AS due,
+			   count(*) FILTER (WHERE due_end <= current_date
+			                    AND status = 'done')::int AS due_done
 			 FROM followups`,
 		);
 		const due = dueRows[0]?.due ?? 0;
@@ -570,7 +607,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	 */
 	async function followups() {
 		const { rows } = await query(
-			`SELECT f.id, f.task, f.due_start, f.due_end, f.priority, f.status,
+			`SELECT f.id, f.task, f.due_start, f.due_end, f.priority, f.status, f.slot,
 			        f.case_id, p.id AS patient_id,
 			        p.mrn_tail, c.drug, c.device, c.pharmacist,
 			        COALESCE(w.steps, '[]'::json) AS wrong_steps
@@ -586,14 +623,26 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			 ORDER BY f.due_start`,
 		);
 		const today = new Date().toISOString().slice(0, 10);
+		const list = rows.map((r) => ({
+			...r,
+			wrongSteps: r.wrong_steps ?? [],
+			overdue: r.due_end < today,
+			// Today is inside the due window. A scheduled return visit is a
+			// one-day window, so this is exactly 「今天這位要回診」; a wider
+			// legacy window counts every day it spans, which is what a window
+			// means.
+			dueToday: r.due_start <= today && today <= r.due_end,
+			dueSoon: r.due_end >= today && r.due_end <= addDays(today, 3),
+		}));
 		return {
 			ok: true,
-			followups: rows.map((r) => ({
-				...r,
-				wrongSteps: r.wrong_steps ?? [],
-				overdue: r.due_end < today,
-				dueSoon: r.due_end >= today && r.due_end <= addDays(today, 3),
-			})),
+			followups: list,
+			// The queue's own summary. 「今天有誰要回診」 is the question the
+			// pharmacist asks first (10/19 會議【五】), and 「還有多少沒做」 is
+			// the one they ask second, so both are counted here rather than left
+			// for the screen to work out from the rows.
+			dueToday: list.filter((f) => f.dueToday).length,
+			overdue: list.filter((f) => f.overdue).length,
 		};
 	}
 
@@ -664,14 +713,49 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			 RETURNING id, status, completed_at, completed_by`,
 			[id, status, by, String(body?.note ?? "").trim()],
 		);
-		if (rows[0])
+		if (rows[0]) {
+			/*
+			 * The other planned return visits.
+			 *
+			 * An enrollment has three slots — D14, D21, D28 — and the patient
+			 * comes back once, on whichever of them the clinic saw them. When
+			 * that visit is closed, the other two are not outstanding work and
+			 * not missed visits either: they were replaced by the one that
+			 * happened.
+			 *
+			 * Left open, each would come due in turn and ask for a second
+			 * Checklist the patient has already had, and the queue would fill
+			 * with work that no longer exists — the failure mode of a
+			 * reminder that never gets to stop.
+			 *
+			 * A miss does not supersede anything: the patient did not come, so
+			 * the next slot is still a real chance to see them.
+			 */
+			let superseded = 0;
+			if (status === "done") {
+				const { rows: gone } = await query(
+					`UPDATE followups SET status = 'superseded', completed_at = now(),
+					        completed_by = $2,
+					        completed_note = COALESCE(completed_note, '同次回診已完成')
+					 WHERE status = 'open' AND id <> $1
+					   AND patient_id = (SELECT patient_id FROM followups WHERE id = $1)
+					   AND case_id IS NOT DISTINCT FROM
+					       (SELECT case_id FROM followups WHERE id = $1)
+					 RETURNING id`,
+					[id, by],
+				);
+				superseded = gone.length;
+			}
 			return {
 				ok: true,
 				...rows[0],
 				// Present only when an assessment was recorded, so a caller can
 				// tell "closed" from "closed and measured".
 				...(assessment ? { assessment } : {}),
+				// How many other planned visits this one replaced.
+				superseded,
 			};
+		}
 
 		// Distinguish "already closed" from "no such row": the first is a
 		// conflict the caller can show, the second is a bad id.

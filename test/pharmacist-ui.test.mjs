@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { upsertAdminUser } from "../api/auth.mjs";
 import { createPool } from "../api/db.mjs";
+import { writeXlsx } from "../api/xlsx.mjs";
 
 let pool;
 const getPool = async () => (pool ??= createPool(process.env.DATABASE_URL));
@@ -274,7 +275,13 @@ describe("pharmacist tabs", () => {
 		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
 			n.map((x) => x.textContent.trim()),
 		);
-		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效", "衛教內容"]);
+		assert.deepEqual(tabs, [
+			"收案評估",
+			"追蹤清單",
+			"成效",
+			"衛教內容",
+			"資料匯入",
+		]);
 		assert.equal(
 			await page.$$eval(NAV, (n) => n.length),
 			1,
@@ -830,9 +837,26 @@ describe("pharmacist tabs", () => {
 			},
 			{ timeout: 10_000 },
 		);
+		/*
+		 * The queue lists planned return visits, so it can hold more rows than
+		 * there are cases — one enrollment carries three visits (D14 / D21 /
+		 * D28). Counting rows against rows would compare two different things.
+		 *
+		 * What the case list is for is the cases the queue never shows: the M1
+		 * below has no visit scheduled against it, and it has to be reachable
+		 * here or the before/after has no second side on screen.
+		 */
+		const timepoints = await page.$$eval(
+			"[data-testid=case-list] tbody tr",
+			(rows) => rows.map((r) => r.children[1]?.textContent?.trim() ?? ""),
+		);
 		assert.ok(
-			all >= open,
-			`every open follow-up should also be a recorded case: ${all} < ${open}`,
+			timepoints.includes("M1"),
+			`the M1 case must be reachable from the case list: ${timepoints.join(",")}`,
+		);
+		assert.ok(
+			open > 0 && all > 0,
+			`both views must have rows: queue ${open}, cases ${all}`,
 		);
 
 		// It reads as cases, not as tasks: no close buttons here.
@@ -989,6 +1013,18 @@ describe("pharmacist tabs", () => {
 		await page.evaluate((n) => {
 			window.__before = n;
 		}, before);
+		/*
+		 * Whose visit is being closed, read from the row itself.
+		 *
+		 * An enrollment carries three planned visits, and closing one retires
+		 * the other two — the patient came back once. So the queue does not
+		 * lose exactly one row, and the test has to know which patient it was
+		 * working on rather than count rows.
+		 */
+		const tail = await page.$eval(`${QUEUE_ROWS} >> nth=0`, (r) =>
+			(r.children[1]?.textContent ?? "").trim(),
+		);
+		assert.ok(tail, "the row must name the patient it is about");
 		// By exact accessible name: "完成" also matches "未完成".
 		await page
 			.getByRole("button", { name: /標記為完成$/ })
@@ -1041,13 +1077,29 @@ describe("pharmacist tabs", () => {
 		);
 		await submit.click();
 
+		/*
+		 * The visit leaves the queue, and so do the other two planned visits
+		 * for the same patient: they were superseded by the visit that
+		 * happened, and a reminder for a visit the patient has already had is
+		 * work that does not exist.
+		 */
 		await page.waitForFunction(
-			(sel) => document.querySelectorAll(sel).length === window.__before - 1,
-			QUEUE_ROWS,
+			({ sel, tail }) => {
+				const rows = [...document.querySelectorAll(sel)];
+				const mine = rows.filter(
+					(r) => (r.children[1]?.textContent ?? "").trim() === tail,
+				);
+				return mine.length === 0;
+			},
+			{ sel: QUEUE_ROWS, tail },
 			{ timeout: 15_000 },
 		);
 		const after = await page.$$eval(QUEUE_ROWS, (n) => n.length);
-		assert.equal(after, before - 1, "the row must leave the queue");
+		assert.ok(after < before, "the visit must leave the queue");
+		assert.ok(
+			after <= before - 2,
+			`the superseded visits must leave too: ${after} vs ${before}`,
+		);
 
 		// The attention panel is what the close has to update: it is the first
 		// thing on the queue page, and a stale count there would send the
@@ -1172,5 +1224,98 @@ describe("the sign-in gate", () => {
 		await p.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
 		await p.locator(NAV).waitFor({ state: "visible", timeout: 15000 });
 		await p.getByText(UI_EMAIL).waitFor({ state: "visible" });
+	});
+});
+
+describe("the data transfer page", () => {
+	/*
+	 * A pharmacist asking 「前測資料要在哪上傳」 was looking for a door that did
+	 * not exist: the import was a command-line script, which answers the
+	 * engineer who wrote it and not the person holding the spreadsheet.
+	 *
+	 * The page has to work the way the sheet does — a rehearsal first, then
+	 * the write — because a sheet of 987 rows of which 62 carry content cannot
+	 * be checked by eye. So the rehearsal is the gate, and the test walks the
+	 * whole path rather than only the parts that are easy to reach.
+	 */
+	const sheetRows = [
+		["病歷號碼", "藥師", "院區", "藥品名稱", "收案日期", "步驟_MDI_搖"],
+		["IMP0001", "黃永成", "虎尾", "Symbicort Rapihaler", "2026-05-04", "錯誤"],
+	];
+
+	it("takes a workbook, rehearses it, and only then writes it", async () => {
+		await page.click(`${NAV} a:has-text("資料匯入")`);
+		await page.waitForSelector("#file", { timeout: 15_000 });
+
+		// The file's requirements are on the screen, not in a manual.
+		const body = (await page.textContent("main")) ?? "";
+		assert.match(body, /藥師收案/, "the worksheet name must be on screen");
+		assert.match(body, /病歷號碼/, "the required columns must be on screen");
+
+		// Nothing can be written before a file is chosen and rehearsed.
+		const commit = page.locator('button:has-text("確認匯入")');
+		assert.equal(
+			await commit.isDisabled(),
+			true,
+			"the write must be gated on a rehearsal",
+		);
+
+		await page.setInputFiles("#file", {
+			name: "qcc.xlsx",
+			mimeType:
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			buffer: writeXlsx([{ name: "藥師收案", rows: sheetRows }]),
+		});
+		await page.click('button:has-text("先試算")');
+		await page.waitForSelector('[data-testid="import-report"]', {
+			timeout: 15_000,
+		});
+		const report =
+			(await page.textContent('[data-testid="import-report"]')) ?? "";
+		assert.match(report, /試算結果/, "the report says it was a rehearsal");
+		assert.match(report, /讀到 1 列/);
+
+		// The rehearsal is what unlocks the write.
+		await page.waitForFunction(
+			() =>
+				!(
+					[...document.querySelectorAll("button")].find((b) =>
+						b.textContent?.includes("確認匯入"),
+					)?.disabled ?? true
+				),
+			{ timeout: 10_000 },
+		);
+
+		await page.click('button:has-text("確認匯入")');
+		await page.waitForFunction(
+			() =>
+				document
+					.querySelector('[data-testid="import-report"]')
+					?.textContent?.includes("匯入完成") ?? false,
+			{ timeout: 15_000 },
+		);
+
+		// The case really is in the database.
+		const p = await getPool();
+		const { rows } = await p.query(
+			"SELECT count(*)::int AS n FROM cases WHERE record_id LIKE 'IMP-%'",
+		);
+		assert.equal(rows[0].n, 1, "the import must reach the database");
+
+		// And it is taken back out, so this file does not leave a case behind
+		// for the tests that follow it.
+		const { rows: people } = await p.query(
+			"SELECT patient_id FROM cases WHERE record_id LIKE 'IMP-%'",
+		);
+		await p.query("DELETE FROM cases WHERE record_id LIKE 'IMP-%'");
+		for (const r of people) {
+			await p.query("DELETE FROM patients WHERE id = $1", [r.patient_id]);
+		}
+	});
+
+	it("offers the export as a download", async () => {
+		const href = await page.getAttribute('[data-testid="export-link"]', "href");
+		assert.ok(href, "the export must be a link");
+		assert.match(href, /\/api\/export\/cases\.xlsx/);
 	});
 });
