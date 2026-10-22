@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS cases (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id        uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   case_date         date NOT NULL,
-  timepoint         text NOT NULL CHECK (timepoint IN ('M0', 'M1', 'M3')),
+  timepoint         text NOT NULL CHECK (timepoint IN ('M0', 'M1', 'M3', 'M6')),
   qcc_stage         text NOT NULL CHECK (qcc_stage IN ('改善前', '改善後')),
   campus            text NOT NULL CHECK (campus IN ('虎尾', '斗六')),
   pharmacist        text NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS cases (
   drug              text NOT NULL,
   has_ics           boolean NOT NULL DEFAULT false,
   needs_shake       boolean NOT NULL DEFAULT false,
-  case_type         text CHECK (case_type IN ('初診衛教', '複診回測')),
+  case_type         text CHECK (case_type IN ('初診衛教', '複診回測', '家屬/看護代領')),
   education_minutes integer,
   prior_education   text CHECK (prior_education IN ('有(院內)', '有(院外)', '無')),
   usage_duration    text CHECK (usage_duration IN ('初次使用', '<1個月', '1-6個月', '>6個月')),
@@ -191,6 +191,20 @@ ALTER TABLE followups ADD CONSTRAINT followups_slot_check
 ALTER TABLE followups DROP CONSTRAINT IF EXISTS followups_status_check;
 ALTER TABLE followups ADD CONSTRAINT followups_status_check
   CHECK (status IN ('open', 'done', 'missed', 'superseded'));
+
+-- The 基本表格 grew a column and a choice.
+--
+-- M6: the old app's 收案表單 offered M6 and the QCC sheet has an M6 column, so
+-- an M6 row that was filed as an M0 was a silent lie about the study's
+-- timeline. '家屬/看護代領': the pharmacist has been picking it in the old
+-- form, and a constraint that rejects it loses the row instead of the choice.
+ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_timepoint_check;
+ALTER TABLE cases ADD CONSTRAINT cases_timepoint_check
+  CHECK (timepoint IN ('M0', 'M1', 'M3', 'M6'));
+
+ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_case_type_check;
+ALTER TABLE cases ADD CONSTRAINT cases_case_type_check
+  CHECK (case_type IN ('初診衛教', '複診回測', '家屬/看護代領'));
 -- ── LINE ────────────────────────────────────────────────────────────────────
 -- Reachability after the encounter. Every table here is written without a LINE
 -- account: the recording transport captures the exact payload instead of

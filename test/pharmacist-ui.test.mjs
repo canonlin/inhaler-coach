@@ -1319,3 +1319,87 @@ describe("the data transfer page", () => {
 		assert.match(href, /\/api\/export\/cases\.xlsx/);
 	});
 });
+
+describe("the enrollment form", () => {
+	/*
+	 * The 基本表格.
+	 *
+	 * The old app asked for these on the first step of its 收案表單, and the
+	 * pharmacist's sheet has a column for each of them. The back office has to
+	 * ask for the same ones: a platform that asks for less than the sheet
+	 * does is a platform the case is filled in twice.
+	 *
+	 * The cohort is checked too, because it is invisible when it is wrong: an
+	 * enrollment filed as 「改善後」 has no 「改善前」 to pair against, so the
+	 * patient does not appear in the before/after comparison at all.
+	 */
+	it("asks for the 基本表格 and files the case as the before cohort", async () => {
+		await page.click(`${NAV} a:has-text("收案評估")`);
+		await page.waitForSelector("#mrn", { timeout: 10_000 });
+		await page.fill("#mrn", "UI0000003");
+		await page.waitForSelector(".drug-pick", { timeout: 15_000 });
+		await page.click('.drug-pick button:has-text("Symbicort")');
+
+		// The 基本資料 card, with the fields the sheet has.
+		await page.waitForSelector("#caseType", { timeout: 15_000 });
+		for (const id of [
+			"caseType",
+			"ageBand",
+			"sex",
+			"usageDuration",
+			"priorEducation",
+			"educationMinutes",
+			"timepoint",
+		]) {
+			assert.ok(await page.$(`#${id}`), `the form must ask for ${id}`);
+		}
+
+		// Pick the values.
+		await page.click("#caseType");
+		await page.getByRole("option", { name: "初診衛教" }).click();
+		await page.click("#sex");
+		await page.getByRole("option", { name: "女" }).click();
+		await page.click("#usageDuration");
+		await page.getByRole("option", { name: "1-6個月" }).click();
+		await page.click("#priorEducation");
+		await page.getByRole("option", { name: "有(院外)" }).click();
+		await page.click('button:has-text("氣喘")');
+		await page.fill("#educationMinutes", "12");
+
+		// The steps the camera cannot judge, then the two questions.
+		const correct = page.getByRole("button", { name: "正確", exact: true });
+		const steps = await correct.count();
+		assert.ok(steps > 0, "the manual steps must be on screen");
+		for (let i = 0; i < steps; i++) await correct.nth(i).click();
+		const right = page.getByRole("button", { name: "對", exact: true });
+		const questions = await right.count();
+		assert.ok(questions > 0, "the questions must be on screen");
+		for (let i = 0; i < questions; i++) await right.nth(i).click();
+
+		await page.getByRole("button", { name: "儲存收案" }).click();
+		await page.waitForFunction(
+			() => document.body.textContent?.includes("已收案") ?? false,
+			{ timeout: 15_000 },
+		);
+
+		const p = await getPool();
+		const { rows } = await p.query(
+			`SELECT c.qcc_stage, c.case_type, c.usage_duration, c.prior_education,
+			        c.education_minutes, p.sex, p.diagnosis
+			 FROM cases c JOIN patients p ON p.id = c.patient_id
+			 WHERE p.mrn_tail = '03'`,
+		);
+		assert.equal(rows.length, 1, "the case must be written");
+		assert.equal(
+			rows[0].qcc_stage,
+			"改善後",
+			"the enrollment is the coached visit, which is the after cohort",
+		);
+		assert.equal(rows[0].case_type, "初診衛教");
+		assert.equal(rows[0].sex, "女");
+		assert.equal(rows[0].diagnosis, "氣喘");
+		assert.equal(rows[0].usage_duration, "1-6個月");
+		assert.equal(rows[0].prior_education, "有(院外)");
+		assert.equal(rows[0].education_minutes, 12);
+	});
+});

@@ -37,6 +37,12 @@ import {
 	stepReviewSource,
 } from "../domain/steps.js";
 import { cn } from "../lib/utils";
+import {
+	BasicInfo,
+	type BasicInfoValue,
+	EMPTY_BASIC_INFO,
+	missingBasicFields,
+} from "./components/BasicInfo.jsx";
 import { CaseHistory } from "./components/CaseHistory.jsx";
 import { StepChecklist } from "./components/StepChecklist.jsx";
 import { TodayQueue } from "./components/TodayQueue.jsx";
@@ -95,6 +101,13 @@ export function CaseEntry({
 	const [campus, setCampus] = useState(CAMPUSES[0] ?? "虎尾");
 	const [mrn, setMrn] = useState(preset?.mrn ?? "");
 	const [factors, setFactors] = useState<string[]>([]);
+	// The 基本表格. Same columns as the sheet's 「藥師收案」 worksheet, and
+	// the old app's 收案表單 asked for all of them.
+	const [basic, setBasic] = useState<BasicInfoValue>(EMPTY_BASIC_INFO);
+	// The study's timepoint. M0 is the enrollment; the later ones are the
+	// follow-ups the sheet also carries.
+	const [timepoint, setTimepoint] = useState("M0");
+	const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
 	const [steps, setSteps] = useState<Record<string, "正確" | "錯誤">>({
 		...(preset?.aiSteps ?? {}),
 	});
@@ -155,6 +168,7 @@ export function CaseEntry({
 
 	const ready =
 		Boolean(drug && mrn.trim() && pharmacist) &&
+		missingBasicFields(basic) === 0 &&
 		manual.every((s) => steps[s.code]) &&
 		questions.every((q) => knowledge[String(q.index)]);
 
@@ -166,13 +180,22 @@ export function CaseEntry({
 				caseDate: new Date().toISOString().slice(0, 10),
 				pharmacist,
 				campus,
-				timepoint: "M0",
-				qccStage: "改善後",
+				timepoint,
 				drug: drugName,
 				steps,
 				demonstrated,
 				knowledge,
 				factors,
+				stepNotes,
+				caseType: basic.caseType || undefined,
+				ageBand: basic.ageBand || undefined,
+				sex: basic.sex || undefined,
+				diagnosis: basic.diagnosis.join("/") || undefined,
+				usageDuration: basic.usageDuration || undefined,
+				priorEducation: basic.priorEducation || undefined,
+				educationMinutes: basic.educationMinutes
+					? Number(basic.educationMinutes)
+					: undefined,
 			});
 			setStatus({
 				tone: "good",
@@ -186,6 +209,9 @@ export function CaseEntry({
 			setSteps({});
 			setDemonstrated({});
 			setKnowledge({});
+			setStepNotes({});
+			setBasic(EMPTY_BASIC_INFO);
+			setTimepoint("M0");
 			setMrn("");
 			onSaved?.();
 		} catch (e) {
@@ -393,6 +419,17 @@ export function CaseEntry({
 			</aside>
 
 			<div className="space-y-6">
+				{/*
+				 * The 基本表格, first — the same order the old 收案表單 used:
+				 * who this person is, then the steps, then the questions.
+				 */}
+				<BasicInfo
+					value={basic}
+					onChange={setBasic}
+					timepoint={timepoint}
+					onTimepoint={setTimepoint}
+				/>
+
 				{/* One confirmation for everything the camera already judged. */}
 				{aiDone.length > 0 && (
 					<Card>
@@ -463,6 +500,13 @@ export function CaseEntry({
 					onChange={setSteps}
 					demonstrated={demonstrated}
 					onDemonstrate={setDemonstrated}
+					notes={stepNotes}
+					onNote={(code, text) =>
+						setStepNotes((prev: Record<string, string>) => ({
+							...prev,
+							[code]: text,
+						}))
+					}
 				/>
 
 				{/* Two questions, not ten. */}
@@ -526,6 +570,9 @@ export function CaseEntry({
 						AI 已判 {aiDone.length} 步 · 待補{" "}
 						{manual.filter((s) => !steps[s.code]).length} 步 ·{" "}
 						{Object.keys(knowledge).length}/{questions.length} 題
+						{missingBasicFields(basic) > 0 && (
+							<> · 基本資料待補 {missingBasicFields(basic)} 項</>
+						)}
 					</p>
 					<div className="flex items-center gap-3">
 						{status && (
@@ -541,7 +588,7 @@ export function CaseEntry({
 						<Button size="lg" disabled={!ready} onClick={save}>
 							{ready
 								? "儲存收案"
-								: missingLabel(manual, steps, questions, knowledge)}
+								: missingLabel(manual, steps, questions, knowledge, basic)}
 						</Button>
 					</div>
 				</div>
@@ -562,11 +609,14 @@ function missingLabel(
 	steps: Record<string, string>,
 	questions: KnowledgeQuestion[],
 	knowledge: Record<string, string>,
+	basic: BasicInfoValue,
 ): string {
 	const pendingSteps = manual.filter((s) => !steps[s.code]).length;
 	const pendingQs = questions.filter((q) => !knowledge[String(q.index)]).length;
+	const pendingBasic = missingBasicFields(basic);
 	const parts: string[] = [];
 	if (pendingSteps) parts.push(`${pendingSteps} 個步驟`);
 	if (pendingQs) parts.push(`${pendingQs} 題`);
+	if (pendingBasic) parts.push(`基本資料 ${pendingBasic} 項`);
 	return `還差 ${parts.join(" + ")}`;
 }

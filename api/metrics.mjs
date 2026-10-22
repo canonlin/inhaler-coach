@@ -83,6 +83,22 @@ export function techniqueStats(rows) {
 }
 
 /**
+ * Which of two measurements of the same patient is the later one.
+ *
+ * The date decides; the id breaks a tie, so two measurements on the same day
+ * still have a fixed answer instead of whichever row the database returned
+ * first. A row without a date cannot win against one with a date.
+ */
+function isLater(a, b) {
+	const da = a.caseDate ?? "";
+	const db = b.caseDate ?? "";
+	if (da !== db) return da > db;
+	const ia = a.id ?? "";
+	const ib = b.id ?? "";
+	return ia > ib;
+}
+
+/**
  * McNemar, exact binomial, on patients measured both before and after.
  *
  * The plan calls for McNemar because the design is single-group pre/post: the
@@ -97,7 +113,7 @@ export function techniqueStats(rows) {
  * @returns {{paired: number, b: number, c: number, p: number|null}}
  */
 export function mcnemar(pairedRows) {
-	/** patientId -> qccStage -> wrong? */
+	/** patientId -> stage -> { wrong, row } */
 	const byPatient = new Map();
 	for (const r of pairedRows) {
 		if (!r.patientId) continue;
@@ -112,7 +128,18 @@ export function mcnemar(pairedRows) {
 		// and not after.
 		const stage = r.qccStage === "改善後" ? "after" : "before";
 		const entry = byPatient.get(r.patientId) ?? {};
-		entry[stage] = wrong;
+		const seen = entry[stage];
+		/*
+		 * One measurement per patient per side.
+		 *
+		 * A patient can have more than one row on a side — the same person
+		 * enrolled twice, or an imported baseline beside a new enrollment — and
+		 * which row counts must not depend on the order the database happened to
+		 * return in. The later visit is the one that describes the patient now,
+		 * so that is the one that counts. Without this, the headline number of
+		 * the whole study depended on an unstated ordering.
+		 */
+		if (!seen || isLater(r, seen.row)) entry[stage] = { wrong, row: r };
 		byPatient.set(r.patientId, entry);
 	}
 
@@ -120,8 +147,10 @@ export function mcnemar(pairedRows) {
 	let c = 0;
 	for (const entry of byPatient.values()) {
 		if (entry.before === undefined || entry.after === undefined) continue;
-		if (entry.before && !entry.after) b += 1;
-		else if (!entry.before && entry.after) c += 1;
+		const before = entry.before.wrong;
+		const after = entry.after.wrong;
+		if (before && !after) b += 1;
+		else if (!before && after) c += 1;
 	}
 	const paired = b + c;
 	if (paired === 0) return { paired: 0, b, c, p: null };

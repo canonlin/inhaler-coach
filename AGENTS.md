@@ -195,6 +195,31 @@ research data collector.
   the rest are neither outstanding work nor missed visits, and they are
   excluded from the follow-up completion rate. A visit closed as *missed*
   supersedes nothing — the patient may still come on the next one.
+- **The enrollment form is the 基本表格, and it is the sheet's row.** The
+  pharmacist's own form is the old app's 收案表單
+  (`qcc-inhaler-platform.vercel.app` → 首頁 →「👨‍⚕️ 藥師收案」), which asked for
+  追蹤時間點、病患類別、年齡層、性別、診斷、吸入劑型、藥品名稱、使用多久、
+  曾接受衛教、衛教時間 — and wrote exactly those columns into the sheet's
+  「藥師收案」 worksheet. The back office asks for the same ones, so a case in
+  the platform and a row in the sheet are the same thing. The field list lives
+  in `src/domain/enrollment-sheet.js`; the form, the importer and the export
+  all read it. **A platform that asks for less than the sheet does is a
+  platform the case is filled in twice.** The old form's required set is
+  required here too, and the optional ones stay optional.
+- **The enrollment is filed as 改善後, and that is not a mistake.** 10/19 會議
+  【八】: 林藥師「因為我現在是對策前」 — the pre-intervention data is the
+  April–May sheet, which the importer files as 改善前. The enrollment in the
+  platform is the visit at which the patient has *already* been coached, so it
+  is 改善後, and the LINE journey is keyed on 改善後 for the same reason: the
+  pushes follow the coaching. The pair (前測 from the sheet, 後測 from the
+  platform) is the same patient because the record number hashes to the same
+  person either way.
+- **The sheet's timepoints are M0/M1/M3/M6.** The old form offered M6 and the
+  sheet has an M6 column, so the platform models M6 too; an M6 row filed as an
+  M0 was a silent lie about the study's timeline.
+- **The before/after pairing takes the patient's later measurement on each
+  side** (`api/metrics.mjs`). A patient can have more than one row on a side,
+  and which one counts must not depend on the order the database returned.
 - **The QCC sheet is imported from `/admin/資料匯入`** (the pharmacist asked
   where to upload the pre-intervention data on 2026-10-22; the endpoint
   existed but there was no page). The file must be `.xlsx` with a worksheet

@@ -69,3 +69,89 @@ export function stepColumns(stepCodes) {
 /** The knowledge columns: 知識Q1 … 知識Q10. */
 export const KNOWLEDGE_COLUMN_PREFIX = "知識Q";
 export const KNOWLEDGE_QUESTIONS = 10;
+
+/**
+ * The 基本表格: what every enrollment records about the person.
+ *
+ * These are the columns the pharmacist's QCC sheet has in its 「藥師收案」
+ * worksheet, and they are the fields the old app's 收案表單 asked for. The
+ * back office asks for exactly the same ones, the importer reads exactly the
+ * same ones, and the export writes exactly the same ones — so a case recorded
+ * in the platform and a row in the sheet are the same thing.
+ *
+ * A platform that asks for less than the sheet does is a platform the
+ * pharmacist fills in twice: once on paper and once in the app, and the
+ * before/after comparison ends up comparing a full row with a half row.
+ *
+ * The field's `column` is the sheet's column name; the field's `key` is what
+ * the API and the database call it.
+ *
+ * @typedef {object} EnrollmentField
+ * @property {string} key
+ * @property {string} column
+ * @property {string} label
+ * @property {string[]} [options] the choices, when the field is a choice
+ * @property {boolean} [multiple] when more than one choice is allowed
+ * @property {"number"} [type] when the field is a number
+ */
+
+/** @type {EnrollmentField[]} */
+export const ENROLLMENT_BASIC_FIELDS = [
+	{
+		key: "caseType",
+		column: "病患類別",
+		label: "病患類別",
+		options: ["初診衛教", "複診回測", "家屬/看護代領"],
+	},
+	{
+		key: "ageBand",
+		column: "年齡層",
+		label: "年齡層",
+		options: ["未滿18歲", "18-64歲", "65歲以上"],
+	},
+	{
+		key: "sex",
+		column: "性別",
+		label: "性別",
+		options: ["男", "女"],
+	},
+	{
+		key: "diagnosis",
+		column: "診斷",
+		label: "診斷（可複選）",
+		options: ["氣喘", "COPD", "兩者皆有", "其他"],
+		multiple: true,
+	},
+	{
+		key: "usageDuration",
+		column: "使用多久",
+		label: "使用多久",
+		options: ["初次使用", "<1個月", "1-6個月", ">6個月"],
+	},
+	{
+		key: "priorEducation",
+		column: "曾接受衛教",
+		label: "曾接受衛教",
+		options: ["無", "有(院內)", "有(院外)"],
+	},
+	{
+		key: "educationMinutes",
+		column: "衛教時間_分鐘",
+		label: "衛教時間（分鐘）",
+		type: "number",
+	},
+];
+
+/**
+ * The timepoints the study follows.
+ *
+ * The old app offered M0 through M6 and the sheet has an M6 column, so an M6
+ * row that was filed as an M0 would be a silent lie about the study's
+ * timeline. The platform models the same points.
+ */
+export const TIMEPOINTS = [
+	{ value: "M0", label: "M0（初評）" },
+	{ value: "M1", label: "M1（1個月）" },
+	{ value: "M3", label: "M3（3個月）" },
+	{ value: "M6", label: "M6（6個月）" },
+];

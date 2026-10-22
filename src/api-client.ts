@@ -388,7 +388,13 @@ export interface NewCase {
 	pharmacist: string;
 	campus: string;
 	timepoint: string;
-	qccStage: string;
+	/**
+	 * Which cohort the case belongs to. Left out, the platform files it as
+	 * 改善後 — the enrollment is the coached visit (10/19 會議【八】), and the
+	 * pre-intervention data is the April-May sheet the importer files as
+	 * 改善前.
+	 */
+	qccStage?: string;
 	drug: string;
 	steps: Record<string, "正確" | "錯誤" | "na">;
 	/** Did the patient actually perform the step in front of the pharmacist. */
@@ -398,6 +404,15 @@ export interface NewCase {
 	caseType?: string;
 	stepNotes?: Record<string, string>;
 	measurements?: Record<string, string | number>;
+	/* The 基本表格 — the columns the QCC sheet has and the old 收案表單 asked
+	   for. A case recorded without them is a half row, and a half row cannot be
+	   compared with a full one. */
+	ageBand?: string;
+	sex?: string;
+	diagnosis?: string;
+	usageDuration?: string;
+	priorEducation?: string;
+	educationMinutes?: number;
 }
 
 export async function createCase(body: NewCase) {

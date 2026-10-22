@@ -517,7 +517,10 @@ function parseDate(value) {
 }
 
 function parseTimepoint(value) {
-	const match = value?.match(/M([013])/i);
+	// M6 included: the old app's 收案表單 offered it and the sheet has the
+	// column. A row that was filed as an M0 was a silent lie about the
+	// study's timeline.
+	const match = value?.match(/M([0136])/i);
 	return match ? `M${match[1]}` : "M0";
 }
 

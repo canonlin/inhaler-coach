@@ -6,6 +6,7 @@
  */
 
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
+import { ENROLLMENT_BASIC_FIELDS } from "../src/domain/enrollment-sheet.js";
 import {
 	RETURN_VISITS,
 	slotPriority,
@@ -140,7 +141,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 
 		const drug = drugOf(body.drug);
 		const timepoint = body.timepoint ?? "M0";
-		if (!["M0", "M1", "M3"].includes(timepoint))
+		if (!["M0", "M1", "M3", "M6"].includes(timepoint))
 			bad(`unknown timepoint ${timepoint}`);
 		if (!PHARMACISTS.includes(body.pharmacist))
 			bad(`unknown pharmacist ${body.pharmacist}`);
@@ -189,6 +190,35 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		 * M1 that enqueued three more slots would grow the queue every time a
 		 * pharmacist worked through it.
 		 */
+		/*
+		 * The 基本表格.
+		 *
+		 * Checked here rather than left to the database's CHECK constraints,
+		 * because a constraint violation arrives as a 500 — which tells the
+		 * pharmacist nothing about which field was wrong. The option lists are
+		 * the domain's, the same ones the form shows and the sheet's columns
+		 * carry.
+		 */
+		const basicOption = (value, key) => {
+			if (value === undefined || value === null || value === "") return null;
+			const field = ENROLLMENT_BASIC_FIELDS.find((f) => f.key === key);
+			if (!field?.options?.includes(value)) {
+				bad(`${field?.label ?? key} 不接受這個值：${value}`);
+			}
+			return value;
+		};
+		const caseType = basicOption(body.caseType, "caseType");
+		const ageBand = basicOption(body.ageBand, "ageBand") ?? "18-64歲";
+		const sex = basicOption(body.sex, "sex");
+		const usageDuration = basicOption(body.usageDuration, "usageDuration");
+		const priorEducation = basicOption(body.priorEducation, "priorEducation");
+		const educationMinutes =
+			body.educationMinutes === undefined ||
+			body.educationMinutes === null ||
+			body.educationMinutes === ""
+				? null
+				: Math.round(Number(body.educationMinutes));
+
 		const slots =
 			timepoint === "M0"
 				? RETURN_VISITS.map((visit) => ({
@@ -225,8 +255,13 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			 ), ins_c AS (
 			   INSERT INTO cases (patient_id, case_date, timepoint, qcc_stage, campus,
 			                      pharmacist, device, drug, has_ics, needs_shake, case_type,
+			                      usage_duration, prior_education, education_minutes,
 			                      factors, use_qcc, use_research, record_id)
-			   SELECT id,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20 FROM ins_p
+			   -- $30..$32 are the 基本表格 columns that used to be accepted by
+			   -- the API and then dropped on the floor: the case was written
+			   -- without them, so the sheet's row and the platform's row were
+			   -- never the same thing.
+			   SELECT id,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$30,$31,$32,$17,$18,$19,$20 FROM ins_p
 			   -- case_date comes back via RETURNING for the same reason as
 			   -- mrn_tail: a sibling CTE reading the cases table sees the old snapshot.
 			   RETURNING id, patient_id, record_id, case_date
@@ -263,7 +298,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			        AS s(task, day, priority, slot)
 			   RETURNING 1
 			 )
-			 SELECT ins_c.id, ins_c.record_id, ins_p.mrn_tail,
+			 SELECT ins_c.id, ins_c.record_id, ins_c.patient_id, ins_p.mrn_tail,
 			        (SELECT count(*) FROM ins_s)::int AS steps,
 			        (SELECT count(*) FROM ins_k)::int AS knowledge,
 			        (SELECT count(*) FROM ins_m)::int AS measures,
@@ -274,12 +309,18 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				// id when one was given, otherwise the hash of the record number.
 				patientId ?? hashMrn(mrn, salt),
 				patientId ? "" : mrnTail(mrn),
-				body.ageBand ?? "18-64歲",
-				body.sex ?? null,
+				ageBand,
+				sex,
 				body.diagnosis ?? null,
 				body.studyId ?? null,
 				body.caseDate,
 				timepoint,
+				// 改善後 by default, and that is the platform's own convention:
+				// the enrollment is the visit at which the patient has already
+				// been coached (10/19 會議【八】：「因為我現在是對策前」 — the
+				// pre-intervention data is the April-May sheet, which is what
+				// the importer files as 改善前). The LINE journey is keyed on
+				// 改善後 for the same reason: the pushes follow the coaching.
 				body.qccStage ?? "改善後",
 				body.campus ?? "虎尾",
 				body.pharmacist,
@@ -287,7 +328,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				body.drug,
 				drug.hasIcs,
 				drug.needsShake,
-				body.caseType ?? null,
+				caseType,
 				// factors is text[] — pass the array, not a JSON string.
 				body.factors ?? [],
 				body.useQcc !== false,
@@ -302,6 +343,9 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				slots.map((s) => s.priority),
 				slots.map((s) => s.slot),
 				JSON.stringify(demonstrated),
+				usageDuration,
+				priorEducation,
+				educationMinutes,
 			],
 		);
 
@@ -1026,6 +1070,11 @@ export function shape(r) {
 		// Needed to pair a patient's before and after; the plan's design is
 		// single-group pre-post, so the analysis unit is the person, not the case.
 		patientId: r.patient_id ?? null,
+		// Which of a patient's two measurements counts when there are more than
+		// two: the later one. The pairing must not depend on the order the
+		// database happened to return the rows in.
+		id: r.id ?? null,
+		caseDate: r.case_date ?? null,
 		timepoint: r.timepoint,
 		qccStage: r.qcc_stage,
 		device: r.device,
