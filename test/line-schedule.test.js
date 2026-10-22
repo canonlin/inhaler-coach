@@ -9,7 +9,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildSchedule, renderMessage, setCriticalCodes } from "../api/line/schedule.mjs";
+import {
+	buildSchedule,
+	renderMessage,
+	setCriticalCodes,
+} from "../api/line/schedule.mjs";
 import {
 	countsAgainstQuota,
 	createRecordingTransport,
@@ -27,12 +31,19 @@ describe("LINE schedule", () => {
 			caseDate: CASE,
 			steps: { MDI_搖: "正確", MDI_吐: "正確" },
 		});
-		assert.deepEqual(s, [], "no point reminding a patient about a step they already do");
+		assert.deepEqual(
+			s,
+			[],
+			"no point reminding a patient about a step they already do",
+		);
 	});
 
 	it("schedules day 1, 3 and 7 for a case with errors", () => {
 		const s = buildSchedule({ caseDate: CASE, steps: { MDI_搖: "錯誤" } });
-		assert.deepEqual(s.map((t) => t.day), [1, 3, 7]);
+		assert.deepEqual(
+			s.map((t) => t.day),
+			[1, 3, 7],
+		);
 		assert.equal(s[0].kind, "push");
 	});
 
@@ -51,7 +62,10 @@ describe("LINE schedule", () => {
 	});
 
 	it("ignores steps that do not apply", () => {
-		const s = buildSchedule({ caseDate: CASE, steps: { MDI_漱: "na", MDI_搖: "錯誤" } });
+		const s = buildSchedule({
+			caseDate: CASE,
+			steps: { MDI_漱: "na", MDI_搖: "錯誤" },
+		});
 		assert.deepEqual(s[0].stepCodes, ["MDI_搖"]);
 	});
 
@@ -83,12 +97,22 @@ describe("LINE messages", () => {
 			demonstrated: { MDI_搖: true },
 		});
 		const msg = renderMessage(withDemo, { drugLabel: "Symbicort", steps });
-		assert.match(msg.text, /操作過.*還是不對/, "says they tried and still got it wrong");
-		assert.ok(!/做出來/.test(msg.text), "must not claim they succeeded at a failed step");
+		assert.match(
+			msg.text,
+			/操作過.*還是不對/,
+			"says they tried and still got it wrong",
+		);
+		assert.ok(
+			!/做出來/.test(msg.text),
+			"must not claim they succeeded at a failed step",
+		);
 	});
 
 	it("distinguishes never attempting the step from attempting it wrongly", () => {
-		const [notDemo] = buildSchedule({ caseDate: CASE, steps: { MDI_搖: "錯誤" } });
+		const [notDemo] = buildSchedule({
+			caseDate: CASE,
+			steps: { MDI_搖: "錯誤" },
+		});
 		const msg = renderMessage(notDemo, { drugLabel: "Symbicort", steps });
 		assert.match(msg.text, /沒做到/);
 	});
@@ -108,7 +132,10 @@ describe("LINE messages", () => {
 		const msg = renderMessage(d1, { drugLabel: "Symbicort", steps });
 		assert.deepEqual(Object.keys(msg).sort(), ["text", "type"]);
 		assert.equal(typeof msg.text, "string");
-		assert.ok(msg.text.length > 0 && msg.text.length <= 5000, "LINE caps a text message");
+		assert.ok(
+			msg.text.length > 0 && msg.text.length <= 5000,
+			"LINE caps a text message",
+		);
 	});
 });
 
@@ -136,7 +163,10 @@ describe("LINE quota", () => {
 		const q = quotaCheck(s);
 		assert.equal(q.billable, 150);
 		assert.equal(q.free, 50);
-		assert.ok(q.withinFreeTier, "150 of 200 leaves headroom for a 33% enrolment rise");
+		assert.ok(
+			q.withinFreeTier,
+			"150 of 200 leaves headroom for a 33% enrolment rise",
+		);
 	});
 
 	it("flags the hard stop the free plan cannot buy past", () => {
@@ -146,7 +176,11 @@ describe("LINE quota", () => {
 		}
 		const q = quotaCheck(s);
 		assert.equal(q.billable, 240);
-		assert.equal(q.hardStop, true, "the free plan stops sending; it cannot be topped up");
+		assert.equal(
+			q.hardStop,
+			true,
+			"the free plan stops sending; it cannot be topped up",
+		);
 	});
 
 	it("needs no quota at all for a cohort with nothing wrong", () => {
@@ -161,13 +195,20 @@ describe("recording transport", () => {
 		const sent = [];
 		const t = createRecordingTransport({ insert: async (x) => sent.push(x) });
 		const [d1] = buildSchedule({ caseDate: CASE, steps: { MDI_搖: "錯誤" } });
-		const msg = renderMessage(d1, { drugLabel: "Symbicort", steps: STEP_BY_CODE });
+		const msg = renderMessage(d1, {
+			drugLabel: "Symbicort",
+			steps: STEP_BY_CODE,
+		});
 
 		const res = await t.send("U1234567890", msg);
 		assert.equal(res.ok, true);
 		assert.equal(t.channel, "recording");
 		assert.equal(sent.length, 1);
 		assert.equal(sent[0].to, "U1234567890");
-		assert.deepEqual(sent[0].message, msg, "the captured payload is the payload");
+		assert.deepEqual(
+			sent[0].message,
+			msg,
+			"the captured payload is the payload",
+		);
 	});
 });

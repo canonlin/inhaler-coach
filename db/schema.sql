@@ -244,3 +244,46 @@ CREATE TABLE IF NOT EXISTS admin_config (
   updated_at   timestamptz NOT NULL DEFAULT now(),
   updated_by   text DEFAULT 'admin'
 );
+
+-- ── admin_users / admin_sessions ────────────────────────────────────────────
+-- The back office reads and writes patient records, so it needs a way in.
+-- Before this existed the whole /admin surface — including the spreadsheet
+-- export — answered anyone who asked, on the open internet.
+--
+-- The password is never stored. What is stored is a scrypt hash with a
+-- per-user salt, in one self-describing string, so the cost parameters travel
+-- with the hash and can be raised later without invalidating old ones.
+CREATE TABLE IF NOT EXISTS admin_users (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         text NOT NULL UNIQUE,
+  display_name  text NOT NULL,
+  password_hash text NOT NULL,
+  -- 'viewer' can read the dashboards but not change content or export data.
+  role          text NOT NULL DEFAULT 'pharmacist'
+                CHECK (role IN ('admin', 'pharmacist', 'viewer')),
+  active        boolean NOT NULL DEFAULT true,
+  -- Brute-force brake. The counter is per account, the lock is temporary, and
+  -- a successful sign-in clears it.
+  failed_attempts integer NOT NULL DEFAULT 0,
+  locked_until   timestamptz,
+  last_login_at  timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- A session is a random token handed to the browser as an HttpOnly cookie.
+-- Only its SHA-256 lives here, so a dump of this table cannot be replayed as a
+-- login. Expiry is absolute: a shift is a shift, and a token that renews
+-- itself forever is a token that never leaves the building.
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  token_hash   text PRIMARY KEY,
+  admin_user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  -- Who signed in from where. A PHI read is auditable only if the reader is.
+  user_agent   text,
+  ip           text
+);
+
+CREATE INDEX IF NOT EXISTS admin_sessions_user_idx ON admin_sessions (admin_user_id);
+CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions (expires_at);

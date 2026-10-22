@@ -49,11 +49,16 @@ function DrugImagePreview({ src, alt }: { src?: string; alt?: string }) {
 	const [hasError, setHasError] = useState(false);
 
 	const resolvedSrc = src
-		? src.replace(/^https?:\/\/(inhaler-coach|inhaler-coach-pink)\.vercel\.app/, "")
+		? src.replace(
+				/^https?:\/\/(inhaler-coach|inhaler-coach-pink)\.vercel\.app/,
+				"",
+			)
 		: "";
 
 	useEffect(() => {
-		setHasError(false);
+		// A new image deserves a fresh attempt: the failure belonged to the
+		// old one. (The `src` reference is what makes this effect re-run.)
+		if (src) setHasError(false);
 	}, [src]);
 
 	if (!resolvedSrc || hasError) {
@@ -337,7 +342,8 @@ export function ContentSettings() {
 						LINE 衛教素材管理與上稿
 					</h2>
 					<p className="mt-1 text-sm text-text-secondary">
-						雲林分院專屬後台：隨時新增上稿、修改圖文、一鍵上架／下架，變更將即時同步於 LINE 官方帳號。
+						雲林分院專屬後台：隨時新增上稿、修改圖文、一鍵上架／下架，變更將即時同步於
+						LINE 官方帳號。
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
@@ -397,19 +403,25 @@ export function ContentSettings() {
 							{tab === "drugs" && (
 								<>
 									<Pill className="h-4 w-4" />
-									<span>藥品實物卡片 ({activeDrugCount}/{drugCount})</span>
+									<span>
+										藥品實物卡片 ({activeDrugCount}/{drugCount})
+									</span>
 								</>
 							)}
 							{tab === "videos" && (
 								<>
 									<Video className="h-4 w-4" />
-									<span>衛教示範短片 ({activeVideoCount}/{videoCount})</span>
+									<span>
+										衛教示範短片 ({activeVideoCount}/{videoCount})
+									</span>
 								</>
 							)}
 							{tab === "quizzes" && (
 								<>
 									<HelpCircle className="h-4 w-4" />
-									<span>隨堂測驗題庫 ({activeQuizCount}/{quizCount})</span>
+									<span>
+										隨堂測驗題庫 ({activeQuizCount}/{quizCount})
+									</span>
 								</>
 							)}
 						</button>
@@ -433,16 +445,22 @@ export function ContentSettings() {
 							<div className="text-sm font-bold text-text">
 								藥品實物辨識卡列表
 							</div>
-							<div className="flex items-center gap-2 text-xs text-text-muted">
+							<div className="flex items-center gap-2 text-meta text-text-muted">
 								<span>總共 {drugCount} 筆</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
-									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-emerald-500"
+										aria-hidden="true"
+									/>
 									已上架 {activeDrugCount} 筆 (LINE 端輪播顯示，上限 10 筆)
 								</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 text-slate-500">
-									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-slate-400"
+										aria-hidden="true"
+									/>
 									已下架 {inactiveDrugCount} 筆
 								</span>
 							</div>
@@ -473,11 +491,11 @@ export function ContentSettings() {
 									{/* Top control bar: on/off shelf toggle & delete */}
 									<div className="flex items-center justify-between border-b border-border-subtle pb-3">
 										<div className="flex items-center gap-2">
-											<span className="font-mono text-xs font-bold text-text-muted">
+											<span className="font-mono text-meta font-bold text-text-muted">
 												#{index + 1} {drug.id}
 											</span>
 											{!isOn && (
-												<span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700">
+												<span className="rounded bg-slate-200 px-2 py-0.5 text-meta font-bold text-slate-700">
 													長輩端已隱藏
 												</span>
 											)}
@@ -487,7 +505,7 @@ export function ContentSettings() {
 											<button
 												type="button"
 												onClick={() => handleToggleDrug(index)}
-												className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+												className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-meta font-bold transition-colors ${
 													isOn
 														? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
 														: "border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -532,7 +550,7 @@ export function ContentSettings() {
 										{/* Primary Fields */}
 										<div className="grow space-y-2">
 											<div>
-												<div className="mb-1 text-xs font-bold text-text-muted">
+												<div className="mb-1 text-meta font-bold text-text-muted">
 													藥品名稱 (顯示於卡片主標題)
 												</div>
 												<Input
@@ -548,7 +566,7 @@ export function ContentSettings() {
 
 											<div className="flex gap-2">
 												<div className="w-1/2">
-													<div className="mb-1 text-xs font-bold text-text-muted">
+													<div className="mb-1 text-meta font-bold text-text-muted">
 														裝置分類
 													</div>
 													<Input
@@ -565,7 +583,7 @@ export function ContentSettings() {
 													/>
 												</div>
 												<div className="w-1/2">
-													<div className="mb-1 text-xs font-bold text-text-muted">
+													<div className="mb-1 text-meta font-bold text-text-muted">
 														類固醇註記
 													</div>
 													<div className="flex h-12 items-center gap-2">
@@ -598,7 +616,7 @@ export function ContentSettings() {
 									{/* Secondary Detail Inputs */}
 									<div className="space-y-3">
 										<div>
-											<div className="mb-1 text-xs font-bold text-text-muted">
+											<div className="mb-1 text-meta font-bold text-text-muted">
 												外觀顏色特徵 (秒認實物，避免拿錯藥)
 											</div>
 											<Input
@@ -613,7 +631,7 @@ export function ContentSettings() {
 										</div>
 
 										<div>
-											<div className="mb-1 text-xs font-bold text-text-muted">
+											<div className="mb-1 text-meta font-bold text-text-muted">
 												實物圖片 URL (支援 https 網址)
 											</div>
 											<Input
@@ -628,7 +646,7 @@ export function ContentSettings() {
 										</div>
 
 										<div>
-											<div className="mb-1 text-xs font-bold text-text-muted">
+											<div className="mb-1 text-meta font-bold text-text-muted">
 												操作口訣重點
 											</div>
 											<Input
@@ -658,16 +676,22 @@ export function ContentSettings() {
 							<div className="text-sm font-bold text-text">
 								衛教示範短片列表
 							</div>
-							<div className="flex items-center gap-2 text-xs text-text-muted">
+							<div className="flex items-center gap-2 text-meta text-text-muted">
 								<span>總共 {videoCount} 部</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
-									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-emerald-500"
+										aria-hidden="true"
+									/>
 									已上架 {activeVideoCount} 部 (長輩點選影片時播放)
 								</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 text-slate-500">
-									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-slate-400"
+										aria-hidden="true"
+									/>
 									已下架 {inactiveVideoCount} 部
 								</span>
 							</div>
@@ -698,17 +722,17 @@ export function ContentSettings() {
 									{/* Top Bar */}
 									<div className="flex items-center justify-between border-b border-border-subtle pb-3">
 										<div className="flex items-center gap-2">
-											<span className="rounded bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">
+											<span className="rounded bg-primary-soft px-2.5 py-1 text-meta font-bold text-primary">
 												{video.type ||
 													video.scope ||
 													video.deviceType ||
 													"通用"}
 											</span>
-											<span className="font-mono text-xs text-text-muted">
+											<span className="font-mono text-meta text-text-muted">
 												{video.id}
 											</span>
 											{!isOn && (
-												<span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700">
+												<span className="rounded bg-slate-200 px-2 py-0.5 text-meta font-bold text-slate-700">
 													已下架
 												</span>
 											)}
@@ -718,7 +742,7 @@ export function ContentSettings() {
 											<button
 												type="button"
 												onClick={() => handleToggleVideo(index)}
-												className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+												className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-meta font-bold transition-colors ${
 													isOn
 														? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
 														: "border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -756,7 +780,7 @@ export function ContentSettings() {
 									<div className="space-y-3">
 										<div className="flex gap-2">
 											<div className="w-1/3">
-												<div className="mb-1 text-xs font-bold text-text-muted">
+												<div className="mb-1 text-meta font-bold text-text-muted">
 													適用裝置代碼
 												</div>
 												<Input
@@ -774,7 +798,7 @@ export function ContentSettings() {
 												/>
 											</div>
 											<div className="w-2/3">
-												<div className="mb-1 text-xs font-bold text-text-muted">
+												<div className="mb-1 text-meta font-bold text-text-muted">
 													影片標題
 												</div>
 												<Input
@@ -790,7 +814,7 @@ export function ContentSettings() {
 										</div>
 
 										<div>
-											<div className="mb-1 text-xs font-bold text-text-muted">
+											<div className="mb-1 text-meta font-bold text-text-muted">
 												YouTube 或短片連結網址
 											</div>
 											<Input
@@ -805,7 +829,7 @@ export function ContentSettings() {
 										</div>
 
 										<div>
-											<div className="mb-1 text-xs font-bold text-text-muted">
+											<div className="mb-1 text-meta font-bold text-text-muted">
 												胸腔醫學會標準步驟指引 (長輩卡片文字重點，可換行)
 											</div>
 											<textarea
@@ -846,16 +870,22 @@ export function ContentSettings() {
 							<div className="text-sm font-bold text-text">
 								隨堂測驗題庫管理
 							</div>
-							<div className="flex items-center gap-2 text-xs text-text-muted">
+							<div className="flex items-center gap-2 text-meta text-text-muted">
 								<span>總共 {quizCount} 題</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
-									<span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-emerald-500"
+										aria-hidden="true"
+									/>
 									已上架 {activeQuizCount} 題 (LINE 端隨堂測驗開放)
 								</span>
 								<span>•</span>
 								<span className="inline-flex items-center gap-1.5 text-slate-500">
-									<span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
+									<span
+										className="h-2 w-2 rounded-full bg-slate-400"
+										aria-hidden="true"
+									/>
 									已下架 {inactiveQuizCount} 題
 								</span>
 							</div>
@@ -912,14 +942,14 @@ export function ContentSettings() {
 													{/* Card Header */}
 													<div className="flex items-center justify-between border-b border-border-subtle pb-3">
 														<div className="flex items-center gap-2">
-															<span className="font-mono text-xs font-bold text-text-muted">
+															<span className="font-mono text-meta font-bold text-text-muted">
 																ID: {q.id}
 															</span>
-															<span className="rounded bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">
+															<span className="rounded bg-primary-soft px-2 py-0.5 text-meta font-bold text-primary">
 																正解選項：({q.correctAnswer})
 															</span>
 															{!isOn && (
-																<span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700">
+																<span className="rounded bg-slate-200 px-2 py-0.5 text-meta font-bold text-slate-700">
 																	已下架
 																</span>
 															)}
@@ -931,7 +961,7 @@ export function ContentSettings() {
 																onClick={() =>
 																	handleToggleQuiz(deviceKey, qIndex)
 																}
-																className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+																className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-meta font-bold transition-colors ${
 																	isOn
 																		? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
 																		: "border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -970,7 +1000,7 @@ export function ContentSettings() {
 
 													<div className="space-y-4">
 														<div>
-															<div className="mb-1 text-xs font-bold text-text-muted">
+															<div className="mb-1 text-meta font-bold text-text-muted">
 																測驗題目
 															</div>
 															<Input
@@ -990,7 +1020,7 @@ export function ContentSettings() {
 														{/* Options List */}
 														<div className="space-y-2">
 															<div className="flex items-center justify-between">
-																<div className="text-xs font-bold text-text-muted">
+																<div className="text-meta font-bold text-text-muted">
 																	選項設定與正解標記（綠色標籤為正解）
 																</div>
 																<button
@@ -998,7 +1028,7 @@ export function ContentSettings() {
 																	onClick={() =>
 																		handleAddOption(deviceKey, qIndex)
 																	}
-																	className="flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+																	className="flex items-center gap-1 text-meta font-bold text-primary hover:underline"
 																>
 																	<Plus className="h-3.5 w-3.5" /> 新增選項
 																</button>
@@ -1046,7 +1076,7 @@ export function ContentSettings() {
 																				quizzes: next,
 																			});
 																		}}
-																		className={`shrink-0 rounded px-3 py-1.5 text-xs font-bold transition-colors ${
+																		className={`shrink-0 rounded px-3 py-1.5 text-meta font-bold transition-colors ${
 																			q.correctAnswer === opt.id
 																				? "bg-emerald-600 text-white"
 																				: "bg-surface-muted text-text-muted hover:bg-surface-border"
@@ -1081,7 +1111,7 @@ export function ContentSettings() {
 
 														{/* Explanation */}
 														<div>
-															<div className="mb-1 text-xs font-bold text-text-muted">
+															<div className="mb-1 text-meta font-bold text-text-muted">
 																答題後藥師重點解析說明 (長輩完成測驗後回傳)
 															</div>
 															<textarea

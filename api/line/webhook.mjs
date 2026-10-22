@@ -16,6 +16,11 @@ import { fileURLToPath } from "node:url";
 
 import { findDrug, RESCUE_ONLY_ID } from "./catalog.mjs";
 import {
+	findActiveQuiz,
+	findActiveVideo,
+	getDynamicConfig,
+} from "./config.mjs";
+import {
 	buildClinicReminderFlex,
 	buildDrugSelectCarousel,
 	buildDualTagProfileFlex,
@@ -115,50 +120,6 @@ function buildDefaultHelpMenu() {
 	};
 }
 
-async function getDynamicConfig(query, key, fallback) {
-	if (!query) return fallback;
-	try {
-		const { rows } = await query(
-			`SELECT config_value FROM admin_config WHERE config_key = $1`,
-			[key],
-		);
-		if (rows.length && rows[0].config_value) {
-			const val = rows[0].config_value;
-			return typeof val === "string" ? JSON.parse(val) : val;
-		}
-	} catch {
-		// fallback gracefully
-	}
-	return fallback;
-}
-
-function findActiveVideo(videos, deviceType) {
-	if (!videos) return null;
-	const activeVideos = Array.isArray(videos)
-		? videos.filter((v) => v.enabled !== false && v.status !== "inactive")
-		: [];
-	return (
-		activeVideos.find(
-			(v) =>
-				v.type === deviceType ||
-				v.device === deviceType ||
-				v.deviceType === deviceType,
-		) || activeVideos[0]
-	);
-}
-
-function findActiveQuiz(quizData, deviceType) {
-	if (!quizData) return null;
-	const list = quizData[deviceType];
-	if (Array.isArray(list)) {
-		return list.find((q) => q.enabled !== false && q.status !== "inactive");
-	}
-	if (list && list.enabled !== false && list.status !== "inactive") {
-		return list;
-	}
-	return null;
-}
-
 async function routeTextMessage(text, lineUserId, query) {
 	if (/選藥|我的吸入劑|報到|開始選擇/i.test(text)) {
 		const drugs = await getDynamicConfig(query, "drugs", null);
@@ -190,6 +151,27 @@ async function routeTextMessage(text, lineUserId, query) {
 	}
 	if (/回診|回診提醒/i.test(text)) {
 		return buildClinicReminderFlex();
+	}
+	// The two-week check asks a closed question, so the answer is one tap.
+	// Answering it is the point: the reply is what tells the pharmacist this
+	// patient is doing well, and it is free.
+	if (/都做對了|都正確|沒問題了/i.test(text)) {
+		return {
+			type: "text",
+			text: "做對了，繼續保持！\n如果之後有任何操作上的不順，隨時點下面選單「諮詢藥師」，我們會協助您。",
+		};
+	}
+	if (/還有一兩個不順|有一兩個不順|不太順/i.test(text)) {
+		return {
+			type: "text",
+			text: "了解，最常見的三個卡關點是：\n1. 忘記搖晃\n2. 吸之前沒有先吐氣\n3. 吸完沒有閉氣 5 秒\n\n點下面選單「操作影片」看一次 2 分鐘示範，通常就會順了。回診時也可以請藥師現場教您一次。",
+		};
+	}
+	if (/忘了怎麼用|忘記怎麼用/i.test(text)) {
+		return {
+			type: "text",
+			text: "沒關係，我們把方法再送一次給您：\n點下面選單「操作影片」看 2 分鐘示範，「常見問題」裡有 4 大地雷錯誤。\n還是記不起來的話，回診時請藥師現場複核一次最安心。",
+		};
 	}
 	if (/常見問題|常見問答|地雷|qa/i.test(text)) {
 		return buildFaqFlex();

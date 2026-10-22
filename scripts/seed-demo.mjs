@@ -8,11 +8,10 @@
  * Run: DATABASE_URL=... node scripts/seed-demo.mjs
  */
 import { createPool } from "../api/db.mjs";
-import { ALL_STEP_CODES } from "../src/domain/steps.js";
-import { DRUG_BY_NAME, drugOf } from "../src/domain/drugs.js";
-import { PHARMACISTS } from "../src/domain/roster.js";
 import { makeRoutes } from "../api/routes.mjs";
-import { BASELINE, BASELINE_WRONG, baselineRows } from "../test/fixtures/baseline-61.mjs";
+import { drugOf } from "../src/domain/drugs.js";
+import { PHARMACISTS } from "../src/domain/roster.js";
+import { BASELINE_WRONG, baselineRows } from "../test/fixtures/baseline-61.mjs";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -25,7 +24,10 @@ await pool.query(
 	"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
 );
 
-const api = makeRoutes({ query: (t, p) => pool.query(t, p), salt: "demo-salt" });
+const api = makeRoutes({
+	query: (t, p) => pool.query(t, p),
+	salt: "demo-salt",
+});
 
 // One representative drug per device, so a row is always seeded with a product
 // that actually uses the steps the baseline recorded for it.
@@ -114,7 +116,10 @@ const { rows: agg } = await pool.query(
 
 console.log(`seeded ${created} 改善前 + ${afterCount} 改善後 cases`);
 console.log(`baseline fixture expected wrong steps: ${BASELINE_WRONG}`);
-for (const a of agg) console.log(`  ${a.qcc_stage}: ${a.cases} cases, ${a.assessed} assessed, ${a.wrong} wrong`);
+for (const a of agg)
+	console.log(
+		`  ${a.qcc_stage}: ${a.cases} cases, ${a.assessed} assessed, ${a.wrong} wrong`,
+	);
 await pool.end();
 
 function dateInPeriod(offset) {

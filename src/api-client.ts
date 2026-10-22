@@ -107,6 +107,58 @@ export interface Summary {
 
 const base = import.meta.env.VITE_API_BASE ?? "";
 
+/** The API's origin, or "" when it is served from the same one. */
+export const API_BASE = base;
+
+/**
+ * Thrown when the API refuses the request because nobody is signed in.
+ *
+ * It is its own type because the back office has to react to it differently
+ * from an ordinary failure: a 401 means "show the sign-in screen", not "the
+ * server is down".
+ */
+export class UnauthorizedError extends Error {
+	constructor(message = "尚未登入") {
+		super(message);
+		this.name = "UnauthorizedError";
+	}
+}
+
+/**
+ * Called when the API answers 401.
+ *
+ * The session can end in the middle of a shift, so any request may be the one
+ * that discovers it. The provider installs a handler that drops the app back
+ * to the sign-in screen instead of leaving a half-dead page full of errors.
+ */
+let unauthorizedHandler: (() => void) | null = null;
+
+export function onUnauthorized(handler: () => void): void {
+	unauthorizedHandler = handler;
+}
+
+/**
+ * The one place an HTTP call is made.
+ *
+ * Credentials are sent, because the session is a cookie, and the browser only
+ * attaches it to a same-origin request. A 401 is turned into the typed error
+ * and reported to the handler above.
+ */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+	const res = await fetch(`${base}${path}`, {
+		credentials: "same-origin",
+		...init,
+	});
+	if (res.status === 401) {
+		unauthorizedHandler?.();
+		throw new UnauthorizedError();
+	}
+	const json = await res.json().catch(() => ({}));
+	if (!res.ok || json.ok === false)
+		throw new Error(json.error ?? `HTTP ${res.status}`);
+	return json as T;
+}
+
 async function get<T>(
 	path: string,
 	params?: Record<string, string | number>,
@@ -118,11 +170,7 @@ async function get<T>(
 					.map(([k, v]) => [k, String(v)]),
 			)}`
 		: "";
-	const res = await fetch(`${base}${path}${qs}`);
-	const json = await res.json();
-	if (!res.ok || json.ok === false)
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as T;
+	return request<T>(`${path}${qs}`);
 }
 
 export const fetchSummary = (params?: { qccStage?: string; target?: number }) =>
@@ -156,22 +204,18 @@ export async function closeFollowup(input: {
 		demonstrated: Record<string, boolean>;
 	};
 }) {
-	const res = await fetch(`${base}/api/followups/close`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(input),
-	});
-	const json = await res.json();
-	if (!res.ok || json.ok === false)
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as {
+	return request<{
 		ok: true;
 		id: string;
 		status: string;
 		completed_by: string;
 		/** Only when an assessment was recorded, so closed and measured differ. */
 		assessment?: { mrn_tail: string; steps: number };
-	};
+	}>(`${base}/api/followups/close`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
 }
 
 export interface Followup {
@@ -215,15 +259,14 @@ export interface CaseRow {
  */
 export async function lookupCases(mrn: string): Promise<CaseRow[]> {
 	if (!mrn.trim()) return [];
-	const res = await fetch(`${base}/api/cases/lookup`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ mrn: mrn.trim() }),
-	});
-	const json = await res.json();
-	if (!res.ok || json.ok === false) {
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	}
+	const json = await request<{ cases?: CaseRow[] }>(
+		`${base}/api/cases/lookup`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ mrn: mrn.trim() }),
+		},
+	);
 	return (json.cases ?? []) as CaseRow[];
 }
 
@@ -243,11 +286,9 @@ export async function fetchCases(
 		if (v) params.set(k, v);
 	}
 	const qs = params.toString();
-	const res = await fetch(`${base}/api/cases${qs ? `?${qs}` : ""}`);
-	const json = await res.json();
-	if (!res.ok || json.ok === false) {
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	}
+	const json = await request<{ cases?: CaseRow[] }>(
+		`${base}/api/cases${qs ? `?${qs}` : ""}`,
+	);
 	return (json.cases ?? []) as CaseRow[];
 }
 
@@ -261,13 +302,9 @@ export async function fetchCases(
  * identity.
  */
 export async function casesForPatient(patientId: string): Promise<CaseRow[]> {
-	const res = await fetch(
+	const json = await request<{ cases?: CaseRow[] }>(
 		`${base}/api/cases?patientId=${encodeURIComponent(patientId)}`,
 	);
-	const json = await res.json();
-	if (!res.ok || json.ok === false) {
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	}
 	return (json.cases ?? []) as CaseRow[];
 }
 
@@ -291,15 +328,7 @@ export interface NewCase {
 }
 
 export async function createCase(body: NewCase) {
-	const res = await fetch(`${base}/api/cases`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(body),
-	});
-	const json = await res.json();
-	if (!res.ok || json.ok === false)
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as {
+	return request<{
 		ok: true;
 		id: string;
 		record_id: string;
@@ -308,7 +337,11 @@ export async function createCase(body: NewCase) {
 		knowledge: number;
 		measures: number;
 		followup: number;
-	};
+	}>(`${base}/api/cases`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
 }
 
 /** One step as the camera judged it. */
@@ -331,13 +364,9 @@ export async function fetchPendingSession(
 	mrn: string,
 ): Promise<PendingSession> {
 	if (!mrn.trim()) return { ok: true, found: false, steps: {} };
-	const res = await fetch(
+	return request<PendingSession>(
 		`${base}/api/sessions/pending?mrn=${encodeURIComponent(mrn.trim())}`,
 	);
-	const json = await res.json();
-	if (!res.ok || json.ok === false)
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as PendingSession;
 }
 
 export interface AdminDrugCard {
@@ -414,13 +443,12 @@ export async function saveAdminConfig(
 		| AdminDrugCard[],
 	user = "藥劑部管理員",
 ) {
-	const res = await fetch(`${base}/api/admin/config`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ key, value, user }),
-	});
-	const json = await res.json();
-	if (!res.ok || json.ok === false)
-		throw new Error(json.error ?? `HTTP ${res.status}`);
-	return json as { ok: true; key: string; updated: boolean };
+	return request<{ ok: true; key: string; updated: boolean }>(
+		`${base}/api/admin/config`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ key, value, user }),
+		},
+	);
 }

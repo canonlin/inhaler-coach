@@ -6,15 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-
 import {
-	BASELINE,
-	BASELINE_ASSESSED,
-	BASELINE_WRONG,
-	baselineRows,
-} from "./fixtures/baseline-61.mjs";
-import {
-	knowledgeStats,
 	pareto,
 	scoreCase,
 	stepErrorRates,
@@ -23,6 +15,12 @@ import {
 	techniqueStats,
 } from "../api/metrics.mjs";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
+import {
+	BASELINE,
+	BASELINE_ASSESSED,
+	BASELINE_WRONG,
+	baselineRows,
+} from "./fixtures/baseline-61.mjs";
 
 describe("baseline fixture integrity", () => {
 	it("carries the 61 cases collected 2026-04-21 to 2026-05-27", () => {
@@ -46,7 +44,9 @@ describe("baseline fixture integrity", () => {
 
 	it("reports Breezhaler as having no baseline cases", () => {
 		// No BRZ data was collected, which is why the dashboard shows it greyed out.
-		const brz = Object.entries(BASELINE.steps).filter(([c]) => c.startsWith("BRZ_"));
+		const brz = Object.entries(BASELINE.steps).filter(([c]) =>
+			c.startsWith("BRZ_"),
+		);
 		assert.equal(brz.length, 10);
 		assert.ok(brz.every(([, v]) => v.a === 0 && v.w === 0));
 	});
@@ -94,7 +94,11 @@ describe("acceptance: reproduce the published step-level figures", () => {
 
 	it("excludes steps with no baseline cases from the rates", () => {
 		const rates = stepErrorRates(rows);
-		assert.equal(rates.length, 23, "only the 23 steps with cases should appear");
+		assert.equal(
+			rates.length,
+			23,
+			"only the 23 steps with cases should appear",
+		);
 		assert.ok(!rates.some((r) => r.stepCode.startsWith("BRZ_")));
 	});
 
@@ -110,7 +114,9 @@ describe("acceptance: reproduce the published step-level figures", () => {
 
 	it("puts the two worst steps at MDI_搖 and MDI_吐, both ★ critical", () => {
 		// Measured from the field data: 14/25 = 56.0%, then 13/25 = 52.0%.
-		const top = stepErrorRates(rows).slice(0, 2).map((r) => r.stepCode);
+		const top = stepErrorRates(rows)
+			.slice(0, 2)
+			.map((r) => r.stepCode);
 		assert.deepEqual(top, ["MDI_搖", "MDI_吐"]);
 		assert.ok(isCritical("MDI_搖"));
 		assert.ok(isCritical("MDI_吐"));
@@ -152,14 +158,20 @@ describe("acceptance: pareto", () => {
 		const p = pareto(baselineRows());
 		const last = p[p.length - 1];
 		assert.ok(Math.abs(last.share - 1) < 1e-12);
-		assert.equal(p.reduce((n, r) => n + r.wrong, 0), 93);
+		assert.equal(
+			p.reduce((n, r) => n + r.wrong, 0),
+			93,
+		);
 	});
 
 	it("shows that a handful of steps cause most errors", () => {
 		// Six of 23 steps should already account for over half of all wrong steps.
 		const p = pareto(baselineRows());
 		const six = p.slice(0, 6);
-		assert.ok(six[six.length - 1].share > 0.5, "top 6 steps should exceed 50% of errors");
+		assert.ok(
+			six[six.length - 1].share > 0.5,
+			"top 6 steps should exceed 50% of errors",
+		);
 	});
 });
 
@@ -177,7 +189,9 @@ describe("acceptance: what the step counts cannot pin down", () => {
 		// published 38, and 29 fully correct against 40: close enough to show the
 		// construction is realistic, not equal, so the published case-level
 		// figures stay underdetermined by the step-level data.
-		const critCases = rows.filter((r) => scoreCase(r).critErrors.length > 0).length;
+		const critCases = rows.filter(
+			(r) => scoreCase(r).critErrors.length > 0,
+		).length;
 		const clean = rows.filter((r) => {
 			const x = scoreCase(r);
 			return x.total > 0 && x.correct === x.total;
@@ -262,6 +276,9 @@ describe("metrics behaviour", () => {
 			{ device: "MDI", steps: { MDI_搖: "正確", MDI_開: "正確" } },
 		];
 		const stubborn = stubbornSteps(before, after);
-		assert.deepEqual(stubborn.map((s) => s.stepCode), ["MDI_搖"]);
+		assert.deepEqual(
+			stubborn.map((s) => s.stepCode),
+			["MDI_搖"],
+		);
 	});
 });

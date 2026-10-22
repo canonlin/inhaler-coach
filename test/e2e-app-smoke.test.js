@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import test from "node:test";
 import { chromium } from "playwright";
 
@@ -21,12 +21,17 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 	 * only whether the directory exists.
 	 */
 	const builtWith = fs.existsSync(indexHtml)
-		? (fs.readFileSync(indexHtml, "utf8").match(/\/(inhaler-coach)\/assets\//) || [])[1]
+		? (fs
+				.readFileSync(indexHtml, "utf8")
+				.match(/\/(inhaler-coach)\/assets\//) || [])[1]
 		: null;
 	if (builtWith !== BASE) {
-		execSync(`VITE_BASE=/${BASE === "inhaler-coach" ? "" : BASE} bun run build`, {
-			stdio: "inherit",
-		});
+		execSync(
+			`VITE_BASE=/${BASE === "inhaler-coach" ? "" : BASE} bun run build`,
+			{
+				stdio: "inherit",
+			},
+		);
 	}
 	assert.ok(fs.existsSync(indexHtml), "index.html must exist for smoke test");
 
@@ -70,7 +75,11 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 		await page.goto(`http://localhost:${port}/${BASE}/`);
 		await page.waitForSelector("#btn-start", { timeout: 10000 });
 
-		assert.equal(pageErrors.length, 0, `Homepage threw errors: ${pageErrors.join(", ")}`);
+		assert.equal(
+			pageErrors.length,
+			0,
+			`Homepage threw errors: ${pageErrors.join(", ")}`,
+		);
 		const homeText = await page.textContent("#app");
 		assert.match(homeText, /吸必擴/);
 		assert.match(homeText, /智慧教學平台/);
@@ -82,7 +91,11 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 			{ timeout: 10000 },
 		);
 
-		assert.equal(pageErrors.length, 0, `Stage 0 threw errors: ${pageErrors.join(", ")}`);
+		assert.equal(
+			pageErrors.length,
+			0,
+			`Stage 0 threw errors: ${pageErrors.join(", ")}`,
+		);
 		const stage0Text = await page.textContent("#app");
 		assert.match(stage0Text, /開場介紹/);
 		assert.match(stage0Text, /衛教影片/);
@@ -94,7 +107,11 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 			{ timeout: 10000 },
 		);
 
-		assert.equal(pageErrors.length, 0, `Stage 1 threw errors: ${pageErrors.join(", ")}`);
+		assert.equal(
+			pageErrors.length,
+			0,
+			`Stage 1 threw errors: ${pageErrors.join(", ")}`,
+		);
 		const stage1Text = await page.textContent("#app");
 		assert.match(stage1Text, /振搖/);
 	} finally {

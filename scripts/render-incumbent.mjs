@@ -4,10 +4,11 @@
  *
  * Usage: node scripts/render-incumbent.mjs
  */
-import { chromium } from "playwright";
+
 import { mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../output/design-review");
@@ -29,9 +30,13 @@ await page.waitForTimeout(600);
 for (const tab of ["form", "edu", "dash", "follow", "set"]) {
 	await page.evaluate((t) => window.show(t), tab);
 	await page.waitForTimeout(700);
-	await page.screenshot({ path: `${OUT}/incumbent-${tab}.png`, fullPage: true });
-	const headings = await page.$$eval("section.panel:not([hidden]) h2, section.panel:not([hidden]) h3", (ns) =>
-		ns.map((n) => n.textContent.trim()),
+	await page.screenshot({
+		path: `${OUT}/incumbent-${tab}.png`,
+		fullPage: true,
+	});
+	const headings = await page.$$eval(
+		"section.panel:not([hidden]) h2, section.panel:not([hidden]) h3",
+		(ns) => ns.map((n) => n.textContent.trim()),
 	);
 	console.log(`${tab}: ${headings.length} headings -> ${headings.join(" | ")}`);
 }

@@ -9,8 +9,8 @@
  * Run: PORT=4185 node scripts/render-pharmacist.mjs
  */
 import { mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 /**
@@ -29,14 +29,15 @@ async function seedSession() {
 			drug: "Symbicort",
 			completed: true,
 			stages: {
-				"1": { a: 2, c: 0.88, p: "correct", passed: true },
-				"2": { a: 4, c: 0.61, p: "incorrect", passed: false },
-				"3": { a: 3, c: 0.79, p: "correct", passed: true },
-				"4": { a: 1, c: 0.83, p: "correct", passed: true },
+				1: { a: 2, c: 0.88, p: "correct", passed: true },
+				2: { a: 4, c: 0.61, p: "incorrect", passed: false },
+				3: { a: 3, c: 0.79, p: "correct", passed: true },
+				4: { a: 1, c: 0.83, p: "correct", passed: true },
 			},
 		}),
 	});
-	if (!res.ok) throw new Error(`seed failed: HTTP ${res.status} ${await res.text()}`);
+	if (!res.ok)
+		throw new Error(`seed failed: HTTP ${res.status} ${await res.text()}`);
 }
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -69,7 +70,9 @@ async function tap(selector) {
 
 await seedSession();
 
-await page.goto(`http://localhost:${PORT}/pharmacist`, { waitUntil: "networkidle" });
+await page.goto(`http://localhost:${PORT}/pharmacist`, {
+	waitUntil: "networkidle",
+});
 await page.waitForSelector(".rx", { timeout: 15000 });
 
 // Step 1: the record number. Both the drug and the camera's verdicts arrive
@@ -79,7 +82,10 @@ await page.fill(".mrn-only input", MRN);
 clicks += 1;
 await page.waitForSelector(".ai-list", { timeout: 8000 });
 const heading = (await page.textContent(".rx-head h1"))?.trim() ?? "";
-check(heading.includes("Symbicort"), `drug arrived with the session (${heading})`);
+check(
+	heading.includes("Symbicort"),
+	`drug arrived with the session (${heading})`,
+);
 
 // The six camera-judged steps arrive as a block, not as taps.
 const aiCount = await page.$$eval(".ai-list li", (n) => n.length);
@@ -89,12 +95,17 @@ const manualChars = await page.$$eval(".checklist .ck .ck-char", (n) =>
 	n.map((x) => x.textContent?.trim()),
 );
 check(
-	manualChars.length === 2 && manualChars.includes("開") && manualChars.includes("含"),
+	manualChars.length === 2 &&
+		manualChars.includes("開") &&
+		manualChars.includes("含"),
 	`only 2 steps need the pharmacist: ${manualChars.join(",")}`,
 );
 
 const note = (await page.textContent(".field-note")) ?? "";
-check(note.includes("AI"), `AI result loaded from the session (${note.trim()})`);
+check(
+	note.includes("AI"),
+	`AI result loaded from the session (${note.trim()})`,
+);
 
 // Steps 3-4: the two steps nothing can judge.
 await tap(".checklist .ck:nth-child(1) .seg button.ok");
@@ -109,31 +120,47 @@ await tap(".kq li:nth-child(2) .seg button:nth-child(2)");
 // Demonstrating is one checkbox per step, and it is what the whole design buys.
 await tap(".checklist .ck:nth-child(1) .demo input");
 
-check(clicks <= BUDGET, `case completed in ${clicks} interactions (budget ${BUDGET})`);
+check(
+	clicks <= BUDGET,
+	`case completed in ${clicks} interactions (budget ${BUDGET})`,
+);
 
 // The save must now be enabled, and the result must not echo the MRN.
-check(!(await page.isDisabled(".btn-primary")), "save is enabled once the case is judged");
+check(
+	!(await page.isDisabled(".btn-primary")),
+	"save is enabled once the case is judged",
+);
 await tap(".btn-primary");
 await page.waitForSelector(".rx-status", { timeout: 8000 });
 const status = (await page.textContent(".rx-status"))?.trim() ?? "";
 check(status.includes("已收案"), `saved (${status})`);
-check(!status.includes("A123456789"), "medical record number is not echoed back");
+check(
+	!status.includes("A123456789"),
+	"medical record number is not echoed back",
+);
 
 // A patient who did not practise: the record number finds no session, so the
 // pharmacist chooses the product and judges every step by hand. A solution
 // inhaler must not be asked to be shaken.
 const NO_SESSION_MRN = "B000000001";
-await page.goto(`http://localhost:${PORT}/pharmacist`, { waitUntil: "networkidle" });
+await page.goto(`http://localhost:${PORT}/pharmacist`, {
+	waitUntil: "networkidle",
+});
 await page.fill(".mrn-only input", NO_SESSION_MRN);
 await page.waitForSelector(".drug-pick", { timeout: 8000 });
 const noSessionNote = (await page.textContent(".field-note")) ?? "";
-check(noSessionNote.includes("查無"), `no session is stated plainly (${noSessionNote.trim()})`);
+check(
+	noSessionNote.includes("查無"),
+	`no session is stated plainly (${noSessionNote.trim()})`,
+);
 
 await tap('.drug-pick .chip:has-text("Trimbow")');
 await page.waitForTimeout(300);
 const hasAiBlock = (await page.$(".ai-list")) !== null;
 check(!hasAiBlock, "no AI block when the patient never practised");
-const trimbow = await page.$$eval(".checklist .ck .ck-char", (n) => n.map((x) => x.textContent?.trim()));
+const trimbow = await page.$$eval(".checklist .ck .ck-char", (n) =>
+	n.map((x) => x.textContent?.trim()),
+);
 check(!trimbow.includes("搖"), "Trimbow omits the shake step");
 // Trimbow is still pMDI, so the camera covers five of its seven steps; only
 // opening the cap and sealing the lips stay with the pharmacist.
@@ -142,10 +169,15 @@ check(
 	`Trimbow: 2 hand-judged steps, shake still absent (${trimbow.join(",")})`,
 );
 
-check(errors.length === 0, `no console errors${errors.length ? `: ${errors.slice(0, 2).join(" | ")}` : ""}`);
+check(
+	errors.length === 0,
+	`no console errors${errors.length ? `: ${errors.slice(0, 2).join(" | ")}` : ""}`,
+);
 
 await page.screenshot({ path: `${OUT}/pharmacist-tam.png`, fullPage: true });
 await browser.close();
 
-console.log(`\n${problems.length ? `${problems.length} PROBLEM(S)` : "all checks passed"}`);
+console.log(
+	`\n${problems.length ? `${problems.length} PROBLEM(S)` : "all checks passed"}`,
+);
 process.exit(problems.length ? 1 : 0);

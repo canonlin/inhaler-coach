@@ -57,9 +57,12 @@ export function ClinicalMetricsCockpit() {
 					</div>
 					<p className="mt-1 text-xs text-slate-600">
 						精確定位：
-						<strong className="text-emerald-800">診間 AI 衛教</strong>（動作客觀量化）×{" "}
-						<strong className="text-blue-800">居家 LINE 衛教</strong>（觀念與依從度維持）×{" "}
-						<strong className="text-purple-800">門診藥師評估</strong>（QCC 附件七黃金標準）
+						<strong className="text-emerald-800">診間 AI 衛教</strong>
+						（動作客觀量化）×{" "}
+						<strong className="text-blue-800">居家 LINE 衛教</strong>
+						（觀念與依從度維持）×{" "}
+						<strong className="text-purple-800">門診藥師評估</strong>（QCC
+						附件七黃金標準）
 					</p>
 				</div>
 
@@ -136,7 +139,8 @@ export function ClinicalMetricsCockpit() {
 									</p>
 									<p className="text-[11.5px] text-emerald-900 font-medium bg-emerald-100/70 p-1.5 rounded-md mt-2">
 										⚡ <strong>減輕負擔關鍵：</strong>辨識結果自動存入{" "}
-										<code className="font-mono text-[10px]">sessions</code>，藥師開啟評估表時
+										<code className="font-mono text-[10px]">sessions</code>
+										，藥師開啟評估表時
 										<strong>自動預填 8 項操作步驟</strong>，免手動重複勾選！
 									</p>
 								</div>
@@ -172,10 +176,12 @@ export function ClinicalMetricsCockpit() {
 									</p>
 									<p>
 										<strong>LINE 任務：</strong>
-										D3/D7/D14/D28 定時推播技巧口訣、看 2 分鐘示範短片、做隨堂測驗、門診回診提醒。
+										D3/D7/D14/D28 定時推播技巧口訣、看 2
+										分鐘示範短片、做隨堂測驗、門診回診提醒。
 									</p>
 									<p className="text-[11.5px] text-blue-900 font-medium bg-blue-100/70 p-1.5 rounded-md mt-2">
-										💡 <strong>依從度關鍵：</strong>以溫暖對話加深觀念，記錄長輩已讀率、測驗正答率與回診意願，存入{" "}
+										💡 <strong>依從度關鍵：</strong>
+										以溫暖對話加深觀念，記錄長輩已讀率、測驗正答率與回診意願，存入{" "}
 										<code className="font-mono text-[10px]">line_events</code>。
 									</p>
 								</div>
@@ -208,10 +214,13 @@ export function ClinicalMetricsCockpit() {
 									</p>
 									<p>
 										<strong>工作流程：</strong>
-										輸入病歷號調閱診間 AI 測得之動作數據，藥師一鍵覆核並評定其餘衛教步驟（共 33 步驟與關鍵錯誤）。
+										輸入病歷號調閱診間 AI
+										測得之動作數據，藥師一鍵覆核並評定其餘衛教步驟（共 33
+										步驟與關鍵錯誤）。
 									</p>
 									<p className="text-[11.5px] text-purple-900 font-medium bg-purple-100/70 p-1.5 rounded-md mt-2">
-										📊 <strong>QCC 成效產出：</strong>建立 M0（介入前基線）與 M1（介入後複評），驅動後台柏拉圖分析與配對改善檢定！
+										📊 <strong>QCC 成效產出：</strong>建立 M0（介入前基線）與
+										M1（介入後複評），驅動後台柏拉圖分析與配對改善檢定！
 									</p>
 								</div>
 							</div>
@@ -239,7 +248,8 @@ export function ClinicalMetricsCockpit() {
 									診間 AI 鏡頭偵測動作
 								</div>
 								<p className="mt-0.5 text-[11px] text-slate-400">
-									長輩在診間對著平板操作，AI 測量閉氣與吸氣時長，自動預填入藥師評估表，建立 M0 初評。
+									長輩在診間對著平板操作，AI
+									測量閉氣與吸氣時長，自動預填入藥師評估表，建立 M0 初評。
 								</p>
 							</div>
 
@@ -251,7 +261,8 @@ export function ClinicalMetricsCockpit() {
 									LINE 推播口訣與短片
 								</div>
 								<p className="mt-0.5 text-[11px] text-slate-400">
-									長輩出院返家後，LINE 按節奏推播 4 則保養叮嚀與精華影片，無痛維持用藥正確觀念。
+									長輩出院返家後，LINE 按節奏推播 4
+									則保養叮嚀與精華影片，無痛維持用藥正確觀念。
 								</p>
 							</div>
 
@@ -275,7 +286,8 @@ export function ClinicalMetricsCockpit() {
 									再次於診間 AI 檢測驗收
 								</div>
 								<p className="mt-0.5 text-[11px] text-slate-400">
-									LINE 提醒帶藥回診，長輩再次進行診間 AI 測試，藥師覆核存入 M1，完成前後成效比對！
+									LINE 提醒帶藥回診，長輩再次進行診間 AI 測試，藥師覆核存入
+									M1，完成前後成效比對！
 								</p>
 							</div>
 						</div>
@@ -510,7 +522,9 @@ export function ClinicalMetricsCockpit() {
 					</div>
 
 					<p className="text-[11px] text-slate-500 italic">
-						* 註：診間 AI 鏡頭偵測數據會與病歷號加密雜湊（mrn_hash）關聯，保護病患 PHI 隱私，不傳入非授權公網。
+						* 註：診間 AI
+						鏡頭偵測數據會與病歷號加密雜湊（mrn_hash）關聯，保護病患 PHI
+						隱私，不傳入非授權公網。
 					</p>
 				</div>
 			)}
@@ -526,7 +540,8 @@ export function ClinicalMetricsCockpit() {
 							本次藥師專案會議定案提問（4 大關鍵確認項目）
 						</h3>
 						<p className="text-xs text-purple-900 leading-relaxed">
-							請與雲林分院藥劑部逐項確認共識，確保臨床作業負擔最小化、QCC 成效數據最大化：
+							請與雲林分院藥劑部逐項確認共識，確保臨床作業負擔最小化、QCC
+							成效數據最大化：
 						</p>
 					</div>
 
@@ -538,11 +553,16 @@ export function ClinicalMetricsCockpit() {
 								defaultChecked
 								className="mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
 							/>
-							<label htmlFor="align1" className="text-slate-800 leading-relaxed">
+							<label
+								htmlFor="align1"
+								className="text-slate-800 leading-relaxed"
+							>
 								<strong>
 									【確認一：診間 AI 是助手，免去藥師 8 次手動點擊】：
 								</strong>
-								確認 AI 鏡頭定位於「診間動作量化工具」。病人在諮詢室練習後，藥師開啟核檢表時已自動帶入 AI 判定的結果，藥師只需一鍵覆核與微調，大幅節省門診紀錄時間。
+								確認 AI
+								鏡頭定位於「診間動作量化工具」。病人在諮詢室練習後，藥師開啟核檢表時已自動帶入
+								AI 判定的結果，藥師只需一鍵覆核與微調，大幅節省門診紀錄時間。
 							</label>
 						</div>
 
@@ -553,11 +573,16 @@ export function ClinicalMetricsCockpit() {
 								defaultChecked
 								className="mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
 							/>
-							<label htmlFor="align2" className="text-slate-800 leading-relaxed">
+							<label
+								htmlFor="align2"
+								className="text-slate-800 leading-relaxed"
+							>
 								<strong>
 									【確認二：長輩在家免相機，LINE 專注認知與提醒】：
 								</strong>
-								確認長輩返家後<strong>不需要</strong>架設手機對鏡頭操作（避免長輩因科技門檻放棄）。LINE 只負責推播實物口訣卡片、2 分鐘精華短片、隨堂小測驗與回診提醒。
+								確認長輩返家後<strong>不需要</strong>
+								架設手機對鏡頭操作（避免長輩因科技門檻放棄）。LINE
+								只負責推播實物口訣卡片、2 分鐘精華短片、隨堂小測驗與回診提醒。
 							</label>
 						</div>
 
@@ -568,11 +593,15 @@ export function ClinicalMetricsCockpit() {
 								defaultChecked
 								className="mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
 							/>
-							<label htmlFor="align3" className="text-slate-800 leading-relaxed">
+							<label
+								htmlFor="align3"
+								className="text-slate-800 leading-relaxed"
+							>
 								<strong>
 									【確認三：QCC 附件七關鍵步驟（Critical）與 AI 指標對齊】：
 								</strong>
-								確認診間 AI 測量的「吸前吐氣、手口協調、慢深吸氣、閉氣 5 秒」直接對應 QCC 附件七的關鍵步驟，確保臨床科研與品管標準一致。
+								確認診間 AI 測量的「吸前吐氣、手口協調、慢深吸氣、閉氣 5
+								秒」直接對應 QCC 附件七的關鍵步驟，確保臨床科研與品管標準一致。
 							</label>
 						</div>
 
@@ -583,11 +612,17 @@ export function ClinicalMetricsCockpit() {
 								defaultChecked
 								className="mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
 							/>
-							<label htmlFor="align4" className="text-slate-800 leading-relaxed">
+							<label
+								htmlFor="align4"
+								className="text-slate-800 leading-relaxed"
+							>
 								<strong>
 									【確認四：LINE 官方帳號推播額度 0 元超額控制】：
 								</strong>
-								確認每月維持 4 則主動 Push 推播（D3/D7/D14/D28），50 人次共消耗 200 則，100% 落在 LINE 台灣免費配額內；長輩主動點擊圖文選單、看影片、答測驗一律為 Webhook Reply 免費回覆。
+								確認每月維持 4 則主動 Push 推播（D3/D7/D14/D28），50 人次共消耗
+								200 則，100% 落在 LINE
+								台灣免費配額內；長輩主動點擊圖文選單、看影片、答測驗一律為
+								Webhook Reply 免費回覆。
 							</label>
 						</div>
 					</div>

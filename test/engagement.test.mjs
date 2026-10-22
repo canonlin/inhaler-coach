@@ -87,7 +87,11 @@ describe("active patients", () => {
 		);
 		await api.closeFollowup({ id: rows[0].id, by: "黃永成" });
 		const { engagement } = await api.summary();
-		assert.equal(engagement.active_7d, 2, "the old-case patient did something today");
+		assert.equal(
+			engagement.active_7d,
+			2,
+			"the old-case patient did something today",
+		);
 		assert.equal(engagement.followupDone, 1);
 	});
 });

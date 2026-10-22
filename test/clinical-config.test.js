@@ -24,7 +24,9 @@ test("all educational videos hide player controls to avoid obstructing clinical 
 		const match = stage.videoURL.match(
 			/(?:embed\/|v=|vi\/|youtu\.be\/|\/v\/|\/e\/|watch\?v=|\?v=)([^#&?]+)/,
 		);
-		assert.ok(match && match[1].length > 5, `Stage ${stage.id} video ID must extract cleanly`);
+		assert.ok(
+			match && match[1].length > 5,
+			`Stage ${stage.id} video ID must extract cleanly`,
+		);
 	}
 });
-

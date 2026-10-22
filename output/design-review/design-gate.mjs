@@ -30,8 +30,18 @@ try {
 }
 
 const TARGETS = [
-	["API", "http://localhost:4183/api/followups", "DATABASE_URL=… PORT=4183 node scripts/dev-api.mjs"],
-	["vite", "http://localhost:4185/admin", "VITE_API_PROXY=http://localhost:4183 bunx vite --port 4185"],
+	// /api/health rather than a data route: it is public, and it still proves
+	// both that the server is up and that the database answers.
+	[
+		"API",
+		"http://localhost:4183/api/health",
+		"DATABASE_URL=… PORT=4183 node scripts/dev-api.mjs",
+	],
+	[
+		"vite",
+		"http://localhost:4185/admin",
+		"VITE_API_PROXY=http://localhost:4183 bunx vite --port 4185",
+	],
 ];
 
 const missing = [];
@@ -53,6 +63,22 @@ if (missing.length) {
 	process.exit(1);
 }
 
+// The back office is behind a sign-in. A design check that opens /admin
+// without a session measures the sign-in form instead of the app, so the
+// gate signs in first and hands the session to the checks that need it.
+//
+// The account is temporary and its password is random; see session.mjs.
+const { openReviewerSession } = await import("./session.mjs");
+let session = null;
+try {
+	session = await openReviewerSession();
+} catch (err) {
+	console.error(
+		`\n無法登入後台，設計檢查會看到登入畫面而不是應用：\n  ${err.message}\n`,
+	);
+	process.exit(1);
+}
+
 const steps = [
 	["type scale", "node output/design-review/type-scale.mjs"],
 	["note marker", "node output/design-review/note-marker.mjs"],
@@ -62,12 +88,17 @@ const steps = [
 let failed = 0;
 for (const [label, cmd] of steps) {
 	try {
-		const out = execSync(cmd, { encoding: "utf8" });
+		const out = execSync(cmd, {
+			encoding: "utf8",
+			env: { ...process.env, DESIGN_SESSION_TOKEN: session.token },
+		});
 		console.log(`✓ ${label}\n${out.trim()}\n`);
 	} catch (e) {
 		failed += 1;
 		console.log(`✗ ${label}\n${(e.stdout ?? "").trim()}\n`);
 	}
 }
+
+await session.cleanup();
 
 process.exit(failed ? 1 : 0);

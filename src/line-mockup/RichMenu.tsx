@@ -8,6 +8,12 @@
  *
  * Designed with medical-grade clarity, high contrast for elderly patients,
  * and realistic LINE Official Account styling.
+ *
+ * The six cells live in src/line/data/richmenu.json, because the same menu
+ * has to exist twice: here, and as a real Rich Menu uploaded to the LINE
+ * channel. Two copies would drift, and the menu that fails is the one the
+ * patient is holding. The icons are the only part that cannot be shared —
+ * they are React components — so they are mapped here by id.
  */
 
 import {
@@ -18,6 +24,8 @@ import {
 	UserRound,
 	Video,
 } from "lucide-react";
+
+import richMenu from "../line/data/richmenu.json";
 
 export type RichMenuAction =
 	| "my_drug"
@@ -38,65 +46,25 @@ export interface RichMenuItem {
 	badge?: string;
 }
 
-export const RICH_MENU_ITEMS: RichMenuItem[] = [
-	{
-		id: "my_drug",
-		label: "我的吸入劑",
-		sublabel: "藥物指南與雙標籤",
-		icon: Pill,
-		color: "text-emerald-700",
-		bgColor: "bg-emerald-50 hover:bg-emerald-100",
-		borderColor: "border-emerald-200",
-		badge: "雙標籤",
-	},
-	{
-		id: "video",
-		label: "操作示範影片",
-		sublabel: "2分鐘標準示範",
-		icon: Video,
-		color: "text-blue-700",
-		bgColor: "bg-blue-50 hover:bg-blue-100",
-		borderColor: "border-blue-200",
-		badge: "精華",
-	},
-	{
-		id: "quiz",
-		label: "隨堂小測驗",
-		sublabel: "複習操作技巧",
-		icon: FileQuestion,
-		color: "text-amber-700",
-		bgColor: "bg-amber-50 hover:bg-amber-100",
-		borderColor: "border-amber-200",
-		badge: "互動",
-	},
-	{
-		id: "visit_reminder",
-		label: "門診回診提醒",
-		sublabel: "定期追蹤評估",
-		icon: CalendarClock,
-		color: "text-purple-700",
-		bgColor: "bg-purple-50 hover:bg-purple-100",
-		borderColor: "border-purple-200",
-	},
-	{
-		id: "faq",
-		label: "用藥疑難 Q&A",
-		sublabel: "漱口/清洗/漏用",
-		icon: HelpCircle,
-		color: "text-rose-700",
-		bgColor: "bg-rose-50 hover:bg-rose-100",
-		borderColor: "border-rose-200",
-	},
-	{
-		id: "contact_pharmacist",
-		label: "諮詢雲林藥師",
-		sublabel: "門診藥局專線",
-		icon: UserRound,
-		color: "text-teal-700",
-		bgColor: "bg-teal-50 hover:bg-teal-100",
-		borderColor: "border-teal-200",
-	},
-];
+const ICONS: Record<RichMenuAction, typeof Pill> = {
+	my_drug: Pill,
+	video: Video,
+	quiz: FileQuestion,
+	visit_reminder: CalendarClock,
+	faq: HelpCircle,
+	contact_pharmacist: UserRound,
+};
+
+export const RICH_MENU_ITEMS: RichMenuItem[] = richMenu.items.map((item) => ({
+	id: item.id as RichMenuAction,
+	label: item.label,
+	sublabel: item.sublabel,
+	icon: ICONS[item.id as RichMenuAction],
+	color: item.color,
+	bgColor: item.bgColor,
+	borderColor: item.borderColor,
+	...(item.badge ? { badge: item.badge } : {}),
+}));
 
 export function RichMenu({
 	onSelect,

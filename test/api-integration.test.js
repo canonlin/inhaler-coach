@@ -50,6 +50,17 @@ if (false) {
 			assert.equal(r.cases, 0);
 			assert.ok(r.now);
 		});
+
+		it("says whether this deployment really sends or only rehearses", async () => {
+			// The deployment check script reads this. Without it, a check run
+			// from a laptop reports the laptop's environment variables and calls
+			// a live deployment "still in rehearsal".
+			const r = await api.health();
+			assert.ok(
+				["live", "rehearsal"].includes(r.lineSending),
+				`lineSending was ${r.lineSending}`,
+			);
+		});
 	});
 
 	describe("POST /api/cases", () => {
@@ -408,18 +419,18 @@ if (false) {
 			const r = await api.pendingSession({ mrn: "T900900900" });
 			assert.equal(r.ok, true);
 			assert.equal(r.found, true);
-			assert.equal(r.steps["MDI_搖"].value, "正確");
-			assert.equal(r.steps["MDI_吐"].value, "錯誤", "stage 2 failed");
+			assert.equal(r.steps.MDI_搖.value, "正確");
+			assert.equal(r.steps.MDI_吐.value, "錯誤", "stage 2 failed");
 			// Stage 3 covers three checklist steps.
-			assert.equal(r.steps["MDI_壓"].value, "正確");
-			assert.equal(r.steps["MDI_吸"].value, "正確");
-			assert.equal(r.steps["MDI_閉"].value, "正確");
-			assert.equal(r.steps["MDI_漱"], undefined, "stage 4 was not recorded");
+			assert.equal(r.steps.MDI_壓.value, "正確");
+			assert.equal(r.steps.MDI_吸.value, "正確");
+			assert.equal(r.steps.MDI_閉.value, "正確");
+			assert.equal(r.steps.MDI_漱, undefined, "stage 4 was not recorded");
 		});
 
 		it("never invents a verdict for a stage the camera did not score", async () => {
 			const r = await api.pendingSession({ mrn: "T900900900" });
-			assert.equal(r.steps["MDI_漱"], undefined);
+			assert.equal(r.steps.MDI_漱, undefined);
 		});
 
 		it("reports not found rather than an error when the patient has not practised", async () => {

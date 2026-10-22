@@ -14,6 +14,8 @@ import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
 import { hashMrn, mrnTail } from "./db.mjs";
+import { HttpError } from "./http-error.mjs";
+import { exportEnrollment, importEnrollment } from "./import-export.mjs";
 import { CLINICAL_DRUG_CARDS } from "./line/flex.mjs";
 import { makeLineService } from "./line/service.mjs";
 import {
@@ -27,6 +29,7 @@ import {
 	stepErrorRates,
 	summarise,
 } from "./metrics.mjs";
+import { writeXlsx } from "./xlsx.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -38,17 +41,13 @@ function loadDefaultJson(relPath) {
 	}
 }
 
-class HttpError extends Error {
-	constructor(status, message) {
-		super(message);
-		this.status = status;
-	}
-}
+// Re-exported so the callers that already import HttpError from here keep
+// working; the class itself lives in its own module because the auth layer
+// needs it too.
 
 const bad = (msg) => {
 	throw new HttpError(400, msg);
 };
-
 /**
  * Every case, with its step results already aggregated in Postgres. One query,
  * no N+1.
@@ -113,6 +112,11 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				db: rows[0].db,
 				now: rows[0].now,
 				cases: await countCases(),
+				// Whether this deployment really sends, or only rehearses.
+				// The deployment check script reads this: it is the only honest
+				// way to report the state of a deployed system from a laptop
+				// whose own environment variables say nothing about it.
+				lineSending: line.channel === "live" ? "live" : "rehearsal",
 			};
 		} catch (err) {
 			return {
@@ -777,6 +781,75 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		return line.engagement({ since: since ?? "1970-01-01" });
 	}
 
+	/**
+	 * POST /api/line/dispatch — send the journey touches that are due today.
+	 *
+	 * The endpoint a scheduler calls once a day. It refuses to send more than
+	 * the month's free allowance allows, and it will not message a patient who
+	 * was already messaged that day.
+	 *
+	 * `dry_run` computes the whole day without sending anything: the way to
+	 * see what a deployment would do before it does it to a patient.
+	 */
+	async function lineDispatch(body) {
+		const flag = body?.dry_run ?? body?.dryRun;
+		return line.dispatchJourney({
+			date: body?.date ? String(body.date) : undefined,
+			dryRun: flag === true || flag === "true" || flag === "1",
+		});
+	}
+
+	/** GET /api/line/quota?month=YYYY-MM — what the month has cost so far. */
+	async function lineQuota({ month }) {
+		const now = new Date();
+		const target = month
+			? String(month)
+			: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+		return line.quotaUsage({ month: target });
+	}
+
+	/** GET /api/line/journey?month=YYYY-MM — who has been reached, who has not. */
+	async function lineJourney({ month }) {
+		if (!month) bad("month is required");
+		return line.journeyBoard({ month: String(month) });
+	}
+
+	/**
+	 * POST /api/import/cases — import the pharmacist's QCC sheet.
+	 *
+	 * The body is the workbook itself. `?stage=改善前|改善後` says which
+	 * measurement the rows belong to, because the sheet does not say: it is
+	 * the pharmacist's pre-intervention data, and the stage is a fact about
+	 * the study, not about the row.
+	 *
+	 * `?dry_run=true` parses and reports without writing anything.
+	 */
+	async function importCases(body, params) {
+		if (!Buffer.isBuffer(body) || body.length === 0) {
+			bad("the request body must be an .xlsx file");
+		}
+		return importEnrollment(query, {
+			buffer: body,
+			salt,
+			stage: params?.stage ? String(params.stage) : undefined,
+			dryRun: params?.dry_run === "true" || params?.dry_run === "1",
+		});
+	}
+
+	/**
+	 * GET /api/export/cases.xlsx?month=&stage= — the cases as a spreadsheet.
+	 *
+	 * The record number is not in it: only the tail, which is what a screen
+	 * is allowed to show.
+	 */
+	async function exportCases(params) {
+		const { sheets } = await exportEnrollment(query, {
+			month: params?.month ? String(params.month) : undefined,
+			stage: params?.stage ? String(params.stage) : undefined,
+		});
+		return writeXlsx(sheets);
+	}
+
 	/** GET /api/admin/config — fetch dynamic configuration for videos, quizzes, and drug photos */
 	async function getAdminConfig() {
 		const defaults = {
@@ -851,6 +924,11 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		lineSend,
 		lineEvent,
 		lineEngagement,
+		lineDispatch,
+		lineQuota,
+		lineJourney,
+		importCases,
+		exportCases,
 		getAdminConfig,
 		updateAdminConfig,
 		lineChannel: line.channel,

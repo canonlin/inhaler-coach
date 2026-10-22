@@ -20,6 +20,7 @@ import { RegisterPage } from "./line/pages/RegisterPage";
 import { VideosPage } from "./line/pages/VideosPage";
 import { LineMockup } from "./line-mockup/LineMockup";
 import { AdminShell } from "./pharmacist/AdminShell";
+import { AuthGate } from "./pharmacist/Auth";
 import { CaseEntry } from "./pharmacist/CaseEntry";
 import { ContentSettings } from "./pharmacist/ContentSettings";
 import { FollowupList } from "./pharmacist/components/FollowupList";
@@ -41,8 +42,14 @@ function AdminFrame() {
 
 export const routes: RouteObject[] = [
 	{
+		// The back office. Behind the gate because every screen under it reads
+		// or writes patient records; the patient end below is not.
 		path: "/admin",
-		element: <AdminFrame />,
+		element: (
+			<AuthGate>
+				<AdminFrame />
+			</AuthGate>
+		),
 		children: [
 			{ index: true, element: <CaseEntry /> },
 			{ path: "followups", element: <FollowupList /> },

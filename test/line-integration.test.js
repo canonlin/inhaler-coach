@@ -10,10 +10,9 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { createPool, hashMrn } from "../api/db.mjs";
-import { makeRoutes } from "../api/routes.mjs";
 import { makeLineService } from "../api/line/service.mjs";
 import { createRecordingTransport } from "../api/line/transport.mjs";
-import { CRITICAL_STEP_CODES } from "../src/domain/steps.js";
+import { makeRoutes } from "../api/routes.mjs";
 
 const URL = process.env.DATABASE_URL;
 const SALT = "test-salt";
@@ -61,9 +60,10 @@ if (true) {
 			steps: { MDI_搖: "錯誤", MDI_開: "正確" },
 			demonstrated: { MDI_搖: false },
 		});
-		const { rows } = await pool.query("SELECT id FROM patients WHERE mrn_hash = $1", [
-			hashMrn("LINE000001", SALT),
-		]);
+		const { rows } = await pool.query(
+			"SELECT id FROM patients WHERE mrn_hash = $1",
+			[hashMrn("LINE000001", SALT)],
+		);
 		return { ...c, patientId: rows[0].id };
 	}
 
@@ -74,14 +74,23 @@ if (true) {
 			assert.equal(plan.ok, true, "planning is allowed; sending is not");
 			assert.equal(plan.consentLine, false);
 			assert.equal(plan.linked, false);
-			assert.equal(plan.planned.length, 3, "the schedule is computed regardless");
+			assert.equal(
+				plan.planned.length,
+				3,
+				"the schedule is computed regardless",
+			);
 		});
 
 		it("links a LINE account once the patient consents", async () => {
 			await aCaseWithError();
-			const r = await line.link({ mrn: hashMrn("LINE000001", SALT), lineUserId: "U_LINE_001" });
+			const r = await line.link({
+				mrn: hashMrn("LINE000001", SALT),
+				lineUserId: "U_LINE_001",
+			});
 			assert.equal(r.ok, true);
-			const { rows } = await pool.query("SELECT line_user_id FROM line_identities");
+			const { rows } = await pool.query(
+				"SELECT line_user_id FROM line_identities",
+			);
 			assert.equal(rows[0].line_user_id, "U_LINE_001");
 		});
 
@@ -99,7 +108,9 @@ if (true) {
 	});
 
 	describe("LIFF registration", () => {
-		const maintenance = [{ role: "maintenance", drugId: "Symbicort_Rapihaler" }];
+		const maintenance = [
+			{ role: "maintenance", drugId: "Symbicort_Rapihaler" },
+		];
 
 		it("files the medication list and returns the dual tags", async () => {
 			await aCaseWithError();
@@ -201,7 +212,10 @@ if (true) {
 			const plan = await line.plan({ caseId: (await aCaseWithError()).id });
 			assert.equal(plan.linked, true);
 			assert.equal(plan.planned.length, 3);
-			assert.deepEqual(plan.planned.map((p) => p.day), [1, 3, 7]);
+			assert.deepEqual(
+				plan.planned.map((p) => p.day),
+				[1, 3, 7],
+			);
 			assert.equal(plan.quota.billable, 3);
 			assert.ok(plan.quota.withinFreeTier);
 		});
@@ -210,7 +224,9 @@ if (true) {
 			const plan = await line.plan({ caseId: (await aCaseWithError()).id });
 			for (const touch of plan.planned) {
 				assert.ok(touch.message, `${touch.key} has no message`);
-				assert.ok(["text", "flex", "image", "video"].includes(touch.message.type));
+				assert.ok(
+					["text", "flex", "image", "video"].includes(touch.message.type),
+				);
 			}
 			const remind = plan.planned[0].message;
 			assert.match(remind.text, /搖/);
@@ -274,7 +290,11 @@ if (true) {
 				type: "message",
 				lineUserId: "U_LINE_001",
 			});
-			assert.equal(again.recorded, false, "LINE retries; a retry must not double count");
+			assert.equal(
+				again.recorded,
+				false,
+				"LINE retries; a retry must not double count",
+			);
 		});
 
 		it("rejects an event naming a step the spine does not define", async () => {
@@ -307,8 +327,16 @@ if (true) {
 			const second = await line.send(args);
 			assert.equal(first.ok, true);
 			assert.equal(second.ok, true);
-			assert.equal(second.skipped, "already sent", "the retry must not re-message");
-			assert.equal(captured.length - before, 1, "the transport was called once");
+			assert.equal(
+				second.skipped,
+				"already sent",
+				"the retry must not re-message",
+			);
+			assert.equal(
+				captured.length - before,
+				1,
+				"the transport was called once",
+			);
 		});
 
 		it("releases the claim when the send fails, so a LINE outage is retryable", async () => {
@@ -319,17 +347,23 @@ if (true) {
 			// Swap in a transport that fails, the way LINE does on a 5xx.
 			const failing = makeLineService({
 				query: (t, p) => pool.query(t, p),
-				transport: { channel: "live", async send() { return { ok: false, status: 500, body: "boom" }; } },
+				transport: {
+					channel: "live",
+					async send() {
+						return { ok: false, status: 500, body: "boom" };
+					},
+				},
 			});
 			await assert.rejects(
-				() => failing.send({
-					patientId: c.patientId,
-					lineUserId: "U_LINE_001",
-					touch: touch.key,
-					kind: touch.kind,
-					message: touch.message,
-					sentOn: "2026-05-11",
-				}),
+				() =>
+					failing.send({
+						patientId: c.patientId,
+						lineUserId: "U_LINE_001",
+						touch: touch.key,
+						kind: touch.kind,
+						message: touch.message,
+						sentOn: "2026-05-11",
+					}),
 				/boom/,
 			);
 			const { rows } = await pool.query(
@@ -352,7 +386,11 @@ if (true) {
 			};
 			await line.send(args);
 			const again = await line.send(args);
-			assert.equal(again.counted, false, "a message never sent cannot consume quota");
+			assert.equal(
+				again.counted,
+				false,
+				"a message never sent cannot consume quota",
+			);
 		});
 
 		it("reports response rate per message kind", async () => {

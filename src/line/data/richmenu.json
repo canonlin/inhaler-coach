@@ -1,0 +1,84 @@
+{
+	"chatBarText": "吸入劑衛教選單",
+	"note": "LINE 圖文選單（Rich Menu）的單一來源：mockup 與 scripts/line-setup.mjs 都讀這裡。text 是機器人認得的關鍵字，label 是給長者看的字。",
+	"items": [
+		{
+			"id": "my_drug",
+			"label": "我的吸入劑",
+			"sublabel": "藥物指南與雙標籤",
+			"badge": "雙標籤",
+			"text": "我的吸入劑",
+			"color": "text-emerald-700",
+			"bgColor": "bg-emerald-50 hover:bg-emerald-100",
+			"borderColor": "border-emerald-200",
+			"fill": "#ECFDF5",
+			"ink": "#047857",
+			"accent": "#10B981"
+		},
+		{
+			"id": "video",
+			"label": "操作示範影片",
+			"sublabel": "2分鐘標準示範",
+			"badge": "精華",
+			"text": "操作影片",
+			"color": "text-blue-700",
+			"bgColor": "bg-blue-50 hover:bg-blue-100",
+			"borderColor": "border-blue-200",
+			"fill": "#EFF6FF",
+			"ink": "#1D4ED8",
+			"accent": "#3B82F6"
+		},
+		{
+			"id": "quiz",
+			"label": "隨堂小測驗",
+			"sublabel": "複習操作技巧",
+			"badge": "互動",
+			"text": "隨堂測驗",
+			"color": "text-amber-700",
+			"bgColor": "bg-amber-50 hover:bg-amber-100",
+			"borderColor": "border-amber-200",
+			"fill": "#FFFBEB",
+			"ink": "#B45309",
+			"accent": "#F59E0B"
+		},
+		{
+			"id": "visit_reminder",
+			"label": "門診回診提醒",
+			"sublabel": "定期追蹤評估",
+			"badge": null,
+			"text": "回診提醒",
+			"color": "text-purple-700",
+			"bgColor": "bg-purple-50 hover:bg-purple-100",
+			"borderColor": "border-purple-200",
+			"fill": "#FAF5FF",
+			"ink": "#7E22CE",
+			"accent": "#A855F7"
+		},
+		{
+			"id": "faq",
+			"label": "用藥疑難 Q&A",
+			"sublabel": "漱口/清洗/漏用",
+			"badge": null,
+			"text": "常見問答",
+			"color": "text-rose-700",
+			"bgColor": "bg-rose-50 hover:bg-rose-100",
+			"borderColor": "border-rose-200",
+			"fill": "#FFF1F2",
+			"ink": "#BE123C",
+			"accent": "#F43F5E"
+		},
+		{
+			"id": "contact_pharmacist",
+			"label": "諮詢雲林藥師",
+			"sublabel": "門診藥局專線",
+			"badge": null,
+			"text": "諮詢藥師",
+			"color": "text-teal-700",
+			"bgColor": "bg-teal-50 hover:bg-teal-100",
+			"borderColor": "border-teal-200",
+			"fill": "#F0FDFA",
+			"ink": "#0F766E",
+			"accent": "#14B8A6"
+		}
+	]
+}

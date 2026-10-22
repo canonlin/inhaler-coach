@@ -13,6 +13,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { upsertAdminUser } from "../api/auth.mjs";
 import { createPool } from "../api/db.mjs";
 
 let pool;
@@ -45,6 +46,11 @@ const started = [];
 const consoleErrors = [];
 let page;
 let browser;
+let context;
+let sessionToken = "";
+
+const UI_EMAIL = "ui.test@yunlin.org.tw";
+const UI_PASSWORD = "yunlin-ui-test-2026";
 
 /** Start a server and wait until it answers, rather than sleeping a fixed time. */
 async function serve(name, cmd, args, url, env = {}) {
@@ -105,7 +111,10 @@ before(async () => {
 
 	const { chromium } = await import("playwright");
 	browser = await chromium.launch();
-	page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+	context = await browser.newContext({
+		viewport: { width: 1280, height: 900 },
+	});
+	page = await context.newPage();
 	page.on("pageerror", (e) => consoleErrors.push(String(e)));
 	page.on(
 		"console",
@@ -128,6 +137,29 @@ before(async () => {
 	await p.query(
 		"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
 	);
+
+	// The back office is behind a sign-in, so this test has to sign in before
+	// it can seed anything. The account is created here rather than assumed,
+	// because a shared database cannot be relied on to have one.
+	await p.query(
+		`DELETE FROM admin_users WHERE email LIKE '%.test@yunlin.org.tw'`,
+	);
+	await upsertAdminUser((text, params) => p.query(text, params), {
+		email: UI_EMAIL,
+		password: UI_PASSWORD,
+		displayName: "介面測試",
+		role: "admin",
+	});
+	await signIn();
+	// The browser needs the same session, or /admin shows the sign-in screen
+	// and every assertion below is measuring the gate instead of the app.
+	await context.addCookies([
+		{
+			name: "inhaler_admin",
+			value: sessionToken,
+			url: BASE,
+		},
+	]);
 
 	await post("/api/cases", {
 		mrn: "UI0000001",
@@ -180,11 +212,31 @@ before(async () => {
 async function post(path, body) {
 	const res = await fetch(`http://localhost:${API_PORT}${path}`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: {
+			"Content-Type": "application/json",
+			// The session cookie. The API is guarded now, so a write without it
+			// is refused — which is the point of the guard.
+			cookie: `inhaler_admin=${sessionToken}`,
+			origin: BASE,
+		},
 		body: JSON.stringify(body),
 	});
 	if (!res.ok)
 		throw new Error(`seed ${path}: HTTP ${res.status} ${await res.text()}`);
+}
+
+/** Sign in and keep the cookie for the requests this test makes. */
+async function signIn() {
+	const res = await fetch(`http://localhost:${API_PORT}/api/auth/login`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ email: UI_EMAIL, password: UI_PASSWORD }),
+	});
+	if (!res.ok)
+		throw new Error(`sign in failed: HTTP ${res.status} ${await res.text()}`);
+	const setCookie = res.headers.get("set-cookie") ?? "";
+	sessionToken = setCookie.match(/inhaler_admin=([^;]+)/)?.[1] ?? "";
+	if (!sessionToken) throw new Error("sign in returned no session cookie");
 }
 
 // `started` holds only the spawned servers. A Playwright browser has no pid and
@@ -192,6 +244,12 @@ async function post(path, body) {
 // process.kill on it did nothing, which left an orphaned Chromium holding the
 // port for the next run to collide with.
 after(async () => {
+	// The account this file opened is not left behind on the deployed
+	// database. A test that creates a way in and walks away is a way in.
+	const p = await getPool();
+	await p.query(
+		`DELETE FROM admin_users WHERE email LIKE '%.test@yunlin.org.tw'`,
+	);
 	await browser?.close();
 	for (const p of started) {
 		if (p.pid) {
@@ -999,7 +1057,12 @@ describe("pharmacist tabs", () => {
 	});
 
 	it("records the M1 the completion produced", async () => {
-		const res = await fetch(`http://localhost:${API_PORT}/api/cases?limit=200`);
+		const res = await fetch(
+			`http://localhost:${API_PORT}/api/cases?limit=200`,
+			{
+				headers: { cookie: `inhaler_admin=${sessionToken}` },
+			},
+		);
 		const json = await res.json();
 		const m1 = (json.cases ?? []).filter((c) => c.timepoint === "M1");
 
@@ -1022,7 +1085,9 @@ describe("pharmacist tabs", () => {
 	});
 
 	it("records who closed it, in the database", async () => {
-		const res = await fetch(`http://localhost:${API_PORT}/api/followups`);
+		const res = await fetch(`http://localhost:${API_PORT}/api/followups`, {
+			headers: { cookie: `inhaler_admin=${sessionToken}` },
+		});
 		const { ok } = await res.json();
 		assert.equal(ok, true);
 		// The closed row is gone from the open list; confirm it is stored as
@@ -1037,5 +1102,75 @@ describe("pharmacist tabs", () => {
 
 	it("has no page errors", () => {
 		assert.deepEqual(consoleErrors, []);
+	});
+});
+
+/*
+ * The gate, seen from the browser.
+ *
+ * The rest of this file signs in and gets on with the work. This block asks
+ * the question that matters before any of it: what does somebody who has not
+ * signed in see?
+ *
+ * It uses its own browser context, so it can be signed out without disturbing
+ * the session the rest of the file is using.
+ */
+describe("the sign-in gate", () => {
+	let guest;
+
+	before(async () => {
+		guest = await browser.newContext({
+			viewport: { width: 1280, height: 900 },
+		});
+	});
+
+	after(async () => {
+		await guest?.close();
+	});
+
+	it("shows a sign-in form instead of the back office", async () => {
+		const p = await guest.newPage();
+		await p.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		assert.equal(
+			await p.locator(NAV).count(),
+			0,
+			"no navigation before signing in",
+		);
+		await p.getByLabel("帳號").waitFor({ state: "visible" });
+		await p.getByRole("button", { name: "登入" }).waitFor({ state: "visible" });
+	});
+
+	it("says why a refusal failed, without saying which half was wrong", async () => {
+		const p = await guest.newPage();
+		await p.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await p.getByLabel("帳號").fill(UI_EMAIL);
+		await p.getByLabel("密碼").fill("wrong-password-here");
+		await p.getByRole("button", { name: "登入" }).click();
+		const alert = p.getByRole("alert");
+		await alert.waitFor({ state: "visible" });
+		assert.match(await alert.innerText(), /帳號或密碼不正確/);
+	});
+
+	it("lets the right password in", async () => {
+		const p = await guest.newPage();
+		await p.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await p.getByLabel("帳號").fill(UI_EMAIL);
+		await p.getByLabel("密碼").fill(UI_PASSWORD);
+		await p.getByRole("button", { name: "登入" }).click();
+		await p.locator(NAV).waitFor({ state: "visible", timeout: 15000 });
+		assert.ok(
+			await p.locator(NAV).count(),
+			"the navigation appears after signing in",
+		);
+	});
+
+	it("shows who is signed in, so a shared tablet is not ambiguous", async () => {
+		// The session from the previous test is still in this context — a
+		// cookie belongs to the browser, not to a page — so this is the same
+		// pharmacist coming back to the app.
+		const p = await guest.newPage();
+		await p.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await p.locator(NAV).waitFor({ state: "visible", timeout: 15000 });
+		await p.getByText(UI_EMAIL).waitFor({ state: "visible" });
 	});
 });

@@ -12,15 +12,11 @@
  * navigation is how back offices surface work, and leaving it in the list page
  * means finding out there is a queue only by going to look.
  */
-import {
-	BarChart3,
-	BookOpen,
-	ClipboardCheck,
-	ListTodo,
-} from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, ListTodo } from "lucide-react";
 import type { ElementType } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { SignedInAs } from "./Auth";
 import { TABS } from "./tabs";
 import { useFollowupCount } from "./useFollowups";
 
@@ -105,6 +101,11 @@ export function SideNav() {
 					})}
 				</ul>
 			</nav>
+
+			{/* Who is signed in. A shared counter tablet has more than one user
+			    over a day, and the answer to "whose data is this" has to be on
+			    screen, not in a memory. */}
+			<SignedInAs />
 		</aside>
 	);
 }

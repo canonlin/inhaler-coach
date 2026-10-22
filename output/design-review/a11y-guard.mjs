@@ -55,10 +55,50 @@ function contrast(fg, bg) {
 const browser = await chromium.launch();
 const findings = [];
 
+/**
+ * The session the gate signed in with.
+ *
+ * Without it the browser sees the sign-in form, and every check below would
+ * be measuring the wrong screen. The pages that need the back office say so,
+ * and the guard refuses to report a pass it did not earn.
+ */
+const SESSION_TOKEN = process.env.DESIGN_SESSION_TOKEN;
+const NEEDS_SESSION = new Set([
+	"/admin",
+	"/admin/followups",
+	"/admin/outcomes",
+]);
+
 for (const [name, path] of TARGETS) {
-	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+	const context = await browser.newContext({
+		viewport: { width: 1440, height: 1000 },
+	});
+	if (SESSION_TOKEN) {
+		await context.addCookies([
+			{ name: "inhaler_admin", value: SESSION_TOKEN, url: BASE },
+		]);
+	}
+	const page = await context.newPage();
 	await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
 	await page.waitForTimeout(1200);
+
+	if (NEEDS_SESSION.has(path)) {
+		// The navigation is the proof that the app is on screen rather than
+		// the sign-in form. Without it the checks below would pass against a
+		// page that has nothing to do with the design.
+		const signedIn = await page.locator('nav[aria-label="藥師工作區"]').count();
+		if (!signedIn) {
+			findings.push({
+				page: name,
+				rule: "0 檢查前提",
+				detail:
+					"看到的是登入畫面，不是後台。設計檢查沒有在檢查它該檢查的東西。",
+			});
+			await page.close();
+			await context.close();
+			continue;
+		}
+	}
 
 	const page_findings = await page.evaluate(() => {
 		const out = { contrast: [], unnamed: [], unlabelled: [], unscoped: [] };
@@ -113,14 +153,15 @@ for (const [name, path] of TARGETS) {
 			);
 			if (interactive) {
 				const name =
-					el.getAttribute("aria-label") ||
-					el.getAttribute("title") ||
-					text(el);
+					el.getAttribute("aria-label") || el.getAttribute("title") || text(el);
 				const labelled = el.id
 					? document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
 					: null;
 				if (!name && !labelled) {
-					out.unnamed.push({ tag: el.tagName, cls: String(el.className).slice(0, 50) });
+					out.unnamed.push({
+						tag: el.tagName,
+						cls: String(el.className).slice(0, 50),
+					});
 				}
 			}
 
@@ -129,7 +170,8 @@ for (const [name, path] of TARGETS) {
 				const hasLabel =
 					el.getAttribute("aria-label") ||
 					el.getAttribute("aria-labelledby") ||
-					(el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`));
+					(el.id &&
+						document.querySelector(`label[for="${CSS.escape(el.id)}"]`));
 				if (!hasLabel) {
 					out.unlabelled.push({
 						tag: el.tagName,
@@ -143,7 +185,10 @@ for (const [name, path] of TARGETS) {
 		// 4. Table headers scoped.
 		for (const th of document.querySelectorAll("table th")) {
 			if (!th.getAttribute("scope")) {
-				out.unscoped.push({ text: text(th), table: th.closest("table")?.dataset?.testid ?? "?" });
+				out.unscoped.push({
+					text: text(th),
+					table: th.closest("table")?.dataset?.testid ?? "?",
+				});
 			}
 		}
 		return out;
@@ -166,22 +211,39 @@ for (const [name, path] of TARGETS) {
 		}
 	}
 	for (const u of page_findings.unnamed) {
-		findings.push({ page: name, rule: "4.1.2 無障礙名稱", detail: `${u.tag} .${u.cls}` });
+		findings.push({
+			page: name,
+			rule: "4.1.2 無障礙名稱",
+			detail: `${u.tag} .${u.cls}`,
+		});
 	}
 	for (const u of page_findings.unlabelled) {
-		findings.push({ page: name, rule: "1.3.1 表單標籤", detail: `${u.tag}#${u.id} type=${u.type}` });
+		findings.push({
+			page: name,
+			rule: "1.3.1 表單標籤",
+			detail: `${u.tag}#${u.id} type=${u.type}`,
+		});
 	}
 	for (const u of page_findings.unscoped) {
-		findings.push({ page: name, rule: "1.3.1 表頭 scope", detail: `${u.table} 「${u.text}」` });
+		findings.push({
+			page: name,
+			rule: "1.3.1 表頭 scope",
+			detail: `${u.table} 「${u.text}」`,
+		});
 	}
 	await page.close();
+	await context.close();
 }
 
 await browser.close();
 
 console.log(`\na11y guard — ${BASE}`);
-console.log(`檢查：對比（1.4.3）、無障礙名稱（4.1.2）、表單標籤與表頭（1.3.1）`);
-console.log(`未涵蓋：色盲辨識、螢幕閱讀器順序、鍵盤陷阱、400% 縮放。這些要人。\n`);
+console.log(
+	`檢查：對比（1.4.3）、無障礙名稱（4.1.2）、表單標籤與表頭（1.3.1）`,
+);
+console.log(
+	`未涵蓋：色盲辨識、螢幕閱讀器順序、鍵盤陷阱、400% 縮放。這些要人。\n`,
+);
 
 if (!findings.length) {
 	console.log("✓ 通過（僅限上述可機械檢查的項目）");
@@ -193,7 +255,8 @@ if (!findings.length) {
 	}
 	for (const [rule, rows] of byRule) {
 		console.log(`✗ ${rule} — ${rows.length}`);
-		for (const r of rows.slice(0, 8)) console.log(`    [${r.page}] ${r.detail}`);
+		for (const r of rows.slice(0, 8))
+			console.log(`    [${r.page}] ${r.detail}`);
 		if (rows.length > 8) console.log(`    …另有 ${rows.length - 8} 項`);
 	}
 }

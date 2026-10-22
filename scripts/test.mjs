@@ -13,8 +13,8 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -36,17 +36,25 @@ if (!process.env.DATABASE_URL) {
 }
 
 function run(cmd, args) {
-	const res = spawnSync(cmd, args, { cwd: ROOT, stdio: "inherit", env: process.env });
+	const res = spawnSync(cmd, args, {
+		cwd: ROOT,
+		stdio: "inherit",
+		env: process.env,
+	});
 	if (res.status !== 0) process.exit(res.status ?? 1);
 }
 
 run(process.execPath, ["--test", "--test-concurrency=1"]);
 
 if (existsSync(resolve(ROOT, "test"))) {
-	const py = spawnSync("python3", ["-m", "unittest", "discover", "-s", "test", "-p", "*_test.py"], {
-		cwd: ROOT,
-		stdio: "inherit",
-		env: process.env,
-	});
+	const py = spawnSync(
+		"python3",
+		["-m", "unittest", "discover", "-s", "test", "-p", "*_test.py"],
+		{
+			cwd: ROOT,
+			stdio: "inherit",
+			env: process.env,
+		},
+	);
 	if (py.status !== 0) process.exit(py.status ?? 1);
 }

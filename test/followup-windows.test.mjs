@@ -43,9 +43,10 @@ async function seedCase(mrn, caseOffset, startOffset, endOffset) {
 		`INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex) VALUES ($1, $2, '65歲以上', '女')`,
 		[`${SALT}:${mrn}`, mrn.slice(-2)],
 	);
-	const { rows: p } = await pool.query("SELECT id FROM patients WHERE mrn_hash = $1", [
-		`${SALT}:${mrn}`,
-	]);
+	const { rows: p } = await pool.query(
+		"SELECT id FROM patients WHERE mrn_hash = $1",
+		[`${SALT}:${mrn}`],
+	);
 	const { rows: c } = await pool.query(
 		`INSERT INTO cases (patient_id, case_date, drug, device, pharmacist, campus, timepoint, qcc_stage)
 		 VALUES ($1,$2,'Symbicort','MDI','黃永成','虎尾','M0','改善前') RETURNING id`,
@@ -70,7 +71,9 @@ describe("follow-up windows", () => {
 		await seedCase("W0000004", -1, 0, 0); // due today
 		await seedCase("W0000005", 1, 30, 44); // scheduled, not yet due
 
-		const { rows } = await pool.query("SELECT count(*)::int AS n FROM followups");
+		const { rows } = await pool.query(
+			"SELECT count(*)::int AS n FROM followups",
+		);
 		assert.equal(rows[0].n, 5);
 	});
 
@@ -79,9 +82,15 @@ describe("follow-up windows", () => {
 		const { rows } = await pool.query(
 			"SELECT due_end FROM followups ORDER BY due_end",
 		);
-		const actionable = rows.filter((r) => r.due_end <= addDays(today, 3)).length;
+		const actionable = rows.filter(
+			(r) => r.due_end <= addDays(today, 3),
+		).length;
 		assert.equal(rows.length, 5, "all five are open");
-		assert.equal(actionable, 4, "four are due today or overdue; one is a month out");
+		assert.equal(
+			actionable,
+			4,
+			"four are due today or overdue; one is a month out",
+		);
 	});
 });
 

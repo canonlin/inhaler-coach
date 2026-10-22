@@ -7,7 +7,10 @@ if (!url) {
 	console.error("DATABASE_URL is not set");
 	process.exit(2);
 }
-const sql = await readFile(new URL("../db/schema.sql", import.meta.url), "utf8");
+const sql = await readFile(
+	new URL("../db/schema.sql", import.meta.url),
+	"utf8",
+);
 const pool = createPool(url);
 await pool.query(sql);
 const { rows } = await pool.query(

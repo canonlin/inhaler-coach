@@ -4,8 +4,16 @@ import { CoachingStageEvaluator } from "../src/detection/coaching-stage-evaluato
 import { PressInhaleDetector } from "../src/steps/step3-press-inhale.js";
 import { RINSE_RATIO, RinseDetector } from "../src/steps/step4-rinse.js";
 
-function makePoseLandmarks(leftY, rightY, leftX = 0.35, rightX = 0.65, visibility = 0.95) {
-	const landmarks = new Array(33).fill(null).map(() => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
+function makePoseLandmarks(
+	leftY,
+	rightY,
+	leftX = 0.35,
+	rightX = 0.65,
+	visibility = 0.95,
+) {
+	const landmarks = new Array(33)
+		.fill(null)
+		.map(() => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
 	landmarks[11] = { x: leftX, y: leftY, visibility };
 	landmarks[12] = { x: rightX, y: rightY, visibility };
 	return landmarks;
@@ -23,7 +31,11 @@ test("step3 bridges mouth landmark occlusion with memory grace", () => {
 
 	// 2. Hand/inhaler occludes lips for 800ms (mouthPoint becomes null)
 	const res2 = detector.detect({ device, mouthPoint: null, timestamp: 1800 });
-	assert.equal(res2.atMouth, true, "atMouth should remain true within grace period");
+	assert.equal(
+		res2.atMouth,
+		true,
+		"atMouth should remain true within grace period",
+	);
 	assert.equal(res2.pressing, true);
 
 	// 3. Grace expires after 3000ms
@@ -38,7 +50,12 @@ test("step3 detects shoulder elevation during slow deep inhalation", () => {
 
 	// Warmup baseline shoulders at y = 0.60
 	for (let t = 0; t < 500; t += 100) {
-		detector.detect({ device, mouthPoint, poseLandmarks: makePoseLandmarks(0.60, 0.60), timestamp: t });
+		detector.detect({
+			device,
+			mouthPoint,
+			poseLandmarks: makePoseLandmarks(0.6, 0.6),
+			timestamp: t,
+		});
 	}
 
 	// Shoulders elevate during deep inhalation to y = 0.56
@@ -64,7 +81,13 @@ test("coaching stage evaluator guides user through inhale and breath hold with s
 	});
 
 	// Inhale phase: 3 seconds
-	const correct = { ready: true, atMouth: true, steady: true, pressing: true, inhaling: true };
+	const correct = {
+		ready: true,
+		atMouth: true,
+		steady: true,
+		pressing: true,
+		inhaling: true,
+	};
 	for (let t = 0; t < 3000; t += 1000) {
 		const evalRes = evaluator.evaluate(correct, t);
 		assert.equal(evalRes.ok, false);
@@ -122,7 +145,7 @@ test("step3 passes with hand at mouth and shoulder kinematics when inhaler is no
 		detector.detect({
 			device: null, // NO INHALER DETECTED
 			mouthPoint,
-			poseLandmarks: makePoseWithHand(0.60),
+			poseLandmarks: makePoseWithHand(0.6),
 			timestamp: t,
 		});
 	}

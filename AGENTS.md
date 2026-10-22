@@ -63,15 +63,90 @@ hosts the research data collector.
   (`步驟_*` codes, `critical` flags) and the 胸腔暨重症加護醫學會《第一次使用
   吸入器就上手》2021 revision. Both the old qcc-inhaler-platform app and the
   pharmacist app must read one definition, never two copies.
+- **The spreadsheet import is a bridge, not a store.** The QCC sheet is the
+  pharmacist's working file; the database is the record. The importer reads the
+  sheet, hashes the record number, and writes cases keyed `IMP-` so a re-run
+  updates rather than duplicates. It reports what it read and what disagrees
+  with the sheet; it does not "fix" the sheet.
+- **The sheet's `errorRate` column is a correct-rate.** Thirteen rows read
+  0.625 where the step detail gives an error rate of 0.375 (3 of 8). The import
+  derives from the step detail and reports the mismatch; the sheet's derived
+  columns are never the source.
 
 ## Durable facts
 
 - Baseline study data: 61 cases, collected 2026-04-21 to 2026-05-27, with real
   error notes. It is the reference the QCC dashboard validates against.
+- The 2026 QCC sheet has 987 rows, of which **62 carry content** (April 12 +
+  May 49 = the 61 baseline cases, plus one from 2026-10-05). **38 have a record
+  number** and can be imported; 24 rows (2–5, 8, 44–63) are blank in the
+  number column and are skipped rather than invented.
 - The AI detection ground-truth problem is open: `docs/paper-methods-revision.md`
   downgrades perinasal optical flow, promotes audio, and proposes thermal imaging
   as laboratory ground truth. Treat optical flow as an evaluated candidate, not
   the primary detector.
+- The second stage detects the exhale with a **colour windmill**, not the
+  chest: the camera cannot see chest movement reliably, and a paper tissue
+  drifts in any draught. The 3-second threshold stays because elderly
+  patients cannot exhale for 5 seconds.
+- The QCC first-month LINE journey is **D3 / D7 / D14 / D24 / D28** — a caring
+  check, the clinical points with the video, the two-week reminder, the quiz
+  that becomes the measurement, and the return-visit reminder. Five pushes per
+  case, and LINE gives 200 free messages a month, so the free allowance carries
+  **about 40 cases a month**. That arithmetic is a hard stop, not a budget.
+- **NFC is not used.** iOS will not open a third-party page or audio file from
+  an NFC tag without an app download, and asking a patient to install an app
+  defeats the purpose. QR code plus LINE is the delivery path.
+- Cohorts: the research plan takes 100 Symbicort patients (50 AI, 50 usual
+  education); the QCC covers every inhaler. A LINE push reaches only consented
+  patients with a linked account, and only post-intervention cases.
+- Two switches decide whether the system can talk to a patient: `LINE_SEND_ENABLED`
+  (off means rehearse, never send) and `CRON_SECRET` (the public dispatch
+  endpoint refuses to send without it). A rehearsal row is not a delivery: it
+  does not consume the allowance and it does not block the real message.
+  **Since 2026-10-22 `LINE_SEND_ENABLED=true` on production** — pushes are real.
+  `GET /api/health` reports `lineSending: live|rehearsal` so a check run from a
+  laptop reports the deployment, not the laptop.
+- **A push only reaches a patient who added the official account as a friend.**
+  That is LINE's rule, not ours: the QR code and the consent step are both
+  required. A refused push is recorded in the dispatch response's `failed`
+  array, deletes its `line_deliveries` row (no allowance spent, retry allowed),
+  and **does not stop the rest of the batch**.
+- **The back office is behind a login; the patient end is not.** `/admin` and
+  every PHI route need a session (`admin_users` / `admin_sessions`, scrypt
+  password, HttpOnly cookie, 12-hour absolute expiry). The public list is
+  exactly six routes and lives in `PUBLIC_ENDPOINTS` (`api/auth.mjs`); anything
+  not on it needs a session. `POST /api/sessions` is on it and must stay there —
+  a login on the patient end would break the zero-install promise.
+- The patient's browser is never a session. `POST /api/sessions` writes a
+  coaching session anonymously and the record number is hashed server-side; the
+  pharmacist's read of it (`GET /api/sessions/pending`) is a protected route.
+- **A check that opens the back office has to sign in.** The design gate
+  creates a temporary account with a random password, signs in, and hands the
+  session to the checks that need it (`output/design-review/session.mjs`). A
+  check that opens `/admin` without one measures the sign-in form, and reports
+  green on the wrong screen. No fixed password may live in the repository —
+  it is public.
+- `GET /api/reference` carries the education quiz's answer key, so it is a
+  protected route. The quiz is the QCC measurement; its answers are not public.
+- `/api/line/dispatch` answers to `CRON_SECRET` only, never to a browser
+  session: a GET that can message a patient must not be triggerable by a page.
+- The back-office account is `znlin188@gmail.com` (林家薐 藥師, role `admin`).
+  It is created by `node scripts/admin-user.mjs`, never from a web form. The
+  password never enters Git and never enters an agent conversation: it is
+  written to a file and handed to the pharmacist over LINE, at the user's
+  instruction on 2026-10-22. Treat it as a shared test credential and change
+  it if the account is ever anything more than a test.
+
+## Deployment
+
+The public LINE deployment, its environment variables and the daily push job
+are written down in `docs/line-deployment-runbook.md`. `node scripts/line-setup.mjs check`
+verifies a deploy; `node scripts/line-setup.mjs richmenu` uploads the six-cell
+menu to the real channel.
+
+The back-office accounts, roles, session rules and incident steps are in
+`docs/admin-access-runbook.md`.
 
 ## Transient data
 

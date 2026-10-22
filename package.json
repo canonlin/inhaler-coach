@@ -27,6 +27,7 @@
     "test:db": "node scripts/test.mjs",
     "dev:api": "node scripts/dev-api.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "line:setup": "node scripts/line-setup.mjs",
     "render:outcomes": "node scripts/render-outcomes.mjs"
   },
   "dependencies": {

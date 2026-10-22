@@ -2,8 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ShoulderKinematicsTracker } from "../src/detection/shoulder-kinematics.js";
 
-function makePoseLandmarks(leftY, rightY, leftX = 0.35, rightX = 0.65, visibility = 0.95) {
-	const landmarks = new Array(33).fill(null).map(() => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
+function makePoseLandmarks(
+	leftY,
+	rightY,
+	leftX = 0.35,
+	rightX = 0.65,
+	visibility = 0.95,
+) {
+	const landmarks = new Array(33)
+		.fill(null)
+		.map(() => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
 	landmarks[11] = { x: leftX, y: leftY, visibility };
 	landmarks[12] = { x: rightX, y: rightY, visibility };
 	return landmarks;
@@ -35,7 +43,10 @@ test("locks baseline and detects shoulder elevation on deep inhalation", () => {
 
 	assert.equal(res.valid, true);
 	assert.equal(res.isElevated, true);
-	assert.ok(res.elevation >= 0.04, `expected elevation >= 0.04, got ${res.elevation}`);
+	assert.ok(
+		res.elevation >= 0.04,
+		`expected elevation >= 0.04, got ${res.elevation}`,
+	);
 });
 
 test("detects stability during breath hold plateau", () => {

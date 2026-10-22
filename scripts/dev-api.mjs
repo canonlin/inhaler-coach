@@ -1,71 +1,53 @@
 /**
  * Local stand-in for the Vercel serverless function in api/index.mjs.
  *
- * It mirrors the real router exactly — same path table, same GET-query versus
- * POST-body split — so what works here works in production. A dev server that
- * behaved differently from the adapter would hide bugs rather than find them.
+ * It does not re-implement the API. It runs the very same handler the
+ * deployment runs, so the guard — the session check, the origin check, the
+ * security headers, the LINE signature check — behaves identically here and
+ * there. A dev server that re-implemented the routing would drift, and a
+ * drifted dev server hides bugs instead of finding them.
+ *
+ * The only difference is the response object: Node's ServerResponse has no
+ * `.status()`, and the Vercel runtime's does.
  *
  * Run: DATABASE_URL=... bun run dev:api
  */
 import { createServer } from "node:http";
 
-import { createPool } from "../api/db.mjs";
-import { HttpError, makeRoutes } from "../api/routes.mjs";
-
-const pool = createPool(process.env.DATABASE_URL);
-const api = makeRoutes({ query: (t, p) => pool.query(t, p), salt: process.env.MRN_SALT ?? "demo-salt" });
-
-/** Same table as api/index.mjs. */
-const ROUTES = {
-	"GET /api/health": "health",
-	"POST /api/cases": "createCase",
-	"POST /api/cases/lookup": "lookupCases",
-	"GET /api/cases": "listCases",
-	"GET /api/metrics/summary": "summary",
-	"POST /api/sessions": "recordSession",
-	"GET /api/reference": "reference",
-	"GET /api/followups": "followups",
-	"POST /api/followups/close": "closeFollowup",
-	"GET /api/sessions/pending": "pendingSession",
-	"POST /api/line/link": "lineLink",
-	"GET /api/line/plan": "linePlan",
-	"POST /api/line/journeys": "lineJourneys",
-	"POST /api/line/send": "lineSend",
-	"POST /api/line/event": "lineEvent",
-	"GET /api/line/engagement": "lineEngagement",
-	"GET /api/admin/config": "getAdminConfig",
-	"POST /api/admin/config": "updateAdminConfig",
-};
+import handler from "../api/index.mjs";
 
 const port = Number(process.env.PORT ?? 4183);
 
-createServer(async (req, res) => {
-	const url = new URL(req.url ?? "/", "http://localhost");
-	const name = ROUTES[`${req.method} ${url.pathname}`];
-	res.setHeader("Content-Type", "application/json; charset=utf-8");
+// The browser reaches the API through Vite's proxy, so the page's origin is
+// the Vite port, not this one. The dev server trusts local origins so a
+// same-origin write is not mistaken for a cross-site one. The flag is set
+// here and nowhere else: a deployment never runs this script.
+process.env.ALLOW_LOCALHOST_ORIGINS = "true";
+const devOrigins = ["http://localhost:5173", "http://localhost:4185"];
+process.env.ALLOWED_ORIGINS = [
+	...new Set([
+		...(process.env.ALLOWED_ORIGINS ?? "").split(","),
+		...devOrigins,
+	]),
+]
+	.map((s) => s.trim())
+	.filter(Boolean)
+	.join(",");
 
-	if (!name) {
-		res.statusCode = 404;
-		res.end(JSON.stringify({ ok: false, error: `no route for ${req.method} ${url.pathname}` }));
-		return;
-	}
+createServer(async (req, res) => {
+	// Vercel's response object carries .status(); Node's does not.
+	res.status = (code) => {
+		res.statusCode = code;
+		return res;
+	};
 	try {
-		const input =
-			req.method === "POST"
-				? await readJson(req)
-				: Object.fromEntries(url.searchParams);
-		res.end(JSON.stringify(await api[name](input)));
+		await handler(req, res);
 	} catch (err) {
-		const status = err instanceof HttpError ? err.status : 500;
-		if (status === 500) console.error("[dev-api]", name, err);
-		res.statusCode = status;
+		console.error("[dev-api]", err);
+		if (!res.headersSent) {
+			res.statusCode = 500;
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+		}
 		res.end(JSON.stringify({ ok: false, error: err.message }));
 	}
 }).listen(port, () => console.log(`dev api on ${port}`));
-
-async function readJson(req) {
-	const chunks = [];
-	for await (const c of req) chunks.push(c);
-	if (!chunks.length) return {};
-	return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}

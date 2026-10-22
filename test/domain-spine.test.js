@@ -5,18 +5,22 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-
+import {
+	ALL_DRUGS,
+	DRUG_BY_NAME,
+	drugDoses,
+	drugOf,
+} from "../src/domain/drugs.js";
+import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import {
 	ALL_STEP_CODES,
-	CRITICAL_STEP_CODES,
-	DEVICES,
-	DEVICE_KINDS,
-	STEP_BY_CODE,
 	applicableSteps,
+	CRITICAL_STEP_CODES,
+	DEVICE_KINDS,
+	DEVICES,
 	isCritical,
+	STEP_BY_CODE,
 } from "../src/domain/steps.js";
-import { ALL_DRUGS, DRUG_BY_NAME, drugDoses, drugOf } from "../src/domain/drugs.js";
-import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 
 describe("spine: step definitions", () => {
 	it("defines exactly 33 steps across 4 devices", () => {
@@ -73,7 +77,10 @@ describe("spine: step definitions", () => {
 
 describe("spine: applicability", () => {
 	it("drops the ICS rinse step for non-steroid drugs", () => {
-		const withSteroid = applicableSteps("MDI", { hasIcs: true, needsShake: true });
+		const withSteroid = applicableSteps("MDI", {
+			hasIcs: true,
+			needsShake: true,
+		});
 		const without = applicableSteps("MDI", { hasIcs: false, needsShake: true });
 		assert.ok(withSteroid.some((st) => st.code === "MDI_漱"));
 		assert.ok(!without.some((st) => st.code === "MDI_漱"));
@@ -102,7 +109,10 @@ describe("spine: drug catalog", () => {
 
 	it("assigns every drug a known device", () => {
 		for (const drug of ALL_DRUGS) {
-			assert.ok(DEVICE_KINDS.includes(drug.device), `${drug.name} → ${drug.device}`);
+			assert.ok(
+				DEVICE_KINDS.includes(drug.device),
+				`${drug.name} → ${drug.device}`,
+			);
 		}
 	});
 
@@ -122,7 +132,11 @@ describe("spine: drug catalog", () => {
 	it("resolves a drug by its spreadsheet key", () => {
 		assert.equal(drugOf("Symbicort").device, "MDI");
 		assert.equal(drugOf("Symbicort").label, "Symbicort Rapihaler");
-		assert.equal(DRUG_BY_NAME.Trimbow.needsShake, false, "solution type must not be shaken");
+		assert.equal(
+			DRUG_BY_NAME.Trimbow.needsShake,
+			false,
+			"solution type must not be shaken",
+		);
 	});
 
 	it("falls back to the device default dose count", () => {
@@ -136,7 +150,10 @@ describe("spine: roster and knowledge questions", () => {
 		assert.equal(KNOWLEDGE.length, 10);
 		for (const [i, q] of KNOWLEDGE.entries()) {
 			assert.equal(q.index, i + 1);
-			assert.ok(["對", "不對"].includes(q.answer), `Q${i + 1} answer must be 對 or 不對`);
+			assert.ok(
+				["對", "不對"].includes(q.answer),
+				`Q${i + 1} answer must be 對 or 不對`,
+			);
 			assert.ok(q.text.length > 0);
 		}
 	});

@@ -18,7 +18,11 @@ describe("LINE Bot Conversational Webhook Router", () => {
 
 		const query = async (sql, params = []) => {
 			if (sql.includes("INSERT INTO line_events")) {
-				dbEvents.push({ eventId: params[0], type: params[1], lineUserId: params[4] });
+				dbEvents.push({
+					eventId: params[0],
+					type: params[1],
+					lineUserId: params[4],
+				});
 				return { rows: [{ patient_id: 101 }] };
 			}
 			if (sql.includes("SELECT lm.device_line")) {
@@ -41,7 +45,14 @@ describe("LINE Bot Conversational Webhook Router", () => {
 			return { rows: [] };
 		};
 
-		return { transport, capturedReplies, capturedSends, query, dbEvents, dbMedications };
+		return {
+			transport,
+			capturedReplies,
+			capturedSends,
+			query,
+			dbEvents,
+			dbMedications,
+		};
 	}
 
 	it("handles follow event by replying with welcome & registration card", async () => {
@@ -89,7 +100,11 @@ describe("LINE Bot Conversational Webhook Router", () => {
 		assert.equal(msg.type, "flex");
 		assert.match(msg.altText, /吸入劑/);
 		assert.equal(msg.contents.type, "carousel");
-		assert.equal(msg.contents.contents.length, 6, "All 6 clinical drug photo bubbles");
+		assert.equal(
+			msg.contents.contents.length,
+			6,
+			"All 6 clinical drug photo bubbles",
+		);
 	});
 
 	it("handles text message '操作影片' by replying with tailored video card", async () => {
@@ -234,7 +249,9 @@ describe("LINE Bot Conversational Webhook Router", () => {
 			events: [
 				{
 					type: "postback",
-					postback: { data: "action=select_rescue&drug=Symbicort_Rapihaler&has_rescue=true" },
+					postback: {
+						data: "action=select_rescue&drug=Symbicort_Rapihaler&has_rescue=true",
+					},
 					webhookEventId: "ev-pb-rescue",
 					replyToken: "token-pb2",
 					source: { userId: "U_USER_001" },
@@ -303,5 +320,60 @@ describe("LINE Bot Conversational Webhook Router", () => {
 		const msg = env.capturedReplies[0].messages[0];
 		assert.equal(msg.type, "flex");
 		assert.match(msg.altText, /差一點點|藥師重點解析/);
+	});
+});
+
+describe("the two-week check", () => {
+	function createMockEnv() {
+		const capturedReplies = [];
+		const transport = createRecordingTransport({
+			insert: async () => {},
+			recordReply: async (reply) => capturedReplies.push(reply),
+		});
+		const query = async (sql) => {
+			if (sql.includes("SELECT lm.device_line")) {
+				return { rows: [{ device_line: "MDI" }] };
+			}
+			return { rows: [] };
+		};
+		return { transport, capturedReplies, query };
+	}
+
+	async function answer(text) {
+		const env = createMockEnv();
+		await handleLineWebhook({
+			events: [
+				{
+					type: "message",
+					message: { type: "text", text },
+					webhookEventId: `ev-selfcheck-${text}`,
+					replyToken: "token-sc",
+					source: { userId: "U_USER_001" },
+				},
+			],
+			query: env.query,
+			transport: env.transport,
+		});
+		return env.capturedReplies[0]?.messages[0];
+	}
+
+	it("acknowledges a patient who says they got it right", async () => {
+		const msg = await answer("都做對了");
+		assert.equal(msg.type, "text");
+		assert.match(msg.text, /做對了/);
+	});
+
+	it("names the three usual stumbling blocks to a patient who is struggling", async () => {
+		const msg = await answer("還有一兩個不順");
+		assert.equal(msg.type, "text");
+		assert.match(msg.text, /搖/);
+		assert.match(msg.text, /吐氣/);
+		assert.match(msg.text, /閉氣 5 秒/);
+	});
+
+	it("sends the method again to a patient who has forgotten it", async () => {
+		const msg = await answer("忘了怎麼用");
+		assert.equal(msg.type, "text");
+		assert.match(msg.text, /操作影片/);
 	});
 });

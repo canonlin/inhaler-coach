@@ -31,9 +31,10 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 			.filter((d) => d.session === sess && d.task === "exhale")
 			.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
-		let frames = [];
+		const frames = [];
 		for (let i = 0; i < rawFrames.length - 1; i++) {
-			const f1 = rawFrames[i], f2 = rawFrames[i + 1];
+			const f1 = rawFrames[i],
+				f2 = rawFrames[i + 1];
 			for (let s = 0; s < 10; s++) {
 				const a = s / 10;
 				frames.push({
@@ -42,7 +43,8 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 					sx: f1.shoulder_x * (1 - a) + f2.shoulder_x * a,
 					ny: f1.nose_y * (1 - a) + f2.nose_y * a,
 					nx: (f1.nose_x || 0.5) * (1 - a) + (f2.nose_x || 0.5) * a,
-					sp: (f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
+					sp:
+						(f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
 					ls_conf: f1.ls_conf,
 					rs_conf: f1.rs_conf,
 				});
@@ -100,9 +102,10 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 			.filter((d) => d.session === sess && d.task === "still")
 			.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
 
-		let frames = [];
+		const frames = [];
 		for (let i = 0; i < rawFrames.length - 1; i++) {
-			const f1 = rawFrames[i], f2 = rawFrames[i + 1];
+			const f1 = rawFrames[i],
+				f2 = rawFrames[i + 1];
 			for (let s = 0; s < 10; s++) {
 				const a = s / 10;
 				frames.push({
@@ -111,7 +114,8 @@ test("clinical replay: 5/5 real pharmacists pass stage 2 with 0 false positives 
 					sx: f1.shoulder_x * (1 - a) + f2.shoulder_x * a,
 					ny: f1.nose_y * (1 - a) + f2.nose_y * a,
 					nx: (f1.nose_x || 0.5) * (1 - a) + (f2.nose_x || 0.5) * a,
-					sp: (f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
+					sp:
+						(f1.shoulder_span || 0.3) * (1 - a) + (f2.shoulder_span || 0.3) * a,
 					ls_conf: f1.ls_conf,
 					rs_conf: f1.rs_conf,
 				});
@@ -281,7 +285,11 @@ test("clinical replay: 5/5 real pharmacists pass stage 3 with 0 false positives"
 		if (passed) passedCount++;
 	}
 
-	assert.equal(passedCount, 5, "All 5 clinical pharmacists should pass Stage 3");
+	assert.equal(
+		passedCount,
+		5,
+		"All 5 clinical pharmacists should pass Stage 3",
+	);
 
 	// 2. Negative controls: shake_normal, speak, move, still
 	const nonPressTasks = ["shake_normal", "speak", "move", "still"];
@@ -321,6 +329,10 @@ test("clinical replay: 5/5 real pharmacists pass stage 3 with 0 false positives"
 			if (evalRes.ok) falsePositives++;
 		}
 
-		assert.equal(falsePositives, 0, `Expected 0 false positives for task ${task}`);
+		assert.equal(
+			falsePositives,
+			0,
+			`Expected 0 false positives for task ${task}`,
+		);
 	}
 });

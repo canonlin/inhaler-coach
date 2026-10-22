@@ -97,7 +97,12 @@ export const BASELINE = {
 		MDI_閉: ["未憋氣5-10秒", "未憋氣", "未閉氣"],
 		MDI_漱: ["未漱口"],
 		RSP_吐: ["未吐氣"],
-		RSP_含: ["沒有嘴唇密合", "嘴唇未密合,有漏煙", "嘴唇未密合", "未緊密嘴唇密合"],
+		RSP_含: [
+			"沒有嘴唇密合",
+			"嘴唇未密合,有漏煙",
+			"嘴唇未密合",
+			"未緊密嘴唇密合",
+		],
 		RSP_壓吸: ["未同步", "未同步,先吸再壓"],
 		RSP_閉: ["未閉氣 5-秒", "未閉氣"],
 		ELP_吐: ["未吐氣", "對裝置吐氣", "未吐", "沒吐氣"],
@@ -118,10 +123,16 @@ export const BASELINE = {
 };
 
 /** Total assessed steps across the baseline. */
-export const BASELINE_ASSESSED = Object.values(BASELINE.steps).reduce((n, s) => n + s.a, 0);
+export const BASELINE_ASSESSED = Object.values(BASELINE.steps).reduce(
+	(n, s) => n + s.a,
+	0,
+);
 
 /** Total wrong steps across the baseline. */
-export const BASELINE_WRONG = Object.values(BASELINE.steps).reduce((n, s) => n + s.w, 0);
+export const BASELINE_WRONG = Object.values(BASELINE.steps).reduce(
+	(n, s) => n + s.w,
+	0,
+);
 
 /**
  * Rows in the shape the metrics module consumes, synthesised from the observed
@@ -137,7 +148,11 @@ export const BASELINE_WRONG = Object.values(BASELINE.steps).reduce((n, s) => n +
 export function baselineRows() {
 	// byDevice is keyed by the clinical family (MDI/SMI/DPI); step codes use the
 	// device code (MDI/RSP/ELP). Map once, here.
-	const CASES = { MDI: BASELINE.byDevice.MDI, RSP: BASELINE.byDevice.SMI, ELP: BASELINE.byDevice.DPI };
+	const CASES = {
+		MDI: BASELINE.byDevice.MDI,
+		RSP: BASELINE.byDevice.SMI,
+		ELP: BASELINE.byDevice.DPI,
+	};
 	const byDevice = {};
 	const rows = [];
 	for (const [device, n] of Object.entries(CASES)) {

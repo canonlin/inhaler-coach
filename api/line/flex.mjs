@@ -967,7 +967,79 @@ export function buildClinicReminderFlex() {
 	};
 }
 
-/** 10. 藥師諮詢服務卡片 (Pharmacist Consult) */
+/** 11. 第 3 天關懷與操作提醒卡片 (Day 3 Care Check) */
+export function buildCareCheckFlex({
+	deviceType = "MDI",
+	drugLabel = "",
+} = {}) {
+	const head = drugLabel ? `${drugLabel}｜` : "";
+	return {
+		type: "flex",
+		altText: "InhaSync™ 用藥第 3 天關懷與操作提醒",
+		contents: {
+			type: "bubble",
+			size: "giga",
+			header: {
+				type: "box",
+				layout: "vertical",
+				backgroundColor: "#0891B2",
+				contents: [
+					{
+						type: "text",
+						text: "開始用藥的第 3 天",
+						size: "xs",
+						color: "#CFFAFE",
+					},
+					{
+						type: "text",
+						text: "用得順嗎？有卡卡的請告訴我們",
+						size: "lg",
+						weight: "bold",
+						color: "#FFFFFF",
+					},
+				],
+			},
+			body: {
+				type: "box",
+				layout: "vertical",
+				spacing: "md",
+				contents: [
+					{
+						type: "text",
+						text: `${head}這一週吸入器用得還順嗎？操作有任何不順的地方，都可以先看短片，或直接問我們。`,
+						size: "xs",
+						color: "#334155",
+						wrap: true,
+					},
+					{
+						type: "button",
+						action: {
+							type: "message",
+							label: "常見問題",
+							text: "常見問題",
+						},
+						style: "secondary",
+						height: "sm",
+					},
+					{
+						type: "button",
+						action: {
+							type: "postback",
+							label: `看 ${deviceType} 操作短片`,
+							data: `action=view_video&type=${deviceType}`,
+							displayText: "看操作短片",
+						},
+						style: "primary",
+						color: "#0891B2",
+						height: "sm",
+					},
+				],
+			},
+		},
+	};
+}
+
+/** 12. 藥師諮詢服務卡片 (Pharmacist Consult) */
 export function buildPharmacistConsultFlex() {
 	return {
 		type: "flex",

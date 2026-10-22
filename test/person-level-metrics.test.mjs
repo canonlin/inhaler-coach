@@ -14,12 +14,23 @@ import { describe, it } from "node:test";
 import { mcnemar, techniqueStats } from "../api/metrics.mjs";
 
 /** One case with the given step results. */
-const c = (steps, over = {}) => ({ steps, device: "MDI", qccStage: "改善前", ...over });
+const c = (steps, over = {}) => ({
+	steps,
+	device: "MDI",
+	qccStage: "改善前",
+	...over,
+});
 
 describe("person-level error rate", () => {
 	it("counts a patient with five errors once, not five times", () => {
 		const stats = techniqueStats([
-			c({ MDI_搖: "錯誤", MDI_吐: "錯誤", MDI_壓: "錯誤", MDI_吸: "錯誤", MDI_閉: "錯誤" }),
+			c({
+				MDI_搖: "錯誤",
+				MDI_吐: "錯誤",
+				MDI_壓: "錯誤",
+				MDI_吸: "錯誤",
+				MDI_閉: "錯誤",
+			}),
 		]);
 		assert.equal(stats.cases, 1);
 		assert.equal(stats.peopleWithError, 1);
@@ -66,12 +77,19 @@ describe("person-level error rate", () => {
 			c({ MDI_搖: "正確" }),
 			c({ MDI_搖: "na" }), // assessed nothing
 		]);
-		assert.equal(stats.cases, 1, "an unmeasured case is not a correctly-measured patient");
+		assert.equal(
+			stats.cases,
+			1,
+			"an unmeasured case is not a correctly-measured patient",
+		);
 		assert.equal(stats.errorRate, 0);
 	});
 
 	it("reports correctRate as the person-level complement", () => {
-		const stats = techniqueStats([c({ MDI_搖: "錯誤" }), c({ MDI_搖: "正確" })]);
+		const stats = techniqueStats([
+			c({ MDI_搖: "錯誤" }),
+			c({ MDI_搖: "正確" }),
+		]);
 		assert.equal(stats.correctRate, 0.5);
 	});
 
@@ -83,7 +101,12 @@ describe("person-level error rate", () => {
 });
 
 describe("McNemar, exact binomial", () => {
-	const row = (patientId, qccStage, steps) => ({ patientId, qccStage, steps, device: "MDI" });
+	const row = (patientId, qccStage, steps) => ({
+		patientId,
+		qccStage,
+		steps,
+		device: "MDI",
+	});
 	const bad = { MDI_壓: "錯誤" };
 	const good = { MDI_壓: "正確" };
 
@@ -129,12 +152,19 @@ describe("McNemar, exact binomial", () => {
 		const r = mcnemar(rows);
 		assert.equal(r.b, 4);
 		assert.equal(r.c, 4);
-		assert.equal(r.p, 1, "a perfectly even split is exactly what chance predicts");
+		assert.equal(
+			r.p,
+			1,
+			"a perfectly even split is exactly what chance predicts",
+		);
 		assert.ok(r.p >= 0.05);
 	});
 
 	it("ignores a patient measured only once", () => {
-		const r = mcnemar([row("solo", "改善前", bad), row("solo", "改善後", good)]);
+		const r = mcnemar([
+			row("solo", "改善前", bad),
+			row("solo", "改善後", good),
+		]);
 		assert.equal(r.paired, 1, "that one was measured twice");
 		const partial = mcnemar([
 			row("x", "改善前", bad),
@@ -149,6 +179,10 @@ describe("McNemar, exact binomial", () => {
 			row("z", "改善前", bad),
 			row("z", "改善後", { MDI_壓: "na" }), // nothing measured
 		]);
-		assert.equal(r.paired, 0, "cannot claim an improvement on an unmeasured step");
+		assert.equal(
+			r.paired,
+			0,
+			"cannot claim an improvement on an unmeasured step",
+		);
 	});
 });

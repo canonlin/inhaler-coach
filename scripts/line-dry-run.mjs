@@ -19,7 +19,10 @@ if (!URL) {
 }
 
 const pool = createPool(URL);
-const api = makeRoutes({ query: (t, p) => pool.query(t, p), salt: process.env.MRN_SALT ?? "demo-salt" });
+const api = makeRoutes({
+	query: (t, p) => pool.query(t, p),
+	salt: process.env.MRN_SALT ?? "demo-salt",
+});
 
 const month = process.argv[2] ?? new Date().toISOString().slice(0, 7);
 
@@ -34,7 +37,9 @@ const { rows } = await pool.query(
 );
 
 if (!rows.length) {
-	console.log(`${month}: no cases. Seed some with scripts/seed-demo.mjs, or pass a month that has data.`);
+	console.log(
+		`${month}: no cases. Seed some with scripts/seed-demo.mjs, or pass a month that has data.`,
+	);
 	await pool.end();
 	process.exit(0);
 }
@@ -73,7 +78,9 @@ console.log(
 		: `  ✗ 超出免費額度 ${billable - 200} 則，免費方案無法加購`,
 );
 if (consentMissing) {
-	console.log(`\n⚠ ${consentMissing}/${rows.length} 例尚未取得 LINE 同意，實際會寄出的更少。`);
+	console.log(
+		`\n⚠ ${consentMissing}/${rows.length} 例尚未取得 LINE 同意，實際會寄出的更少。`,
+	);
 }
 console.log(`\n本演練未寄出任何訊息（transport=recording）。\n`);
 
