@@ -112,6 +112,12 @@ hosts the research data collector.
   required. A refused push is recorded in the dispatch response's `failed`
   array, deletes its `line_deliveries` row (no allowance spent, retry allowed),
   and **does not stop the rest of the batch**.
+- **Yomi's `add_friend` cannot add a LINE Official Account.** It answers
+  `added: true` and nothing happens: no contact, no chat, no `follow` webhook.
+  Adding an OA has to be done in the LINE app by scanning the QR code
+  (`https://qr-official.line.me/sid/L/806eizrs.png`, the official one) or opening
+  `https://line.me/R/ti/p/@806eizrs`. Don't spend time on the tool. The
+  Messaging API quota is 200 a month — `GET /v2/bot/message/quota` says so.
 - **The back office is behind a login; the patient end is not.** `/admin` and
   every PHI route need a session (`admin_users` / `admin_sessions`, scrypt
   password, HttpOnly cookie, 12-hour absolute expiry). The public list is
