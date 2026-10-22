@@ -35,7 +35,9 @@ async function initialize() {
 	const faceLandmarksDetection = await import(
 		"@tensorflow-models/face-landmarks-detection"
 	);
-	const handPoseDetection = await import("@tensorflow-models/hand-pose-detection");
+	const handPoseDetection = await import(
+		"@tensorflow-models/hand-pose-detection"
+	);
 
 	const [poseResult, faceResult] = await Promise.all([
 		poseDetection.createDetector(poseDetection.SupportedModels.BlazePose, {

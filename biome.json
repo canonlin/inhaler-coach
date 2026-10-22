@@ -18,10 +18,7 @@
 		}
 	},
 	"files": {
-		"includes": [
-			"**",
-			"!!**/dist"
-		]
+		"includes": ["**", "!!**/dist", "!!**/collector", "!!**/training"]
 	},
 	"formatter": {
 		"enabled": true,

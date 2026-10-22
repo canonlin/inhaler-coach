@@ -28,6 +28,7 @@
           <p id="setup-status" class="text-text-secondary">正在載入偵測模型…</p>
 
           <button
+            type="button"
             id="btn-begin"
             disabled
             class="w-full rounded-xl bg-success text-black font-bold text-lg py-4
@@ -48,6 +49,7 @@
             <div class="space-y-2">
               <div id="demo" class="rounded-xl bg-surface border border-border"></div>
               <button
+                type="button"
                 id="btn-pause-demo"
                 class="w-full text-sm text-text-secondary py-2 rounded-lg bg-surface-light"
               >
@@ -56,7 +58,7 @@
             </div>
 
             <div class="space-y-4">
-              <h2 id="brief-title" class="text-3xl font-bold leading-snug"></h2>
+              <h2 id="brief-title" class="text-3xl font-bold leading-snug">操作重點</h2>
               <p id="brief-detail" class="text-text-secondary leading-relaxed"></p>
               <div class="rounded-lg bg-surface border border-border p-4">
                 <div class="text-xs text-text-secondary mb-1">為什麼要錄這個</div>
@@ -66,6 +68,7 @@
           </div>
 
           <button
+            type="button"
             id="btn-ready"
             class="w-full rounded-xl bg-success text-black font-bold text-lg py-4"
           >
@@ -130,10 +133,11 @@
             如果剛剛做錯了、或被打斷，可以重錄這一項。
           </p>
           <div class="flex gap-3">
-            <button id="btn-redo" class="flex-1 rounded-xl bg-surface-light text-text py-4">
+            <button type="button" id="btn-redo" class="flex-1 rounded-xl bg-surface-light text-text py-4">
               重錄這一項
             </button>
             <button
+              type="button"
               id="btn-next"
               class="flex-1 rounded-xl bg-success text-black font-bold py-4"
             >
@@ -161,10 +165,10 @@
           </div>
 
           <div class="flex gap-3">
-            <button id="btn-resave" class="flex-1 rounded-xl bg-surface-light text-text py-3">
+            <button type="button" id="btn-resave" class="flex-1 rounded-xl bg-surface-light text-text py-3">
               沒看到檔案？再下載一次
             </button>
-            <button id="btn-again" class="flex-1 rounded-xl bg-surface-light text-text py-3">
+            <button type="button" id="btn-again" class="flex-1 rounded-xl bg-surface-light text-text py-3">
               再錄一次
             </button>
           </div>
