@@ -51,3 +51,30 @@ createServer(async (req, res) => {
 		res.end(JSON.stringify({ ok: false, error: err.message }));
 	}
 }).listen(port, () => console.log(`dev api on ${port}`));
+
+/*
+ * Do not outlive the run that started this.
+ *
+ * A test run that is killed — and on a busy machine they are, because the
+ * browser, Vite and this server together are more memory than the machine has
+ * to spare — takes its children with it only if they notice. Without this, the
+ * server keeps the port and a slice of memory, and the next run measures the
+ * previous run's leftovers.
+ *
+ * The check is the parent: when this process is orphaned, the kernel reparents
+ * it to launchd and the parent pid becomes 1. Nobody runs a dev API under
+ * launchd, so that is the signal to leave.
+ */
+const parentPid = process.ppid;
+if (parentPid > 1) {
+	const watchdog = setInterval(() => {
+		if (process.ppid !== parentPid) {
+			console.log("[dev-api] the parent went away; leaving");
+			process.exit(0);
+		}
+	}, 2000);
+	watchdog.unref();
+	for (const signal of ["SIGTERM", "SIGINT"]) {
+		process.on(signal, () => process.exit(0));
+	}
+}

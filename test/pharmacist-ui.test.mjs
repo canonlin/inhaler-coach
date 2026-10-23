@@ -57,6 +57,26 @@ const VITE_BIN = resolve(ROOT, "node_modules/vite/bin/vite.js");
 
 const started = [];
 const consoleErrors = [];
+
+/*
+ * The servers do not outlive this file.
+ *
+ * A run that is killed takes its children with it only if they notice. An
+ * orphaned dev-api keeps the port and a slice of memory, and the next run
+ * then measures the previous run's leftovers — the exact trap this file keeps
+ * warning about. The exit handler covers the exits that can be handled; the
+ * port check in freePort covers the ones that cannot.
+ */
+process.on("exit", () => {
+	for (const p of started) {
+		if (!p.pid) continue;
+		try {
+			process.kill(-p.pid, "SIGKILL");
+		} catch {
+			// it went away on its own
+		}
+	}
+});
 let page;
 let browser;
 let context;
