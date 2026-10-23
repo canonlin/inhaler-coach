@@ -262,6 +262,49 @@ research data collector.
   sheet disagrees with itself); 「確認匯入」 only unlocks after that rehearsal,
   for that file and that stage. Re-running the same file updates the same cases
   rather than duplicating them.
+- **The study is 1:1, and the rotation lives in one file**
+  (`src/domain/study-arm.js`). 實驗組 (AI 練習) and 對照組 (一般衛教) alternate
+  one against one; the rule, the labels and the ratio arithmetic are in that
+  one file, because the form that shows the suggestion, the API that allocates
+  the arm and the count that stays on screen all have to agree on it. The
+  suggestion follows the arm the last patient was actually given, whatever its
+  source, so a manual override moves the next suggestion with it and the 1:1
+  holds. The allocation is written in the same statement as the case: the arm
+  and the row land together, or neither lands. `arm_source` says which
+  happened — `alternating` for the rotation, `manual` for the pharmacist's own
+  choice — because an override is a fact about the study that has to be
+  auditable.
+- **The arm belongs to the patient, not to the row.** A patient who already has
+  an arm keeps it: the M1 assessment and a re-enrollment are the same person,
+  and a second arm would put one patient in two groups and turn the balance on
+  screen into a count of rows. The counts are therefore people
+  (`count(DISTINCT patient_id)`), not cases. `cases.study_arm` is NULL on a
+  case that was never allocated one — the imported 對策前 cohort — and NULL is
+  not the same as 對照組.
+- **The control group does not get the camera's verdict.** The pre-fill from an
+  AI session is the intervention, so a 對照組 patient is judged by hand and the
+  screen says why. Putting the countermeasure into the group that is supposed
+  to receive usual education would make the before/after comparison compare
+  the two groups on something other than what was given to them.
+- **The tally is on the enrollment screen from the start; the two buttons
+  arrive with the checklist.** The screen opens with the record number as its
+  only control, and that is deliberate — twenty-five controls on arrival is
+  what made the form cost twenty-five taps. The count and the ratio are on
+  screen from the start; 實驗組／對照組 are chosen in the form, where the
+  decision is actually made.
+- **The suite refuses to empty a database that has patients in it**
+  (`scripts/test.mjs`). The project's Neon database is both the test database
+  and the deployment's database, so a test run on a laptop would delete real
+  records and still report green. The gate asks the database whether there is
+  anything to lose and stops with an explanation; `ALLOW_TRUNCATE=1` overrides
+  it. The suite also cleans up after itself, so the next run starts from an
+  empty database and the question stays honest.
+- **The technical description for 資訊室 is ours to write and theirs to
+  review** (`docs/it-specification-draft.md`, 2026-10-24). It states what the
+  system does, where the data is, how the record number is protected and what
+  the hospital still has to decide — ten open questions are listed at the end.
+  It is a draft until 資訊室 has read it, and nothing in it may be quoted as an
+  approved position.
 
 ## Writing to 林藥師 (LINE)
 
