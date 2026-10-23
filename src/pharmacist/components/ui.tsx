@@ -15,7 +15,7 @@ import * as LabelPrimitive from "@radix-ui/react-label";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Upload } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
@@ -214,6 +214,67 @@ export const Checkbox = React.forwardRef<
 	</CheckboxPrimitive.Root>
 ));
 Checkbox.displayName = "Checkbox";
+
+/**
+ * A file picker that reads like the rest of this app.
+ *
+ * The native control was the last thing on this screen the browser owned: it
+ * draws its own button, in the browser's own language, so a Chinese-speaking
+ * pharmacist on a Chinese phone was told 「Choose File」 and 「No file chosen」
+ * — the only English left in the pharmacist end.
+ *
+ * The native element still has to be there; there is no picker without it. It
+ * is laid over the trigger at zero opacity instead of being removed from the
+ * layout, which keeps three things true at once: the click opens the real
+ * native picker, the browser's own focus ring lands on our trigger, and the
+ * test that proves the import works can still drive the same input.
+ *
+ * The chosen file's name is shown next to the trigger rather than on a line of
+ * its own, because a line of its own is a second thing to read.
+ */
+export const FileInput = React.forwardRef<
+	HTMLInputElement,
+	{
+		id: string;
+		accept?: string;
+		/** The chosen file's name, or null while nothing is chosen. */
+		fileName: string | null;
+		onSelect: (file: File | null) => void;
+		className?: string;
+		/** Named so a check can find the trigger and measure it. */
+		testId?: string;
+	}
+>(({ id, accept, fileName, onSelect, className, testId }, ref) => (
+	<div className={cn("flex flex-wrap items-center gap-3", className)}>
+		<label
+			htmlFor={id}
+			data-testid={testId}
+			className={cn(
+				"relative inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 text-base font-semibold text-text transition-colors hover:bg-surface-muted",
+				"focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
+			)}
+		>
+			<Upload className="size-4 shrink-0" aria-hidden="true" />
+			選擇檔案
+			<input
+				ref={ref}
+				id={id}
+				type="file"
+				accept={accept}
+				onChange={(e) => onSelect(e.target.files?.[0] ?? null)}
+				className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+			/>
+		</label>
+		<span data-testid="file-name" className="text-base text-text-secondary">
+			{fileName ? (
+				<span className="font-semibold text-text">{fileName}</span>
+			) : (
+				<span className="text-text-muted">還沒選檔案</span>
+			)}
+		</span>
+	</div>
+));
+FileInput.displayName = "FileInput";
 
 /**
  * A labelled form field.

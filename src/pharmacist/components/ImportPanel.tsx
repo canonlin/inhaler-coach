@@ -13,7 +13,7 @@
  *      invalidates it, because the report is a promise about *this* file as
  *      *that* stage, and a promise about a previous file is not a promise.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { type ImportReport, importCases } from "../../api-client";
 import {
@@ -22,7 +22,15 @@ import {
 	STAGES,
 } from "../../domain/enrollment-sheet.js";
 import { ImportReportPanel } from "./ImportReport";
-import { Button, Card, CardHeader, Field, Select, SelectItem } from "./ui";
+import {
+	Button,
+	Card,
+	CardHeader,
+	FileInput,
+	Field,
+	Select,
+	SelectItem,
+} from "./ui";
 
 export function ImportPanel() {
 	const [file, setFile] = useState<File | null>(null);
@@ -31,6 +39,7 @@ export function ImportPanel() {
 	const [rehearsedFor, setRehearsedFor] = useState<string | null>(null);
 	const [busy, setBusy] = useState<"dry" | "commit" | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const fileInput = useRef<HTMLInputElement>(null);
 
 	const currentKey = file ? `${file.name}:${file.size}:${stage}` : null;
 	const rehearsed = rehearsedFor !== null && rehearsedFor === currentKey;
@@ -52,6 +61,11 @@ export function ImportPanel() {
 				// anything that is still to happen.
 				setRehearsedFor(null);
 				setFile(null);
+				// The native input still holds the file it was given. Left
+				// alone, choosing the same workbook again would fire no
+				// change event, and the panel would look empty while the
+				// button stayed disabled.
+				if (fileInput.current) fileInput.current.value = "";
 			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "匯入失敗");
@@ -98,26 +112,21 @@ export function ImportPanel() {
 					htmlFor="file"
 					hint={`工作表名稱要叫「${ENROLLMENT_SHEET}」。必要欄位與步驟欄位格式寫在下面這張卡。`}
 				>
-					<input
+					<FileInput
+						ref={fileInput}
 						id="file"
-						type="file"
+						testId="file-picker"
 						accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-						onChange={(e) => {
-							setFile(e.target.files?.[0] ?? null);
+						fileName={file?.name ?? null}
+						onSelect={(f) => {
+							setFile(f);
 							// A new file invalidates the rehearsal.
 							setReport(null);
 							setRehearsedFor(null);
 							setError(null);
 						}}
-						className="block w-full text-base text-text file:mr-3 file:rounded-md file:border file:border-border file:bg-surface file:px-4 file:py-2 file:text-base file:font-semibold file:text-text hover:file:bg-surface-muted"
 					/>
 				</Field>
-
-				{file && (
-					<p className="text-base text-text-secondary">
-						已選：<span className="font-semibold text-text">{file.name}</span>
-					</p>
-				)}
 
 				<div className="flex flex-wrap items-center gap-3">
 					<Button onClick={() => run(true)} disabled={!file || busy !== null}>
