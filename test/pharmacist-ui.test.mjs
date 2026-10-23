@@ -305,6 +305,18 @@ describe("pharmacist tabs", () => {
 	 * announces the section name, and a bare number on every visit is noise.
 	 */
 	it("has one set of tabs, not two apps", async () => {
+		/*
+		 * Waited for, not read at once.
+		 *
+		 * The back office checks the session before it renders anything, so
+		 * until that check resolves there is no navigation in the document at
+		 * all — it shows 「正在確認身分…」 instead. Reading the links in that
+		 * window measures the gate, and reports an empty navigation for an
+		 * application that has four sections.
+		 */
+		await page.waitForSelector(`${NAV_A} > span:first-child`, {
+			timeout: 15_000,
+		});
 		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
 			n.map((x) => x.textContent.trim()),
 		);
@@ -581,7 +593,13 @@ describe("pharmacist tabs", () => {
 			() => (document.querySelector("#mrn")?.value ?? "") === "ZZ9999999",
 			{ timeout: 5000 },
 		);
-		await page.waitForTimeout(600);
+		// Waited for, not slept through. The history is read from a database
+		// over the network, and a fixed pause read 「正在讀取這位病人的歷史
+		// 紀錄」 as 「查無紀錄」 on a slow connection — which is the mistake
+		// this sentence exists to prevent.
+		await page.waitForSelector("[data-testid=case-history-empty]", {
+			timeout: 15_000,
+		});
 		const body = (await page.textContent("main")) ?? "";
 		assert.match(
 			body,
@@ -1307,6 +1325,23 @@ describe("the data transfer actions on the case list", () => {
 		assert.match(body, /藥師收案/, "the worksheet name must be on screen");
 		assert.match(body, /病歷號碼/, "the required columns must be on screen");
 
+		/*
+		 * The picker is ours, in the pharmacist's language.
+		 *
+		 * The native control drew its own button, and the browser drew it in
+		 * the browser's language: a Chinese-speaking pharmacist on a Chinese
+		 * phone was told 「Choose File」. The native element still has to be
+		 * there for the picker to open at all, so the assertion is that the
+		 * screen says 「選擇檔案」 and does not say 「Choose File」 — the
+		 * English is the defect, not the control.
+		 */
+		assert.match(body, /選擇檔案/, "the picker must be in Chinese");
+		assert.doesNotMatch(
+			body,
+			/Choose File/i,
+			"the browser's English button must not show through",
+		);
+
 		// Nothing can be written before a file is chosen and rehearsed.
 		const commit = page.locator('button:has-text("確認匯入")');
 		assert.equal(
@@ -1321,6 +1356,15 @@ describe("the data transfer actions on the case list", () => {
 				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 			buffer: writeXlsx([{ name: "藥師收案", rows: sheetRows }]),
 		});
+		// The chosen file is named on the screen, so the pharmacist can see
+		// which workbook is loaded before rehearsing it.
+		await page.waitForFunction(
+			() =>
+				(document.querySelector("main")?.textContent ?? "").includes(
+					"qcc.xlsx",
+				),
+			{ timeout: 5000 },
+		);
 		await page.click('button:has-text("先試算")');
 		await page.waitForSelector('[data-testid="import-report"]', {
 			timeout: 15_000,
