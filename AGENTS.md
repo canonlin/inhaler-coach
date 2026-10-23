@@ -280,6 +280,14 @@ shape of the message they approved and sent on 10/22.
   arrow, and a short red label saying what changed. The markup is plain
   geometry, not a simulated hand-drawn scrawl. Place it by the browser's own
   bounding box, never by reading pixels by eye.
+- **Describe where things are now, not what changed.** The user said it on
+  2026-10-23: 「藥師根本沒經歷選單五項的過程，你的寫法不是在製作困擾而已？」.
+  She never saw the five-item navigation, so 「匯入、匯出原本是左邊的一個分頁，
+  現在搬到個案清單裡」 describes a change that never happened to her and only
+  makes her look for a door that was never there. Say 「匯入、匯出在個案清單上方」
+  — where it is now — and leave the history to the engineers. The same applies
+  to the red label on the screenshot: 「左邊分頁只剩四項」 counts a menu she has
+  never seen, so it is not drawn.
 - **Sending is the user's call.** Show the text and the images first; send only
   after they approve. A message cannot be taken back and a second copy is not
   the same as a corrected one: one message, sent once.
