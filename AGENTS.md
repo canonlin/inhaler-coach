@@ -269,12 +269,13 @@ The user asked on 2026-10-22: 「回覆訊息的文體請依我的平時習慣�
 That is a rule about the user's own voice, so it is written down here with the
 shape of the message they approved and sent on 10/22.
 
-- Open with 「林藥師午安，」 on a line of its own, a blank line, then one line
-  saying what is being reported or explained — 「後台登入的方式跟您說明一下。」
-  「LINE 這部分目前的狀況跟您回報一下。」 The greeting is **not** turned by the
-  hour: the user's own two messages on 10/22 both open with 「林藥師午安，」,
-  and when a time-of-day greeting was offered on 10/23 the answer was
-  「不需要這樣寫！我也不會這樣寫」.
+- Open with 「林藥師午安，」 (the time of day of the hour it is sent) and one
+  line saying what is being reported or explained — 「後台登入的方式跟您說明一下。」
+  「LINE 這部分目前的狀況跟您回報一下。」 The greeting follows the hour, and the
+  user's own two messages on 10/22 were both sent at 15:15, both opening with
+  「林藥師午安，」. At 21:27 on 10/23 a draft that still said 午安 was sent back
+  with 「現在已經是晚上 9:27 耶」 — so at that hour it is 「林藥師晚安，」, and
+  the fix is to send it when the greeting is right, not to keep one word.
 - Blank line between paragraphs. One paragraph per screen or item, each
   starting with 「：」 — 「追蹤清單：這是兩週內要再評估的病人。」 Short
   sentences, plain verbs (點、開、輸入、選、勾、存檔), 「您」 for her. No emoji,
