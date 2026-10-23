@@ -263,6 +263,27 @@ research data collector.
   for that file and that stage. Re-running the same file updates the same cases
   rather than duplicating them.
 
+## Writing to 林藥師 (LINE)
+
+The user asked on 2026-10-22: 「回覆訊息的文體請依我的平時習慣撰寫，發出前先給我確認」.
+That is a rule about the user's own voice, so it is written down here with the
+shape of the message they approved and sent on 10/22.
+
+- Open with 「林藥師午安，」 (the time of day of the hour it is sent) and one
+  line saying what is being reported. Then one paragraph per screen or item,
+  each starting with 「：」 — 「追蹤清單：這是兩週內要再評估的病人。」 Short
+  sentences, plain verbs (點、開、輸入、選、勾、存檔), 「您」 for her.
+- No emoji, no markdown bullets, no 一、二、三 headings. Traditional Chinese.
+- Close with what happens next or an offer — 「10/27 討論的時候如果需要，可以
+  一起看一次實際操作。」
+- A screenshot makes it clearer, and it should be marked up: a red circle, a red
+  arrow, and a short red label saying what changed. The markup is plain
+  geometry, not a simulated hand-drawn scrawl. Place it by the browser's own
+  bounding box, never by reading pixels by eye.
+- **Sending is the user's call.** Show the text and the images first; send only
+  after they approve. A message cannot be taken back and a second copy is not
+  the same as a corrected one: one message, sent once.
+
 ## Deployment
 
 The public LINE deployment, its environment variables and the daily push job
