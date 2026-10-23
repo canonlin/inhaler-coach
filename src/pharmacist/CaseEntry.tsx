@@ -43,6 +43,7 @@ import {
 	stepReviewSource,
 } from "../domain/steps.js";
 import { ARM_CONTROL, ARM_LABEL } from "../domain/study-arm.js";
+import { primingFor } from "../domain/priming.js";
 import { cn } from "../lib/utils";
 import {
 	BasicInfo,
@@ -473,6 +474,21 @@ export function CaseEntry({
 							<p className="mt-0.5 text-meta text-text-secondary">
 								{drug.hasIcs ? "含類固醇" : "不含類固醇"} ·{" "}
 								{DEVICES[drug.device].speed}
+							</p>
+							{/*
+							 * How this product is primed.
+							 *
+							 * 「先噴幾次」不是一個規則：Symbicort 要噴 2 下、Breztri
+							 * 要噴 4 下、Trimbow 要噴 1 下，Ellipta 與 Breezhaler
+							 * 根本不排氣。藥師手上有病人拿著的吸入器，而清單不會講
+							 * 這件事——清單從「搖」開始。所以它放在藥名旁邊，她看得到、
+							 * 也念得出口。
+							 */}
+							<p
+								className="mt-2 text-meta leading-relaxed text-text-secondary"
+								data-testid="priming-note"
+							>
+								{primingFor(drug.name).how}
 							</p>
 						</div>
 

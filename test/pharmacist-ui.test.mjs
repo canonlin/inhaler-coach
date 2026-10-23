@@ -13,12 +13,24 @@
  */
 import assert from "node:assert/strict";
 import { execSync, spawn } from "node:child_process";
+import { openSync } from "node:fs";
 import { upsertAdminUser } from "../api/auth.mjs";
 import { createPool } from "../api/db.mjs";
 import { writeXlsx } from "../api/xlsx.mjs";
 
 let pool;
 const getPool = async () => (pool ??= createPool(process.env.DATABASE_URL));
+
+/**
+ * Where the servers' output goes.
+ *
+ * A server that dies takes the whole file down with it, and the runner can
+ * then only report 「test failed」 — a failure with no explanation. The
+ * explanation is in the last thing the server printed, so it is written to a
+ * file that survives the death of the process that would have read it.
+ */
+const SERVER_LOG = "/tmp/inhaler-ui-servers.log";
+const serverLogFd = openSync(SERVER_LOG, "a");
 
 import { dirname, resolve } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -89,7 +101,12 @@ async function serve(name, cmd, args, url, env = {}) {
 	const proc = spawn(cmd, args, {
 		cwd: ROOT,
 		env: { ...process.env, ...env },
-		stdio: "ignore",
+		// The output goes to a file, not to this process's pipes. A server
+		// that dies takes the whole file down with it, and the runner can then
+		// only say 「test failed」 — a failure with no explanation. The
+		// explanation is in the last thing the server printed, so it has to
+		// survive the death of the process that would have read it.
+		stdio: ["ignore", serverLogFd, serverLogFd],
 		// detached puts the child in its own process group, so one kill() reaches
 		// vite's own subprocesses instead of leaving the port held.
 		detached: true,
@@ -325,6 +342,9 @@ after(async () => {
 	} catch {
 		// Reported by the test that failed, not by the cleanup.
 	}
+	// Where the servers' output went, so a failure that took the whole file
+	// with it comes with somewhere to look.
+	console.log(`--- servers said: ${SERVER_LOG} ---`);
 });
 
 describe("pharmacist tabs", () => {
@@ -1596,6 +1616,16 @@ describe("the 1:1 allocation on the enrollment screen", () => {
 		await page.click('.drug-pick button:has-text("Symbicort")');
 		await page.waitForSelector("#caseType", { timeout: 15_000 });
 
+		// The product carries its own priming rule: Symbicort primes with two
+		// sprays, and the pharmacist is the one standing there with the
+		// inhaler in her hand.
+		const priming = await page.textContent('[data-testid="priming-note"]');
+		assert.match(
+			priming,
+			/共 2 下/,
+			"the priming rule of this product is on screen",
+		);
+
 		// The control group does not get the camera's verdict: the pre-fill is
 		// the intervention, and the control group is the one that must not
 		// receive it.
@@ -1631,6 +1661,14 @@ describe("the 1:1 allocation on the enrollment screen", () => {
 			() => document.body.textContent?.includes("已收案") ?? false,
 			{ timeout: 15_000 },
 		);
+		// The message names the group, so a save that landed in the wrong
+		// place says so here rather than failing three lines later.
+		const status = await page.textContent("body");
+		assert.match(
+			status,
+			/已收案（對照組）/,
+			"the case says which group it went to",
+		);
 
 		const p = await getPool();
 		const { rows } = await p.query(
@@ -1638,7 +1676,11 @@ describe("the 1:1 allocation on the enrollment screen", () => {
 			   FROM cases c JOIN patients p ON p.id = c.patient_id
 			  WHERE p.mrn_tail = '04'`,
 		);
-		assert.equal(rows.length, 1, "the case must be written");
+		assert.equal(
+			rows.length,
+			1,
+			`the case must be written · page said: ${status.slice(0, 200)}`,
+		);
 		assert.equal(
 			rows[0].study_arm,
 			"control",

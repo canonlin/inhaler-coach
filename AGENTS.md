@@ -299,6 +299,17 @@ research data collector.
   anything to lose and stops with an explanation; `ALLOW_TRUNCATE=1` overrides
   it. The suite also cleans up after itself, so the next run starts from an
   empty database and the question stays honest.
+- **「先噴幾次」是一支藥一個規則** (`src/domain/priming.js`)。 Symbicort
+  Rapihaler 新用對空噴 2 下（40/2.25 規格 3 下）、超過 7 天或摔落再 2 下；
+  Seretide／Flixotide Evohaler 是「試噴到計數器顯示 120」、超過一週再 2 下；
+  Breztri 與 Bevespi（Aerosphere）首次 4 下、超過 7 天等情況再 2 下；Trimbow
+  首次 1 下且溶液型不需搖；Ventolin 首次 2 下、超過 5 天再 2 下；Ellipta 與
+  Breezhaler **不排氣**；Respimat 首次噴到看見霧氣再多 3 下、超過 3 天先噴 1
+  下、超過 21 天重新初始化。**Duasma HFA 與 Berotec N 的仿單尚未取得，它們的
+  規則是「未確認」——未確認就不給次數，寧可叫病人照仿單或問藥師，也不要給一
+  個不知道對不對的數字。** 每條規則都帶出處（仿單或本院用藥指導單張）；「照
+  一般 MDI 的做法」不是理由。藥師端在選藥時就看到這條規則（收案畫面的藥名旁）。
+  病人端尚未接上：那一頁的「振搖」關卡對所有藥都一樣，而 Trimbow 根本不該搖。
 - **The technical description for 資訊室 is ours to write and theirs to
   review** (`docs/it-specification-draft.md`, 2026-10-24). It states what the
   system does, where the data is, how the record number is protected and what
