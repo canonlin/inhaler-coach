@@ -118,7 +118,9 @@ research data collector.
   defeats the purpose. QR code plus LINE is the delivery path.
 - Cohorts: the research plan takes 100 Symbicort patients (50 AI, 50 usual
   education); the QCC covers every inhaler. A LINE push reaches only consented
-  patients with a linked account, and only post-intervention cases.
+  patients with a linked account, and only the cases enrolled in the platform —
+  the pushes are the countermeasure that follows an enrollment, so an imported
+  對策前 row and a follow-up assessment are both off the journey.
 - Two switches decide whether the system can talk to a patient: `LINE_SEND_ENABLED`
   (off means rehearse, never send) and `CRON_SECRET` (the public dispatch
   endpoint refuses to send without it). A rehearsal row is not a delivery: it

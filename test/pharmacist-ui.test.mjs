@@ -12,7 +12,7 @@
  * spent a day removing.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { upsertAdminUser } from "../api/auth.mjs";
 import { createPool } from "../api/db.mjs";
 import { writeXlsx } from "../api/xlsx.mjs";
@@ -53,6 +53,37 @@ let sessionToken = "";
 const UI_EMAIL = "ui.test@yunlin.org.tw";
 const UI_PASSWORD = "yunlin-ui-test-2026";
 
+/**
+ * Free a port a previous run left behind.
+ *
+ * The runner kills the servers it started, but a run that dies mid-way leaves
+ * them holding the port. The next run then finds the port answering, starts a
+ * second server that cannot bind, and quietly uses the stale one — so the
+ * checks pass against code that is not the code under test. That is the same
+ * failure as measuring the sign-in form instead of the back office: a green
+ * result about the wrong thing.
+ *
+ * These ports belong to this file, so a leftover listener is removed rather
+ * than complained about.
+ */
+function freePort(port) {
+	let pids = "";
+	try {
+		pids = execSync(`lsof -ti:${port}`, { encoding: "utf8" }).trim();
+	} catch {
+		return; // nothing is listening
+	}
+	if (!pids) return;
+	console.warn(`port ${port} was still held by an earlier run — removing it`);
+	for (const pid of pids.split("\n").filter(Boolean)) {
+		try {
+			process.kill(Number(pid), "SIGKILL");
+		} catch {
+			// it went away on its own
+		}
+	}
+}
+
 /** Start a server and wait until it answers, rather than sleeping a fixed time. */
 async function serve(name, cmd, args, url, env = {}) {
 	const proc = spawn(cmd, args, {
@@ -91,6 +122,8 @@ before(async () => {
 		);
 	}
 	// dev-api reads PORT itself, so it has to arrive through the environment.
+	freePort(API_PORT);
+	freePort(WEB_PORT);
 	await serve(
 		"api",
 		process.execPath,
