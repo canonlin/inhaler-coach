@@ -761,3 +761,112 @@ describe("queue rows are actionable", () => {
 		}
 	});
 });
+
+describe("the 1:1 allocation", () => {
+	/*
+	 * The study runs one patient against one: 實驗組 gets the AI practice and
+	 * 對照組 gets the usual education. The rotation decides; the pharmacist
+	 * may override; and the record has to say which of the two happened.
+	 */
+	beforeEach(async () => {
+		await pool.query(
+			"TRUNCATE followups, physician_queries, session_stages, sessions, case_knowledge, case_steps, clinical_measurements, med_reconciliation, cases, patients RESTART IDENTITY CASCADE",
+		);
+		// The pointer to the last allocated arm is shared state: it is reset
+		// here so this file starts from a known position rather than from
+		// wherever an earlier file left the rotation.
+		await pool.query(
+			`UPDATE admin_config SET config_value = '{"lastArm": null}'::jsonb
+			 WHERE config_key = 'study_arm_alloc'`,
+		);
+	});
+
+	const enroll = (mrn, extra = {}) =>
+		api.createCase({
+			mrn,
+			caseDate: "2026-05-04",
+			pharmacist: "黃永成",
+			drug: "Symbicort",
+			timepoint: "M0",
+			steps: {},
+			...extra,
+		});
+
+	it("alternates one patient against one", async () => {
+		const a = await enroll("ARM0000001");
+		assert.equal(a.study_arm, "experimental");
+		assert.equal(a.arm_source, "alternating");
+
+		const b = await enroll("ARM0000002");
+		assert.equal(b.study_arm, "control");
+		assert.equal(b.arm_source, "alternating");
+	});
+
+	it("records the pharmacist's own choice when she overrides the rotation", async () => {
+		await enroll("ARM0000003");
+		// The rotation suggests the control group here; she puts this patient
+		// in the experimental one.
+		const b = await enroll("ARM0000004", { studyArm: "experimental" });
+		assert.equal(b.study_arm, "experimental");
+		assert.equal(b.arm_source, "manual");
+
+		// The next suggestion follows the arm that was actually assigned, so a
+		// single override does not shift every case after it.
+		const balance = await api.studyArms();
+		assert.equal(balance.next, "control");
+	});
+
+	it("gives the follow-up assessment the arm the enrollment had", async () => {
+		const a = await enroll("ARM0000005");
+		assert.equal(a.study_arm, "experimental");
+
+		const m1 = await api.createCase({
+			patientId: a.patient_id,
+			caseDate: "2026-06-04",
+			timepoint: "M1",
+			pharmacist: "黃永成",
+			drug: "Symbicort",
+			steps: {},
+		});
+		assert.equal(m1.study_arm, "experimental");
+		assert.equal(m1.arm_source, "alternating");
+
+		// The balance counts the patient once, not the rows.
+		const balance = await api.studyArms();
+		assert.equal(balance.experimental, 1);
+		assert.equal(balance.cases.experimental, 2);
+	});
+
+	it("reports the balance and where the rotation points next", async () => {
+		await enroll("ARM0000006");
+		await enroll("ARM0000007");
+
+		const balance = await api.studyArms();
+		assert.equal(balance.ok, true);
+		assert.equal(balance.experimental, 1);
+		assert.equal(balance.control, 1);
+		assert.equal(balance.total, 2);
+		assert.equal(balance.ratio, "1:1");
+		assert.equal(balance.previous, "control");
+		assert.equal(balance.next, "experimental");
+	});
+
+	it("refuses an arm that is not one of the two", async () => {
+		await assert.rejects(
+			() => enroll("ARM0000008", { studyArm: "placebo" }),
+			/研究組別/,
+		);
+	});
+
+	it("writes no case when the allocation cannot be made", async () => {
+		// A group that is not one of the two is refused before anything is
+		// written: a half-written enrollment is a case the study cannot count.
+		await enroll("ARM0000009");
+		await assert.rejects(
+			() => enroll("ARM0000010", { studyArm: "AI 練習" }),
+			/研究組別/,
+		);
+		const { rows } = await pool.query("SELECT count(*)::int AS n FROM cases");
+		assert.equal(rows[0].n, 1);
+	});
+});

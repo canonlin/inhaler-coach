@@ -19,6 +19,7 @@ export const ROUTES = {
 	"GET /api/reference": "reference",
 	"GET /api/followups": "followups",
 	"POST /api/followups/close": "closeFollowup",
+	"GET /api/study/arms": "studyArms",
 	"GET /api/sessions/pending": "pendingSession",
 	"POST /api/line/link": "lineLink",
 	"GET /api/line/plan": "linePlan",

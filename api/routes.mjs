@@ -19,6 +19,17 @@ import {
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
+import {
+	ARM_CONTROL,
+	ARM_EXPERIMENTAL,
+	ARM_LABEL,
+	ARM_SOURCE_ALTERNATING,
+	ARM_SOURCE_MANUAL,
+	armBalance,
+	armSourceFor,
+	isArm,
+	nextArm,
+} from "../src/domain/study-arm.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { HttpError } from "./http-error.mjs";
 import { exportEnrollment, importEnrollment } from "./import-export.mjs";
@@ -97,6 +108,128 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		const { rows } = await query("SELECT count(*)::int AS n FROM cases");
 		return rows[0].n;
 	};
+
+	/*
+	 * ── the 1:1 allocation ──────────────────────────────────────────────────
+	 *
+	 * The study runs one patient against one: 實驗組 (AI 練習) and 對照組
+	 * (一般衛教), alternating, one to one. The pharmacist may put any single
+	 * patient in the other group, and the count on screen has to show it.
+	 *
+	 * The rule lives in src/domain/study-arm.js and nowhere else, because the
+	 * form that shows the suggestion, the API that allocates the arm and the
+	 * count that stays on screen all have to agree on it. What lives here is
+	 * the part that is the database's business: the pointer to the last arm
+	 * allocated, and the check that makes sure two enrollments at the same
+	 * moment cannot both be told they are the next experimental patient.
+	 */
+	const ARM_ALLOC_KEY = "study_arm_alloc";
+
+	/**
+	 * The arm the last patient was allocated, or null when there is none yet.
+	 *
+	 * It is a pointer, not a counter. The counts are always read from the cases
+	 * table, because the cases are the record: a counter that drifted away
+	 * from them would be a second, disagreeing truth about who is in which arm.
+	 */
+	async function armPointer() {
+		// The row is seeded by db/schema.sql. The insert here is the belt to
+		// that braces: a database that was migrated before the seed existed
+		// still has to be able to allocate.
+		await query(
+			`INSERT INTO admin_config (config_key, config_value)
+			 VALUES ($1, '{"lastArm": null}'::jsonb)
+			 ON CONFLICT (config_key) DO NOTHING`,
+			[ARM_ALLOC_KEY],
+		);
+		const { rows } = await query(
+			`SELECT config_value->>'lastArm' AS last_arm
+			   FROM admin_config WHERE config_key = $1`,
+			[ARM_ALLOC_KEY],
+		);
+		return rows[0]?.last_arm ?? null;
+	}
+
+	/**
+	 * The arm this patient already has, if any.
+	 *
+	 * The arm belongs to the patient, not to the row. An M1 assessment and a
+	 * re-enrollment are the same person, so they carry the arm the enrollment
+	 * was given — otherwise one patient would sit in two groups and the balance
+	 * on screen would be counting rows instead of people.
+	 */
+	async function patientArm(mrn, patientId) {
+		const mrnHash = mrn ? hashMrn(mrn, salt) : null;
+		const { rows } = await query(
+			`SELECT c.study_arm, c.arm_source
+			   FROM cases c JOIN patients p ON p.id = c.patient_id
+			  WHERE c.study_arm IS NOT NULL
+			    AND (($1::text IS NOT NULL AND p.mrn_hash = $1::text)
+			      OR ($2::uuid IS NOT NULL AND p.id = $2::uuid))
+			  ORDER BY c.created_at ASC
+			  LIMIT 1`,
+			[mrnHash, patientId],
+		);
+		return rows[0] ?? null;
+	}
+
+	/**
+	 * Which arm this case gets, and how it was decided.
+	 *
+	 * A new patient gets the rotation's next arm unless the pharmacist names
+	 * one. A patient who already has an arm keeps it — an M1 assessment and a
+	 * re-enrollment are the same person, and giving them a second arm would
+	 * put one patient in two groups and turn the balance on screen into a
+	 * count of rows.
+	 */
+	async function decideArm(mrn, patientId, requestedArm) {
+		const inherited = await patientArm(mrn, patientId);
+		const allocate = !inherited;
+		const previous = allocate ? await armPointer() : null;
+		// What this patient would get if nobody decided otherwise: the
+		// rotation's next arm for a new patient, and the opposite of what they
+		// already have for one who does.
+		const suggested = allocate
+			? nextArm(previous)
+			: nextArm(inherited.study_arm);
+		const arm = requestedArm ?? inherited?.study_arm ?? suggested;
+		const armSource = requestedArm
+			? allocate
+				? armSourceFor(arm, suggested)
+				: ARM_SOURCE_MANUAL
+			: (inherited?.arm_source ?? ARM_SOURCE_ALTERNATING);
+		return { arm, armSource, previous, allocate };
+	}
+
+	/**
+	 * GET /api/study/arms — the balance, and where the rotation points next.
+	 *
+	 * The counts are people, not rows: the pharmacist asks 「兩組各幾個人」 and
+	 * the answer is people. The case counts come with them so the number can
+	 * be reconciled against the list.
+	 */
+	async function studyArms() {
+		const { rows } = await query(
+			`SELECT study_arm,
+			        count(DISTINCT patient_id)::int AS people,
+			        count(*)::int AS cases
+			   FROM cases
+			  WHERE study_arm IS NOT NULL
+			  GROUP BY study_arm`,
+		);
+		const counts = { experimental: 0, control: 0 };
+		const cases = { experimental: 0, control: 0 };
+		for (const r of rows) {
+			counts[r.study_arm] = r.people;
+			cases[r.study_arm] = r.cases;
+		}
+		const previous = await armPointer();
+		return {
+			ok: true,
+			...armBalance({ ...counts, previous }),
+			cases,
+		};
+	}
 
 	/** GET /api/health */
 	async function health() {
@@ -261,8 +394,104 @@ export function makeRoutes({ query, salt, lineTransport }) {
 					}))
 				: [];
 
-		const { rows } = await query(
-			`WITH ins_p AS (
+		/*
+		 * Which arm of the study this case belongs to.
+		 *
+		 * The pharmacist may name one. Left out, the rotation decides. The
+		 * check is here rather than in the database's CHECK constraint, because
+		 * a constraint violation arrives as a 500 and tells the pharmacist
+		 * nothing about which field was wrong.
+		 */
+		const requestedArm =
+			body.studyArm === undefined ||
+			body.studyArm === null ||
+			body.studyArm === ""
+				? null
+				: String(body.studyArm);
+		if (requestedArm !== null && !isArm(requestedArm)) {
+			bad(
+				`研究組別只能是 ${ARM_LABEL[ARM_EXPERIMENTAL]} 或 ${ARM_LABEL[ARM_CONTROL]}`,
+			);
+		}
+
+		const baseParams = [
+			// $1 is the patient handle the branch above expects: the existing
+			// id when one was given, otherwise the hash of the record number.
+			patientId ?? hashMrn(mrn, salt),
+			patientId ? "" : mrnTail(mrn),
+			ageBand,
+			sex,
+			body.diagnosis ?? null,
+			body.studyId ?? null,
+			body.caseDate,
+			timepoint,
+			// The stage is the timepoint's, not the caller's: M0 is 前測
+			//（改善前）, M1 and later are 後測（改善後）. See the rule above.
+			stage,
+			body.campus ?? "虎尾",
+			body.pharmacist,
+			drug.device,
+			body.drug,
+			drug.hasIcs,
+			drug.needsShake,
+			caseType,
+			// factors is text[] — pass the array, not a JSON string.
+			body.factors ?? [],
+			body.useQcc !== false,
+			Boolean(body.useResearch),
+			recordId,
+			JSON.stringify(steps),
+			JSON.stringify(body.stepNotes ?? {}),
+			JSON.stringify(knowledge),
+			JSON.stringify(body.measurements ?? {}),
+			slots.map((s) => s.task),
+			slots.map((s) => s.day),
+			slots.map((s) => s.priority),
+			slots.map((s) => s.slot),
+			JSON.stringify(demonstrated),
+			usageDuration,
+			priorEducation,
+			educationMinutes,
+		];
+
+		/*
+		 * Allocate the arm and write the case in one statement.
+		 *
+		 * The allocation is the rotation's decision and the pharmacist may
+		 * override it, so the two have to land together: an arm that was
+		 * allocated but never written to a case would leave the pointer one
+		 * ahead of the record, and the next patient would be told they are the
+		 * next experimental one when they are not.
+		 *
+		 * The check inside the statement is what keeps two enrollments at the
+		 * same moment from claiming the same patient slot: the allocation only
+		 * goes through if the pointer still says what it said when the arm was
+		 * decided. When it does not, the statement writes nothing at all — not
+		 * the case, not the steps — and the loop below reads the pointer again
+		 * and starts over. That is why the case insert is conditional on the
+		 * allocation having gone through.
+		 */
+		let rows = [];
+		for (let attempt = 0; attempt < 5; attempt++) {
+			const { arm, armSource, previous, allocate } = await decideArm(
+				mrn,
+				patientId,
+				requestedArm,
+			);
+
+			const result = await query(
+				`WITH alloc AS (
+			   UPDATE admin_config
+			      SET config_value = jsonb_set(config_value, '{lastArm}', to_jsonb($33::text)),
+			          updated_at = now(), updated_by = 'study-arm-allocation'
+			    WHERE config_key = 'study_arm_alloc'
+			      AND $36::boolean
+			      -- The pointer still says what it said when this arm was
+			      -- decided. If it does not, another enrollment got there
+			      -- first and this statement writes nothing.
+			      AND config_value->>'lastArm' IS NOT DISTINCT FROM $35::text
+			   RETURNING config_key
+			 ), ins_p AS (
 			   ${
 						patientId
 							? `SELECT $1::uuid AS id,
@@ -288,15 +517,21 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			   INSERT INTO cases (patient_id, case_date, timepoint, qcc_stage, campus,
 			                      pharmacist, device, drug, has_ics, needs_shake, case_type,
 			                      usage_duration, prior_education, education_minutes,
-			                      factors, use_qcc, use_research, record_id)
+			                      factors, use_qcc, use_research, record_id,
+			                      study_arm, arm_source)
 			   -- $30..$32 are the 基本表格 columns that used to be accepted by
 			   -- the API and then dropped on the floor: the case was written
 			   -- without them, so the sheet's row and the platform's row were
 			   -- never the same thing.
-			   SELECT id,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$30,$31,$32,$17,$18,$19,$20 FROM ins_p
+			   SELECT id,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$30,$31,$32,$17,$18,$19,$20,
+			          $33,$34
+			   FROM ins_p
+			   -- Nothing is written unless the allocation went through: a case
+			   -- without an arm is a case the study cannot count.
+			   WHERE $36::boolean = false OR EXISTS (SELECT 1 FROM alloc)
 			   -- case_date comes back via RETURNING for the same reason as
 			   -- mrn_tail: a sibling CTE reading the cases table sees the old snapshot.
-			   RETURNING id, patient_id, record_id, case_date
+			   RETURNING id, patient_id, record_id, case_date, study_arm, arm_source
 			 ), ins_s AS (
 			   INSERT INTO case_steps (case_id, step_code, value, note, demonstrated)
 			   SELECT ins_c.id, e.key, e.value, COALESCE($22::jsonb ->> e.key, ''),
@@ -331,53 +566,29 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			   RETURNING 1
 			 )
 			 SELECT ins_c.id, ins_c.record_id, ins_c.patient_id, ins_p.mrn_tail,
+			        ins_c.study_arm, ins_c.arm_source,
 			        (SELECT count(*) FROM ins_s)::int AS steps,
 			        (SELECT count(*) FROM ins_k)::int AS knowledge,
 			        (SELECT count(*) FROM ins_m)::int AS measures,
 			        (SELECT count(*) FROM ins_f)::int AS followup
 			 FROM ins_c JOIN ins_p ON ins_p.id = ins_c.patient_id`,
-			[
-				// $1 is the patient handle the branch above expects: the existing
-				// id when one was given, otherwise the hash of the record number.
-				patientId ?? hashMrn(mrn, salt),
-				patientId ? "" : mrnTail(mrn),
-				ageBand,
-				sex,
-				body.diagnosis ?? null,
-				body.studyId ?? null,
-				body.caseDate,
-				timepoint,
-				// The stage is the timepoint's, not the caller's: M0 is 前測
-				//（改善前）, M1 and later are 後測（改善後）. See the rule above.
-				stage,
-				body.campus ?? "虎尾",
-				body.pharmacist,
-				drug.device,
-				body.drug,
-				drug.hasIcs,
-				drug.needsShake,
-				caseType,
-				// factors is text[] — pass the array, not a JSON string.
-				body.factors ?? [],
-				body.useQcc !== false,
-				Boolean(body.useResearch),
-				recordId,
-				JSON.stringify(steps),
-				JSON.stringify(body.stepNotes ?? {}),
-				JSON.stringify(knowledge),
-				JSON.stringify(body.measurements ?? {}),
-				slots.map((s) => s.task),
-				slots.map((s) => s.day),
-				slots.map((s) => s.priority),
-				slots.map((s) => s.slot),
-				JSON.stringify(demonstrated),
-				usageDuration,
-				priorEducation,
-				educationMinutes,
-			],
-		);
+				[
+					...baseParams,
+					// $33 the arm, $34 how it was decided, $35 the pointer the
+					// arm was decided against, $36 whether this case allocates.
+					arm,
+					armSource,
+					previous,
+					allocate,
+				],
+			);
+			rows = result.rows;
+			if (rows[0]) break;
+			// The allocation lost the race: the pointer moved, so this arm was
+			// decided against a value that is no longer true. Read it again.
+		}
 
-		if (!rows[0]) throw new HttpError(500, "insert produced no row");
+		if (!rows[0]) throw new HttpError(409, "剛好有別人同時在收案，請再按一次");
 		return { ok: true, ...rows[0] };
 	}
 
@@ -1087,6 +1298,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		followups,
 		closeFollowup,
 		pendingSession,
+		studyArms,
 		lineLink,
 		linePlan,
 		lineJourneys,

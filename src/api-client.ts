@@ -43,6 +43,38 @@ export interface PairedResult {
 	p: number | null;
 }
 
+/**
+ * Which arm of the 1:1 study a patient is in.
+ *
+ * The counts are people, not rows: one patient is enrolled once and followed
+ * up, so counting rows would count the same patient twice.
+ */
+export interface ArmBalance {
+	ok: true;
+	experimental: number;
+	control: number;
+	total: number;
+	/** As a person would say it: 「12:10」. */
+	ratio: string;
+	/** The arm the last patient was given. */
+	previous: string | null;
+	/** The arm the rotation points at next. */
+	next: string;
+	/** The same counts by row, for reconciling against the list. */
+	cases: { experimental: number; control: number };
+}
+
+/**
+ * GET /api/study/arms — the balance and the next suggestion.
+ *
+ * It is on screen while she works, so it is a read of its own rather than a
+ * field on the case list: the count has to be true before the next patient
+ * arrives, not after the list is refetched.
+ */
+export async function fetchArmBalance(): Promise<ArmBalance> {
+	return get<ArmBalance>("/api/study/arms");
+}
+
 export interface TechniqueStats {
 	/** People with at least one assessed step. */
 	cases: number;
@@ -420,6 +452,15 @@ export interface NewCase {
 	usageDuration?: string;
 	priorEducation?: string;
 	educationMinutes?: number;
+	/**
+	 * Which arm of the 1:1 study this patient goes into: 'experimental' (AI
+	 * 練習) or 'control' (一般衛教).
+	 *
+	 * Left out, the rotation decides and the arm is recorded as the rotation's
+	 * choice. Sent, it is the pharmacist's own decision and the record says so,
+	 * because an override is a fact about the study that has to be auditable.
+	 */
+	studyArm?: string;
 }
 
 export async function createCase(body: NewCase) {
@@ -428,6 +469,9 @@ export async function createCase(body: NewCase) {
 		id: string;
 		record_id: string;
 		mrn_tail: string;
+		/** The arm this case was given, and how it was decided. */
+		study_arm: string | null;
+		arm_source: string | null;
 		steps: number;
 		knowledge: number;
 		measures: number;

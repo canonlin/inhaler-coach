@@ -19,8 +19,14 @@
  * patient actually demonstrated the step is the point of the whole exercise:
  * hearing an instruction is not evidence they can perform it.
  */
-import { useMemo, useState } from "react";
-import { type AiStep, createCase, fetchPendingSession } from "../api-client.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type AiStep,
+	type ArmBalance,
+	createCase,
+	fetchArmBalance,
+	fetchPendingSession,
+} from "../api-client.js";
 import { ALL_DRUGS, DRUG_BY_NAME, type Drug } from "../domain/drugs.js";
 import {
 	CAMPUSES,
@@ -36,6 +42,7 @@ import {
 	pharmacistSteps,
 	stepReviewSource,
 } from "../domain/steps.js";
+import { ARM_CONTROL, ARM_LABEL } from "../domain/study-arm.js";
 import { cn } from "../lib/utils";
 import {
 	BasicInfo,
@@ -45,6 +52,7 @@ import {
 } from "./components/BasicInfo.jsx";
 import { CaseHistory } from "./components/CaseHistory.jsx";
 import { StepChecklist } from "./components/StepChecklist.jsx";
+import { StudyArmPanel } from "./components/StudyArmPanel.jsx";
 import { TodayQueue } from "./components/TodayQueue.jsx";
 import {
 	Badge,
@@ -108,6 +116,11 @@ export function CaseEntry({
 	// follow-ups the sheet also carries.
 	const [timepoint, setTimepoint] = useState("M0");
 	const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
+	// The camera's verdict, kept apart from the checklist so the control group
+	// can be kept out of it. See the effect below.
+	const [aiFilled, setAiFilled] = useState<Record<string, "正確" | "錯誤">>(
+		preset?.aiSteps ?? {},
+	);
 	const [steps, setSteps] = useState<Record<string, "正確" | "錯誤">>({
 		...(preset?.aiSteps ?? {}),
 	});
@@ -118,6 +131,69 @@ export function CaseEntry({
 	);
 	// What the camera already saw, fetched once the record number is known.
 	const [ai, setAi] = useState<Record<string, AiStep>>({});
+
+	/*
+	 * The 1:1 allocation.
+	 *
+	 * The arm starts as the rotation's suggestion and moves only when the
+	 * pharmacist moves it. The ref records that she moved it: an arm she chose
+	 * herself is sent to the server and recorded as her choice, while an arm
+	 * she never touched is left to the rotation. A ref rather than state
+	 * because the balance arrives asynchronously, and the value it has to
+	 * compare against is the one at the moment it lands.
+	 */
+	const [balance, setBalance] = useState<ArmBalance | null>(null);
+	const [arm, setArm] = useState<string | null>(null);
+	const armTouched = useRef(false);
+
+	const refreshBalance = useCallback(async () => {
+		try {
+			const b = await fetchArmBalance();
+			setBalance(b);
+			setArm((prev) => (armTouched.current ? prev : b.next));
+		} catch {
+			// The balance is a convenience on top of the case itself. A screen
+			// that cannot read the count must still be able to record a
+			// patient, so the failure is swallowed rather than shown.
+		}
+	}, []);
+
+	useEffect(() => {
+		refreshBalance();
+	}, [refreshBalance]);
+
+	/*
+	 * The camera's verdict only reaches the checklist in the experimental
+	 * group.
+	 *
+	 * The pre-fill is not a convenience — it is the intervention. Filling in a
+	 * control patient's checklist with what the camera saw would put the AI
+	 * practice into the group that is supposed to receive usual education, and
+	 * the before/after comparison would then be comparing the two groups on
+	 * something other than what was given to them.
+	 */
+	useEffect(() => {
+		setSteps((prev) => {
+			const next = { ...prev };
+			let changed = false;
+			if (arm === ARM_CONTROL) {
+				for (const code of Object.keys(aiFilled)) {
+					if (code in next) {
+						delete next[code];
+						changed = true;
+					}
+				}
+			} else {
+				for (const [code, v] of Object.entries(aiFilled)) {
+					if (next[code] !== v) {
+						next[code] = v;
+						changed = true;
+					}
+				}
+			}
+			return changed ? next : prev;
+		});
+	}, [arm, aiFilled]);
 
 	async function lookUpSession(value: string) {
 		setMrn(value);
@@ -134,13 +210,14 @@ export function CaseEntry({
 				// arrives with it rather than being chosen again.
 				if (r.drug) setDrugName(r.drug);
 				// Pre-fill only what the camera judged; hand-judged steps stay empty.
-				setSteps((prev: Record<string, "正確" | "錯誤">) => {
-					const next = { ...prev };
-					for (const [code, v] of Object.entries(r.steps)) next[code] = v.value;
-					return next;
-				});
+				setAiFilled(
+					Object.fromEntries(
+						Object.entries(r.steps).map(([code, s]) => [code, s.value]),
+					),
+				);
 			} else {
 				setAi({});
+				setAiFilled({});
 			}
 		} catch {
 			setAi({});
@@ -196,16 +273,27 @@ export function CaseEntry({
 				educationMinutes: basic.educationMinutes
 					? Number(basic.educationMinutes)
 					: undefined,
+				// Only sent when the pharmacist moved the group herself. An arm
+				// she never touched is the rotation's decision, and the server
+				// records it as such.
+				studyArm: armTouched.current ? (arm ?? undefined) : undefined,
 			});
 			setStatus({
 				tone: "good",
-				text: `已收案${res.followup ? "，已排入追蹤" : ""}`,
+				text: `已收案${res.study_arm ? `（${ARM_LABEL[res.study_arm]}）` : ""}${
+					res.followup ? "，已排入追蹤" : ""
+				}`,
 			});
 			// Recording a case schedules a follow-up, so the navigation count is
 			// stale the moment this resolves. The badge is on screen right now —
 			// it is the sidebar — so leaving it to expire would show a queue that
 			// is one shorter than the one the pharmacist just added to.
 			refreshFollowups();
+			// The balance moved with that case, and the next patient belongs to
+			// the other group.
+			armTouched.current = false;
+			setArm(null);
+			refreshBalance();
 			setSteps({});
 			setDemonstrated({});
 			setKnowledge({});
@@ -269,9 +357,11 @@ export function CaseEntry({
 					{askedMrn && mrn.trim() && (
 						<div className="mt-5">
 							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
-								{Object.keys(ai).length > 0
-									? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
-									: "查無 AI 練習紀錄，請手動評估"}
+								{Object.keys(ai).length === 0
+									? "查無 AI 練習紀錄，請手動評估"
+									: arm === ARM_CONTROL
+										? "查到 AI 練習紀錄，對照組不帶入"
+										: `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`}
 							</Badge>
 						</div>
 					)}
@@ -299,7 +389,12 @@ export function CaseEntry({
 												variant="secondary"
 												onClick={() => {
 													setDrugName(d.name);
-													setSteps({ ...(preset?.aiSteps ?? {}) });
+													// The steps belong to the drug: picking
+													// another one starts the checklist over
+													// rather than carrying the previous
+													// drug's verdicts across.
+													setSteps({});
+													setAiFilled({});
 												}}
 											>
 												{d.label}
@@ -313,7 +408,24 @@ export function CaseEntry({
 					)}
 				</section>
 
-				<TodayQueue />
+				{/*
+				 * The tally, without the choice.
+				 *
+				 * The enrollment screen opens with the record number as its
+				 * only control, and that is deliberate — twenty-five controls
+				 * on arrival is what made this form cost twenty-five taps. So
+				 * the balance is on screen from the start, and the two buttons
+				 * arrive with the checklist, where the decision is made.
+				 */}
+				<div className="space-y-6">
+					<StudyArmPanel
+						balance={balance}
+						value={arm}
+						onChange={() => {}}
+						readOnly
+					/>
+					<TodayQueue />
+				</div>
 			</div>
 		);
 	}
@@ -337,9 +449,11 @@ export function CaseEntry({
 						</Field>
 						{mrn.trim() && (
 							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
-								{Object.keys(ai).length > 0
-									? `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`
-									: "查無 AI 練習紀錄，請手動評估"}
+								{Object.keys(ai).length === 0
+									? "查無 AI 練習紀錄，請手動評估"
+									: arm === ARM_CONTROL
+										? "查到 AI 練習紀錄，對照組不帶入"
+										: `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`}
 							</Badge>
 						)}
 
@@ -416,6 +530,22 @@ export function CaseEntry({
 						</fieldset>
 					</div>
 				</Card>
+
+				{/*
+				 * The allocation. It sits with the patient's identity because
+				 * that is the column she reads once before she works down the
+				 * checklist, and the balance has to stay in view while she
+				 * does: a count she can only see after saving is a count she
+				 * cannot act on.
+				 */}
+				<StudyArmPanel
+					balance={balance}
+					value={arm}
+					onChange={(next) => {
+						armTouched.current = true;
+						setArm(next);
+					}}
+				/>
 			</aside>
 
 			<div className="space-y-6">

@@ -1548,3 +1548,101 @@ describe("the enrollment form", () => {
 		assert.equal(rows[0].education_minutes, 12);
 	});
 });
+
+describe("the 1:1 allocation on the enrollment screen", () => {
+	/*
+	 * The study runs one patient against one: 實驗組 gets the AI practice and
+	 * 對照組 gets the usual education.
+	 *
+	 * Two things have to be true while she works. The count of each group has
+	 * to be in view, because the suggestion is worth following only while she
+	 * can see what the last twenty allocations did to the ratio. And she has
+	 * to be able to move a patient to the other group — a patient who will not
+	 * use the camera is a real case, not a hypothetical one.
+	 */
+	it("keeps the balance on screen and lets her move a patient to the other group", async () => {
+		// A fresh load, so the form starts where it starts for a pharmacist
+		// who opens it: the record number, and nothing else.
+		await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await page.waitForSelector("#mrn", { timeout: 15_000 });
+
+		await page.waitForSelector('[data-testid="arm-panel"]', {
+			timeout: 15_000,
+		});
+		const balance = await page.textContent('[data-testid="arm-balance"]');
+		assert.match(
+			balance,
+			/實驗組 \d+ 人/,
+			"the count of each group is on screen",
+		);
+		assert.match(balance, /對照組 \d+ 人/);
+		assert.match(balance, /比例 \d+:\d+/, "and the ratio between them");
+
+		// The screen still opens with one control: the record number. The
+		// tally is on screen, but the choice belongs with the checklist.
+		const controls = await page.$$eval(
+			"main input, main select, main button",
+			(n) => n.length,
+		);
+		assert.equal(
+			controls,
+			1,
+			`case entry should open with one control, got ${controls}`,
+		);
+
+		// Record the case, the way the form is filled.
+		await page.fill("#mrn", "UI0000004");
+		await page.waitForSelector(".drug-pick", { timeout: 15_000 });
+		await page.click('.drug-pick button:has-text("Symbicort")');
+		await page.waitForSelector("#caseType", { timeout: 15_000 });
+
+		// The control group does not get the camera's verdict: the pre-fill is
+		// the intervention, and the control group is the one that must not
+		// receive it.
+		await page.waitForSelector('[data-testid="arm-control"]', {
+			timeout: 15_000,
+		});
+		await page.click('[data-testid="arm-control"]');
+		await page.waitForSelector('[data-testid="arm-control-note"]', {
+			timeout: 10_000,
+		});
+
+		await page.click("#caseType");
+		await page.getByRole("option", { name: "初診衛教" }).click();
+		await page.click("#sex");
+		await page.getByRole("option", { name: "女" }).click();
+		await page.click("#usageDuration");
+		await page.getByRole("option", { name: "1-6個月" }).click();
+		await page.click("#priorEducation");
+		await page.getByRole("option", { name: "有(院外)" }).click();
+		await page.fill("#educationMinutes", "12");
+
+		const correct = page.getByRole("button", { name: "正確", exact: true });
+		const steps = await correct.count();
+		assert.ok(steps > 0, "the manual steps must be on screen");
+		for (let i = 0; i < steps; i++) await correct.nth(i).click();
+		const right = page.getByRole("button", { name: "對", exact: true });
+		const questions = await right.count();
+		assert.ok(questions > 0, "the questions must be on screen");
+		for (let i = 0; i < questions; i++) await right.nth(i).click();
+
+		await page.getByRole("button", { name: "儲存收案" }).click();
+		await page.waitForFunction(
+			() => document.body.textContent?.includes("已收案") ?? false,
+			{ timeout: 15_000 },
+		);
+
+		const p = await getPool();
+		const { rows } = await p.query(
+			`SELECT c.study_arm, c.arm_source
+			   FROM cases c JOIN patients p ON p.id = c.patient_id
+			  WHERE p.mrn_tail = '04'`,
+		);
+		assert.equal(rows.length, 1, "the case must be written");
+		assert.equal(
+			rows[0].study_arm,
+			"control",
+			"she put this patient in the control group",
+		);
+	});
+});

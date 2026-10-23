@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS cases (
   use_qcc           boolean NOT NULL DEFAULT true,
   use_research      boolean NOT NULL DEFAULT false,
   record_id         text UNIQUE,
+  -- Which arm of the 1:1 study this case belongs to: 'experimental' (AI 練習)
+  -- or 'control' (一般衛教). NULL means the case was never allocated an arm —
+  -- the imported 對策前 cohort, and any case recorded before the allocation
+  -- existed. NULL is not the same as control: an unallocated case is not a
+  -- patient who was told to get usual education.
+  study_arm         text CHECK (study_arm IS NULL OR study_arm IN ('experimental','control')),
+  -- How that arm was decided: the rotation, or the pharmacist overriding it.
+  -- Kept because an override is a fact about the study that has to be
+  -- auditable, not a typo to be tidied away.
+  arm_source        text CHECK (arm_source IS NULL OR arm_source IN ('alternating', 'manual')),
   created_at        timestamptz NOT NULL DEFAULT now()
 );
 
@@ -205,6 +215,25 @@ ALTER TABLE cases ADD CONSTRAINT cases_timepoint_check
 ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_case_type_check;
 ALTER TABLE cases ADD CONSTRAINT cases_case_type_check
   CHECK (case_type IN ('初診衛教', '複診回測', '家屬/看護代領'));
+
+-- The 1:1 study allocation.
+--
+-- A live database already has the cases table, and CREATE TABLE IF NOT EXISTS
+-- does not add columns to it, so the two columns and their CHECKs have to be
+-- spelled out for the database that is already running.
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS study_arm text;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS arm_source text;
+
+ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_study_arm_check;
+ALTER TABLE cases ADD CONSTRAINT cases_study_arm_check
+  CHECK (study_arm IS NULL OR study_arm IN ('experimental', 'control'));
+
+ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_arm_source_check;
+ALTER TABLE cases ADD CONSTRAINT cases_arm_source_check
+  CHECK (arm_source IS NULL OR arm_source IN ('alternating', 'manual'));
+
+-- The row that holds the rotation is seeded at the end of this file, next to
+-- the admin_config table it lives in.
 -- ── LINE ────────────────────────────────────────────────────────────────────
 -- Reachability after the encounter. Every table here is written without a LINE
 -- account: the recording transport captures the exact payload instead of
@@ -278,6 +307,20 @@ CREATE TABLE IF NOT EXISTS admin_config (
   updated_at   timestamptz NOT NULL DEFAULT now(),
   updated_by   text DEFAULT 'admin'
 );
+
+-- Where the rotation stands.
+--
+-- One row, one key: the arm the last patient was allocated. It is a pointer,
+-- not a counter — the counts are always read from the cases table, because the
+-- cases are the record and a counter that drifted from them would be a second
+-- truth about who is in which arm.
+--
+-- The row is also the lock. Allocating an arm updates this row and reads the
+-- value it had before the update, so two enrollments at the same moment cannot
+-- both be told they are the next experimental patient.
+INSERT INTO admin_config (config_key, config_value)
+VALUES ('study_arm_alloc', '{"lastArm": null}'::jsonb)
+ON CONFLICT (config_key) DO NOTHING;
 
 -- ── admin_users / admin_sessions ────────────────────────────────────────────
 -- The back office reads and writes patient records, so it needs a way in.
