@@ -269,15 +269,27 @@ The user asked on 2026-10-22: 「回覆訊息的文體請依我的平時習慣�
 That is a rule about the user's own voice, so it is written down here with the
 shape of the message they approved and sent on 10/22.
 
-- Open with 「林藥師午安，」 (the time of day of the hour it is sent) and one
-  line saying what is being reported. Then one paragraph per screen or item,
-  each starting with 「：」 — 「追蹤清單：這是兩週內要再評估的病人。」 Short
-  sentences, plain verbs (點、開、輸入、選、勾、存檔), 「您」 for her.
-- No emoji, no markdown bullets, no 一、二、三 headings. Traditional Chinese.
-- Close with what happens next or an offer — 「10/27 討論的時候如果需要，可以
-  一起看一次實際操作。」
+- Open with 「林藥師午安，」 on a line of its own, a blank line, then one line
+  saying what is being reported or explained — 「後台登入的方式跟您說明一下。」
+  「LINE 這部分目前的狀況跟您回報一下。」 The greeting is **not** turned by the
+  hour: the user's own two messages on 10/22 both open with 「林藥師午安，」,
+  and when a time-of-day greeting was offered on 10/23 the answer was
+  「不需要這樣寫！我也不會這樣寫」.
+- Blank line between paragraphs. One paragraph per screen or item, each
+  starting with 「：」 — 「追蹤清單：這是兩週內要再評估的病人。」 Short
+  sentences, plain verbs (點、開、輸入、選、勾、存檔), 「您」 for her. No emoji,
+  no markdown bullets, no 一、二、三 headings. Traditional Chinese.
+- Write the screen as a sequence she can follow, the way the user did on 10/22:
+  「先輸入病歷號碼，選這位病人用的是哪一種吸入劑，再照著清單把每個步驟對或
+  錯勾起來，右邊會顯示還差幾項，存檔就完成。」 Never a line about the message
+  itself. The user rejected 「我截圖標給您看」 on 10/23 — 「這不是我說話的
+  風格，我不會寫…這種廢話！」 A report states the state of the system; the
+  screenshots are the evidence, not the subject.
+- Close the way the user closed on 10/22: 「您先試用看看，哪裡不好用、哪裡跟
+  現場的流程不合，隨時跟我說，我們再一起討論調整。」 then 「10/27 討論的時候
+  如果需要，可以一起看一次實際操作。」
 - A screenshot makes it clearer, and it should be marked up: a red circle, a red
-  arrow, and a short red label saying what changed. The markup is plain
+  arrow, and a short red label saying where the thing is. The markup is plain
   geometry, not a simulated hand-drawn scrawl. Place it by the browser's own
   bounding box, never by reading pixels by eye.
 - **Describe where things are now, not what changed.** The user said it on

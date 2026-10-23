@@ -101,6 +101,20 @@ async function serve(name, cmd, args, url, env = {}) {
 	started.push(proc);
 	const deadline = Date.now() + 60_000;
 	while (Date.now() < deadline) {
+		/*
+		 * The process we started has to be the one answering.
+		 *
+		 * A server that dies on a taken port leaves the previous run's server
+		 * answering, and the health check passes against it. Every check below
+		 * would then measure code that is not the code under test — a green
+		 * result about the wrong thing, which is the one failure mode this
+		 * file's own comments keep warning about.
+		 */
+		if (proc.exitCode !== null || proc.signalCode) {
+			throw new Error(
+				`${name} exited (code ${proc.exitCode}, signal ${proc.signalCode}) — the port is probably still held`,
+			);
+		}
 		try {
 			const res = await fetch(url);
 			if (res.ok || res.status === 404) return;
@@ -278,13 +292,15 @@ async function signIn() {
 // process.kill on it did nothing, which left an orphaned Chromium holding the
 // port for the next run to collide with.
 after(async () => {
-	// The account this file opened is not left behind on the deployed
-	// database. A test that creates a way in and walks away is a way in.
-	const p = await getPool();
-	await p.query(
-		`DELETE FROM admin_users WHERE email LIKE '%.test@yunlin.org.tw'`,
-	);
-	await browser?.close();
+	/*
+	 * The servers go first.
+	 *
+	 * A cleanup step that throws used to leave the dev-api and vite running,
+	 * holding 4193 and 4195. The next run then found the port answering,
+	 * started a second server that could not bind, and measured the stale
+	 * one — a green result about the wrong code, or a failure with no
+	 * explanation. Whatever else happens here, the ports are released.
+	 */
 	for (const p of started) {
 		if (p.pid) {
 			try {
@@ -293,6 +309,21 @@ after(async () => {
 				p.kill?.();
 			}
 		}
+	}
+	try {
+		await browser?.close();
+	} catch {
+		// A browser that will not close must not keep the database open either.
+	}
+	try {
+		// The account this file opened is not left behind on the deployed
+		// database. A test that creates a way in and walks away is a way in.
+		const p = await getPool();
+		await p.query(
+			`DELETE FROM admin_users WHERE email LIKE '%.test@yunlin.org.tw'`,
+		);
+	} catch {
+		// Reported by the test that failed, not by the cleanup.
 	}
 });
 
