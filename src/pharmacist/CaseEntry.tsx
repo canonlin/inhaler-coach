@@ -42,7 +42,7 @@ import {
 	pharmacistSteps,
 	stepReviewSource,
 } from "../domain/steps.js";
-import { ARM_CONTROL, ARM_LABEL } from "../domain/study-arm.js";
+import { ARM_CONTROL, ARM_LABEL, inStudyCohort } from "../domain/study-arm.js";
 import { primingFor } from "../domain/priming.js";
 import { cn } from "../lib/utils";
 import {
@@ -105,6 +105,18 @@ export function CaseEntry({
 	onSaved?: () => void;
 }) {
 	const [drugName, setDrugName] = useState(preset?.drug ?? "");
+
+	/*
+	 * Is the product in the research cohort?
+	 *
+	 * The 1:1 allocation belongs to the research plan, and the research plan
+	 * is 吸必擴. Every other inhaler on this screen is a QCC case: it gets
+	 * the checklist, the follow-ups and the before/after, and no group.
+	 *
+	 * null while no product is chosen yet — the tally is on screen, but there
+	 * is nobody to put in a group until the product is known.
+	 */
+	const cohortDrug: boolean | null = drugName ? inStudyCohort(drugName) : null;
 	const [askedMrn, setAskedMrn] = useState(Boolean(preset?.mrn));
 	const [pharmacist, setPharmacist] = useState(PHARMACISTS[0] ?? "");
 	const [campus, setCampus] = useState(CAMPUSES[0] ?? "虎尾");
@@ -172,12 +184,18 @@ export function CaseEntry({
 	 * practice into the group that is supposed to receive usual education, and
 	 * the before/after comparison would then be comparing the two groups on
 	 * something other than what was given to them.
+	 *
+	 * Only a control group in the research cohort is a control group. A QCC
+	 * case — any other inhaler — has no group at all, and its checklist is
+	 * filled the way it always was.
 	 */
+	const controlArm = cohortDrug === true && arm === ARM_CONTROL;
+
 	useEffect(() => {
 		setSteps((prev) => {
 			const next = { ...prev };
 			let changed = false;
-			if (arm === ARM_CONTROL) {
+			if (controlArm) {
 				for (const code of Object.keys(aiFilled)) {
 					if (code in next) {
 						delete next[code];
@@ -194,7 +212,7 @@ export function CaseEntry({
 			}
 			return changed ? next : prev;
 		});
-	}, [arm, aiFilled]);
+	}, [controlArm, aiFilled]);
 
 	async function lookUpSession(value: string) {
 		setMrn(value);
@@ -274,10 +292,11 @@ export function CaseEntry({
 				educationMinutes: basic.educationMinutes
 					? Number(basic.educationMinutes)
 					: undefined,
-				// Only sent when the pharmacist moved the group herself. An arm
-				// she never touched is the rotation's decision, and the server
-				// records it as such.
-				studyArm: armTouched.current ? (arm ?? undefined) : undefined,
+				// Only sent when the pharmacist moved the group herself, and
+				// only for a product the research plan enrolled: an arm is a
+				// research label, and a QCC case does not carry one.
+				studyArm:
+					cohortDrug && armTouched.current ? (arm ?? undefined) : undefined,
 			});
 			setStatus({
 				tone: "good",
@@ -360,7 +379,7 @@ export function CaseEntry({
 							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
 								{Object.keys(ai).length === 0
 									? "查無 AI 練習紀錄，請手動評估"
-									: arm === ARM_CONTROL
+									: controlArm
 										? "查到 AI 練習紀錄，對照組不帶入"
 										: `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`}
 							</Badge>
@@ -396,6 +415,13 @@ export function CaseEntry({
 													// drug's verdicts across.
 													setSteps({});
 													setAiFilled({});
+													// The group belongs to the drug too: a
+													// product outside the research cohort
+													// has no group to be in.
+													if (!inStudyCohort(d.name)) {
+														armTouched.current = false;
+														setArm(null);
+													}
 												}}
 											>
 												{d.label}
@@ -421,9 +447,9 @@ export function CaseEntry({
 				<div className="space-y-6">
 					<StudyArmPanel
 						balance={balance}
-						value={arm}
+						value={null}
 						onChange={() => {}}
-						readOnly
+						cohort={null}
 					/>
 					<TodayQueue />
 				</div>
@@ -452,7 +478,7 @@ export function CaseEntry({
 							<Badge tone={Object.keys(ai).length > 0 ? "success" : "neutral"}>
 								{Object.keys(ai).length === 0
 									? "查無 AI 練習紀錄，請手動評估"
-									: arm === ARM_CONTROL
+									: controlArm
 										? "查到 AI 練習紀錄，對照組不帶入"
 										: `已帶入 AI 練習結果 ${Object.keys(ai).length} 步`}
 							</Badge>
@@ -466,7 +492,13 @@ export function CaseEntry({
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={() => setDrugName("")}
+									onClick={() => {
+										setDrugName("");
+										// Changing the product changes whether there is
+										// a group at all, so the choice starts over.
+										armTouched.current = false;
+										setArm(null);
+									}}
 								>
 									換藥
 								</Button>
@@ -556,11 +588,12 @@ export function CaseEntry({
 				 */}
 				<StudyArmPanel
 					balance={balance}
-					value={arm}
+					value={cohortDrug ? arm : null}
 					onChange={(next) => {
 						armTouched.current = true;
 						setArm(next);
 					}}
+					cohort={cohortDrug}
 				/>
 			</aside>
 

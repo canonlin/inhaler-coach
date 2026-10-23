@@ -16,8 +16,11 @@ import {
 	ARM_SOURCE_ALTERNATING,
 	ARM_SOURCE_MANUAL,
 	ARMS,
+	STUDY_COHORT,
+	STUDY_COHORT_DRUGS,
 	armBalance,
 	armSourceFor,
+	inStudyCohort,
 	isArm,
 	nextArm,
 } from "../src/domain/study-arm.js";
@@ -101,6 +104,41 @@ describe("how an arm was decided", () => {
 			armSourceFor(ARM_EXPERIMENTAL, ARM_CONTROL),
 			ARM_SOURCE_MANUAL,
 		);
+	});
+});
+
+describe("the research cohort", () => {
+	it("is the product the research plan enrolled", () => {
+		// 100 Symbicort patients, 50 AI and 50 usual education. The QCC covers
+		// every inhaler and is a different programme with a different
+		// measurement.
+		assert.deepEqual(STUDY_COHORT_DRUGS, ["Symbicort"]);
+		assert.equal(inStudyCohort("Symbicort"), true);
+	});
+
+	it("is not every inhaler in the catalogue", () => {
+		// A Ventolin case is a QCC case. Putting an arm on it would count a
+		// person who is not in the study, and would spend the study's 50/50
+		// on a product the study never enrolled.
+		for (const key of [
+			"Ventolin",
+			"Seretide Evohaler",
+			"Flixotide Evohaler",
+			"Breztri",
+			"Bevespi",
+			"Trimbow",
+			"Relvar (Ellipta)",
+			"Ultibro Breezhaler",
+			"Spiriva Respimat",
+		]) {
+			assert.equal(inStudyCohort(key), false, key);
+		}
+	});
+
+	it("names the cohort the way the pharmacist says it", () => {
+		// The catalogue carries the English label; she says 吸必擴.
+		assert.match(STUDY_COHORT[0].label, /吸必擴/);
+		assert.match(STUDY_COHORT[0].label, /Symbicort/);
 	});
 });
 

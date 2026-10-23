@@ -7,6 +7,11 @@
  * patient who will not use the camera, a case she knows belongs in the other
  * group.
  *
+ * The allocation belongs to the research plan, and the research plan is one
+ * product — 吸必擴. Everything else on this screen is QCC. So the tally is
+ * about the research cohort, and the two buttons only appear when the
+ * product in front of her is one the study enrolled.
+ *
  * The counts stay on screen because the balance is the thing she is managing.
  * A number that only appears after the case is saved is a number she cannot
  * act on: the suggestion is worth following only while she can see what the
@@ -21,6 +26,7 @@ import {
 	ARM_EXPERIMENTAL,
 	ARM_LABEL,
 	ARM_MEANING,
+	STUDY_COHORT_LABEL,
 } from "../../domain/study-arm.js";
 import { Badge, Button, Card, CardHeader } from "./ui";
 
@@ -29,7 +35,7 @@ export function StudyArmPanel({
 	value,
 	onChange,
 	disabled,
-	readOnly,
+	cohort,
 }: {
 	/** The live balance. Null while it is being read. */
 	balance: ArmBalance | null;
@@ -39,31 +45,29 @@ export function StudyArmPanel({
 	onChange: (arm: string) => void;
 	disabled?: boolean;
 	/**
-	 * The count without the choice.
+	 * Whether the product in front of her is in the research cohort.
 	 *
-	 * The enrollment screen opens with the record number as its only control,
-	 * and that is deliberate: twenty-five controls on arrival is what made the
-	 * form cost twenty-five taps. So the tally is on screen from the start,
-	 * and the two buttons appear with the checklist, where the decision is
-	 * actually made.
+	 * null means the product has not been chosen yet: the tally is on screen,
+	 * but there is nobody to put in a group until the product is known.
 	 */
-	readOnly?: boolean;
+	cohort: boolean | null;
 }) {
 	const suggested = balance?.next ?? ARM_EXPERIMENTAL;
 	const control = value === ARM_CONTROL;
+	const canChoose = cohort === true;
 
 	return (
 		<Card data-testid="arm-panel">
 			<CardHeader
-				title="研究分組"
+				title={`研究分組（${STUDY_COHORT_LABEL}）`}
 				description={
-					readOnly
-						? "實驗組做 AI 練習，對照組做一般衛教。分組在填清單時選。"
-						: "實驗組做 AI 練習，對照組做一般衛教。預設照輪替排，藥師可以自己換。"
+					canChoose
+						? "實驗組做 AI 練習，對照組做一般衛教。預設照輪替排，藥師可以自己換。"
+						: "實驗組做 AI 練習，對照組做一般衛教。研究計畫目前只收吸必擴。"
 				}
 			/>
 			<div className="space-y-3 px-5 py-4">
-				{!readOnly && (
+				{canChoose && (
 					<div className="flex flex-wrap gap-2">
 						{[ARM_EXPERIMENTAL, ARM_CONTROL].map((arm) => (
 							<Button
@@ -90,7 +94,9 @@ export function StudyArmPanel({
 				 * the head while the hands work.
 				 */}
 				<div className="flex flex-wrap items-center gap-2 text-meta text-text-secondary">
-					<Badge tone="neutral">下一位建議：{ARM_LABEL[suggested]}</Badge>
+					{cohort !== false && (
+						<Badge tone="neutral">下一位建議：{ARM_LABEL[suggested]}</Badge>
+					)}
 					{balance && (
 						<span data-testid="arm-balance">
 							{ARM_LABEL[ARM_EXPERIMENTAL]} {balance.experimental} 人 ·{" "}
@@ -99,6 +105,24 @@ export function StudyArmPanel({
 						</span>
 					)}
 				</div>
+
+				{/*
+				 * Why this product is not in the study.
+				 *
+				 * The QCC covers every inhaler and the research plan does not.
+				 * A case that is not in the study carries no arm at all, and NULL
+				 * is not 對照組 — so the screen says so rather than leaving a
+				 * pharmacist to wonder whether the case was left out.
+				 */}
+				{cohort === false && (
+					<p
+						className="rounded-md bg-surface-muted px-3 py-2 text-meta leading-relaxed text-text-secondary"
+						data-testid="arm-out-of-cohort"
+					>
+						這支藥不在研究計畫的分派範圍（目前只有{STUDY_COHORT_LABEL}
+						），這筆不會分派組別。
+					</p>
+				)}
 
 				{/*
 				 * Why the control group does not get the camera's verdict.
@@ -110,7 +134,7 @@ export function StudyArmPanel({
 				 * comparing the two groups on something other than what was
 				 * given to them.
 				 */}
-				{control && !readOnly && (
+				{control && canChoose && (
 					<p
 						className="rounded-md bg-surface-muted px-3 py-2 text-meta leading-relaxed text-text-secondary"
 						data-testid="arm-control-note"

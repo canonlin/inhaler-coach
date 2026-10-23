@@ -274,13 +274,32 @@ research data collector.
   happened — `alternating` for the rotation, `manual` for the pharmacist's own
   choice — because an override is a fact about the study that has to be
   auditable.
+- **The allocation is the research plan's, and the research plan is 吸必擴**
+  (`STUDY_COHORT` in `src/domain/study-arm.js`). 100 Symbicort patients, 50 AI
+  and 50 usual education. A case for any other inhaler is a QCC case: it gets
+  the checklist, the follow-ups and the before/after, and **no arm at all** —
+  the API refuses one, and the form does not offer it. A balance that counted
+  the ward would spend the study's 50/50 on inhalers the study never enrolled,
+  and the tally on screen would be a number about the wrong programme.
+  **沒有組別不等於對照組**: NULL means the case is not in the study.
+- **The platform carries more than one programme, and they do not share a
+  measurement.** ① **QCC／深耕計畫**（醫品品質改善）: every inhaler, measured
+  by 改善前後對比 — 收案 is 前測, M1 is 後測. ② **研究計畫**（AI 練習 vs 一般
+  衛教）: 100 Symbicort patients, 50:50, measured by the difference between
+  the two groups. ③ **研究資料收集器**: recorded audio and video, kept on the
+  controlled disk and never in the platform's database. One sign-in, one
+  database, one back office — but the fields belong to different programmes:
+  `study_arm` is the research plan's and no QCC statistic may read it, and the
+  QCC's 收案 and 成效 numbers are the QCC's and the research analysis may not
+  take them as its denominator. When a question asks 「這筆算不算」, the first
+  answer is which programme is asking.
 - **The arm belongs to the patient, not to the row.** A patient who already has
   an arm keeps it: the M1 assessment and a re-enrollment are the same person,
   and a second arm would put one patient in two groups and turn the balance on
   screen into a count of rows. The counts are therefore people
   (`count(DISTINCT patient_id)`), not cases. `cases.study_arm` is NULL on a
-  case that was never allocated one — the imported 對策前 cohort — and NULL is
-  not the same as 對照組.
+  case that was never allocated one — the imported 對策前 cohort, and every
+  product outside the research cohort — and NULL is not the same as 對照組.
 - **The control group does not get the camera's verdict.** The pre-fill from an
   AI session is the intervention, so a 對照組 patient is judged by hand and the
   screen says why. Putting the countermeasure into the group that is supposed

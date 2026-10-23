@@ -1707,4 +1707,24 @@ describe("the 1:1 allocation on the enrollment screen", () => {
 			"she put this patient in the control group",
 		);
 	});
+
+	it("offers no group for a product the research plan did not enrol", async () => {
+		// The study is 吸必擴. A Ventolin patient is a QCC patient: there is no
+		// group to put them in, and the screen has to say so rather than
+		// leaving a pharmacist to wonder whether the case was left out.
+		await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await page.waitForSelector("#mrn", { timeout: 15_000 });
+		await page.fill("#mrn", "UI0000005");
+		await page.waitForSelector(".drug-pick", { timeout: 15_000 });
+		await page.click('.drug-pick button:has-text("Ventolin")');
+		await page.waitForSelector('[data-testid="arm-out-of-cohort"]', {
+			timeout: 15_000,
+		});
+
+		const buttons = await page.$$eval(
+			'[data-testid="arm-control"]',
+			(n) => n.length,
+		);
+		assert.equal(buttons, 0, "there is no group to choose for this product");
+	});
 });

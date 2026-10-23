@@ -25,8 +25,10 @@ import {
 	ARM_LABEL,
 	ARM_SOURCE_ALTERNATING,
 	ARM_SOURCE_MANUAL,
+	STUDY_COHORT_LABEL,
 	armBalance,
 	armSourceFor,
+	inStudyCohort,
 	isArm,
 	nextArm,
 } from "../src/domain/study-arm.js";
@@ -181,8 +183,14 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	 * re-enrollment are the same person, and giving them a second arm would
 	 * put one patient in two groups and turn the balance on screen into a
 	 * count of rows.
+	 *
+	 * A case outside the research cohort carries no arm at all. NULL is not
+	 * the same as 對照組: it means the case was never in the study, and a QCC
+	 * analysis that treated NULL as a group would be inventing one.
 	 */
-	async function decideArm(mrn, patientId, requestedArm) {
+	async function decideArm(mrn, patientId, requestedArm, inCohort) {
+		if (!inCohort)
+			return { arm: null, armSource: null, previous: null, allocate: false };
 		const inherited = await patientArm(mrn, patientId);
 		const allocate = !inherited;
 		const previous = allocate ? await armPointer() : null;
@@ -401,7 +409,14 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		 * check is here rather than in the database's CHECK constraint, because
 		 * a constraint violation arrives as a 500 and tells the pharmacist
 		 * nothing about which field was wrong.
+		 *
+		 * The allocation belongs to the research plan, and the research plan is
+		 * the cohort: 吸必擴. A case for another inhaler is a QCC case, and a
+		 * QCC case does not carry a research label — it would count as a
+		 * person who is not in the study, and the balance on screen would be
+		 * a number about the wrong programme.
 		 */
+		const inCohort = inStudyCohort(drug.name);
 		const requestedArm =
 			body.studyArm === undefined ||
 			body.studyArm === null ||
@@ -411,6 +426,11 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		if (requestedArm !== null && !isArm(requestedArm)) {
 			bad(
 				`研究組別只能是 ${ARM_LABEL[ARM_EXPERIMENTAL]} 或 ${ARM_LABEL[ARM_CONTROL]}`,
+			);
+		}
+		if (requestedArm !== null && !inCohort) {
+			bad(
+				`研究計畫的組別分派目前只適用於 ${STUDY_COHORT_LABEL}，${drug.label} 不在研究範圍內`,
 			);
 		}
 
@@ -477,6 +497,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				mrn,
 				patientId,
 				requestedArm,
+				inCohort,
 			);
 
 			const result = await query(

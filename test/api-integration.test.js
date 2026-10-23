@@ -869,4 +869,35 @@ describe("the 1:1 allocation", () => {
 		const { rows } = await pool.query("SELECT count(*)::int AS n FROM cases");
 		assert.equal(rows[0].n, 1);
 	});
+
+	it("leaves a product outside the research cohort without an arm", async () => {
+		// The allocation belongs to the research plan, and the research plan is
+		// 吸必擴. A Ventolin case is a QCC case: it gets the checklist and
+		// the follow-ups, and no group.
+		await enroll("ARM0000011");
+		const qcc = await enroll("ARM0000013", { drug: "Ventolin" });
+		assert.equal(qcc.study_arm, null);
+		assert.equal(qcc.arm_source, null);
+
+		// And it is not in the balance either: the balance counts the study,
+		// not the ward. One Symbicort patient, one Ventolin patient, and the
+		// tally says one.
+		const balance = await api.studyArms();
+		assert.equal(balance.experimental, 1);
+		assert.equal(balance.control, 0);
+		assert.equal(balance.total, 1);
+	});
+
+	it("refuses an arm for a product outside the research cohort", async () => {
+		await assert.rejects(
+			() => enroll("ARM0000012", { drug: "Ventolin", studyArm: "control" }),
+			/研究計畫的組別分派/,
+		);
+		const { rows } = await pool.query(
+			`SELECT count(*)::int AS n
+			   FROM cases c JOIN patients p ON p.id = c.patient_id
+			  WHERE p.mrn_tail = '12'`,
+		);
+		assert.equal(rows[0].n, 0, "nothing is written when the arm is refused");
+	});
 });
