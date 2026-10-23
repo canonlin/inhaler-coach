@@ -11,6 +11,12 @@ import {
 	drugDoses,
 	drugOf,
 } from "../src/domain/drugs.js";
+import {
+	STAGE_AFTER,
+	STAGE_BEFORE,
+	STAGE_LABEL,
+	stageForTimepoint,
+} from "../src/domain/enrollment-sheet.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import {
 	ALL_STEP_CODES,
@@ -166,5 +172,31 @@ describe("spine: roster and knowledge questions", () => {
 	it("keeps the pharmacist roster non-empty and unique", () => {
 		assert.ok(PHARMACISTS.length >= 1);
 		assert.equal(new Set(PHARMACISTS).size, PHARMACISTS.length);
+	});
+});
+
+/*
+ * 前測／後測 is one fact in two vocabularies.
+ *
+ * The pharmacist says 前測 and 改善後 the QCC sheet says 改善前 and 改善後, and
+ * the platform stores one of them and shows the other beside it. The rule that
+ * decides which measurement a row is follows from the timepoint: the enrollment
+ * is the before-measurement and the follow-up is the after-measurement (10/19
+ * 會議【八】：「因為我現在是對策前」).
+ */
+describe("spine: 前測／後測", () => {
+	it("calls the enrollment the before-measurement", () => {
+		assert.equal(stageForTimepoint("M0"), STAGE_BEFORE);
+	});
+
+	it("calls every follow-up the after-measurement", () => {
+		assert.equal(stageForTimepoint("M1"), STAGE_AFTER);
+		assert.equal(stageForTimepoint("M3"), STAGE_AFTER);
+		assert.equal(stageForTimepoint("M6"), STAGE_AFTER);
+	});
+
+	it("writes both stages in both vocabularies", () => {
+		assert.equal(STAGE_LABEL[STAGE_BEFORE], "改善前（前測）");
+		assert.equal(STAGE_LABEL[STAGE_AFTER], "改善後（後測）");
 	});
 });

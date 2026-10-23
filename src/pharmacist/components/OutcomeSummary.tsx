@@ -35,7 +35,7 @@ export function OutcomeSummary({
 }: {
 	baseline: TechniqueStats;
 	after: TechniqueStats;
-	enrolment: { target: number; after: number };
+	enrolment: { target: number; enrolled: number };
 	paired?: PairedResult;
 	engagement: Summary["engagement"];
 }) {
@@ -52,15 +52,17 @@ export function OutcomeSummary({
 			<Tile label="收案進度">
 				<p className="flex items-baseline gap-1.5">
 					<span className="text-4xl font-bold tabular-nums text-text">
-						{enrolment.after}
+						{enrolment.enrolled}
 					</span>
 					<span className="text-lg font-semibold text-text-muted">
 						/ {enrolment.target}
 					</span>
 				</p>
 				<Progress
-					value={enrolment.target > 0 ? enrolment.after / enrolment.target : 0}
-					note={`還差 ${Math.max(0, enrolment.target - enrolment.after)} 人`}
+					value={
+						enrolment.target > 0 ? enrolment.enrolled / enrolment.target : 0
+					}
+					note={`還差 ${Math.max(0, enrolment.target - enrolment.enrolled)} 人`}
 				/>
 			</Tile>
 

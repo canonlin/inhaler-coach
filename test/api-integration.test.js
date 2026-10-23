@@ -63,7 +63,6 @@ describe("POST /api/cases", () => {
 			caseDate: "2026-05-04",
 			pharmacist: "黃永成",
 			drug: "Symbicort",
-			qccStage: "改善後",
 			timepoint: "M0",
 			steps: { MDI_搖: "正確", MDI_吐: "錯誤", MDI_開: "正確" },
 			knowledge: { 1: "對", 3: "不對" },
@@ -74,6 +73,40 @@ describe("POST /api/cases", () => {
 		assert.equal(r.knowledge, 2);
 		assert.equal(r.measures, 2);
 		assert.equal(r.mrn_tail, "89");
+	});
+
+	/*
+	 * The stage follows from the timepoint.
+	 *
+	 * M0 is the enrollment — the before-measurement — and M1 is the
+	 * after-measurement. A caller that says otherwise is refused rather than
+	 * corrected, because a case filed on the wrong side of 前測／後測 has no
+	 * counterpart to be compared against and drops out of the before/after
+	 * numbers without saying so.
+	 */
+	it("files an M0 enrollment as the before cohort", async () => {
+		const { rows } = await pool.query(
+			`SELECT c.qcc_stage FROM cases c JOIN patients p ON p.id = c.patient_id
+			 WHERE p.mrn_tail = '89' AND c.timepoint = 'M0'`,
+		);
+		assert.equal(rows.length, 1, "the enrollment must be written");
+		assert.equal(rows[0].qcc_stage, "改善前");
+	});
+
+	it("refuses a stage that disagrees with the timepoint", async () => {
+		await assert.rejects(
+			() =>
+				api.createCase({
+					mrn: "A123456789",
+					caseDate: "2026-05-04",
+					pharmacist: "黃永成",
+					drug: "Symbicort",
+					timepoint: "M0",
+					qccStage: "改善後",
+					steps: { MDI_搖: "正確" },
+				}),
+			/不能記成改善後/,
+		);
 	});
 
 	it("never returns the hashed medical record number", async () => {
@@ -147,13 +180,15 @@ describe("GET /api/metrics/summary", () => {
 		assert.equal(r.ok, true);
 		// 2 cases, 5 assessed steps, 1 wrong.
 		assert.equal(r.total, 2);
-		assert.equal(r.after.wrongSteps, 1);
-		// Per the plan the rate is per person: one of the two cases has at
-		// least one wrong step. The step-level figure is kept separately
-		// because it answers a different question.
-		assert.equal(r.after.peopleWithError, 1);
-		assert.equal(r.after.errorRate, 0.5);
-		assert.ok(Math.abs(r.after.stepErrorRate - 1 / 5) < 1e-12);
+		// The M0 enrollment is the before-measurement (前測＝改善前) and it is
+		// the one with the wrong step; the M1 follow-up is the after-measurement
+		// and it is clean.
+		assert.equal(r.baseline.wrongSteps, 1);
+		assert.equal(r.baseline.peopleWithError, 1);
+		assert.equal(r.baseline.errorRate, 1);
+		assert.equal(r.after.wrongSteps, 0);
+		assert.equal(r.after.peopleWithError, 0);
+		assert.equal(r.after.errorRate, 0);
 	});
 
 	it("excludes an unrecorded step from the denominator", async () => {
@@ -177,7 +212,10 @@ describe("GET /api/metrics/summary", () => {
 	it("tracks enrolment against the target", async () => {
 		const r = await api.summary({ target: 61 });
 		assert.equal(r.enrolment.target, 61);
-		assert.equal(r.enrolment.after, 2);
+		// One enrollment: the M0 case. The M1 follow-up is a measurement of a
+		// patient who was already enrolled, and a row imported from the
+		// pharmacist's sheet is not enrolled here at all.
+		assert.equal(r.enrolment.enrolled, 1);
 	});
 
 	/*
@@ -240,8 +278,14 @@ describe("GET /api/reference", () => {
 
 describe("filtering", () => {
 	it("filters cases by stage", async () => {
-		const r = await api.listCases({ qccStage: "改善前" });
-		assert.equal(r.cases.length, 0);
+		const before = await api.listCases({ qccStage: "改善前" });
+		assert.equal(
+			before.cases.length,
+			1,
+			"the M0 enrollment is the before cohort",
+		);
+		const after = await api.listCases({ qccStage: "改善後" });
+		assert.equal(after.cases.length, 1, "the M1 follow-up is the after cohort");
 		const all = await api.listCases({});
 		assert.equal(all.cases.length, 2);
 	});

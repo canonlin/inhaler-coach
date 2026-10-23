@@ -16,18 +16,13 @@
 import { useState } from "react";
 
 import { type ImportReport, importCases } from "../../api-client";
-import { ENROLLMENT_SHEET } from "../../domain/enrollment-sheet.js";
+import {
+	ENROLLMENT_SHEET,
+	STAGE_LABEL,
+	STAGES,
+} from "../../domain/enrollment-sheet.js";
 import { ImportReportPanel } from "./ImportReport";
 import { Button, Card, CardHeader, Field, Select, SelectItem } from "./ui";
-
-/** The stage the rows belong to. The sheet does not say; the study does. */
-const STAGES = ["改善前", "改善後"];
-
-/** The stage names the pharmacist uses. */
-const STAGE_LABEL: Record<string, string> = {
-	改善前: "改善前（前測）",
-	改善後: "改善後（後測）",
-};
 
 export function ImportPanel() {
 	const [file, setFile] = useState<File | null>(null);

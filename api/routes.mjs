@@ -6,7 +6,11 @@
  */
 
 import { ALL_DRUGS, drugOf } from "../src/domain/drugs.js";
-import { ENROLLMENT_BASIC_FIELDS } from "../src/domain/enrollment-sheet.js";
+import {
+	ENROLLMENT_BASIC_FIELDS,
+	STAGE_BEFORE,
+	stageForTimepoint,
+} from "../src/domain/enrollment-sheet.js";
 import {
 	RETURN_VISITS,
 	slotPriority,
@@ -145,6 +149,34 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			bad(`unknown timepoint ${timepoint}`);
 		if (!PHARMACISTS.includes(body.pharmacist))
 			bad(`unknown pharmacist ${body.pharmacist}`);
+
+		/*
+		 * Which measurement this row is.
+		 *
+		 * It follows from the timepoint and from nothing else. M0 is the
+		 * enrollment — the patient's baseline — so it is 前測＝改善前; M1 and
+		 * later are the follow-ups, so they are 後測＝改善後. 10/19 會議【八】:
+		 * 林藥師「因為我現在是對策前，後面沒有追蹤分析，未來我是想做一個月後
+		 * （M1）追蹤成效有沒有改善」。 QCC 附件七 compares the two the same
+		 * way: 改善前後對比 is M0 vs M1.
+		 *
+		 * It used to be 「改善後」 for everything, which meant a newly enrolled
+		 * patient had no before-measurement to be compared against and never
+		 * appeared in the before/after numbers at all.
+		 *
+		 * A caller that names a stage which disagrees with the timepoint is
+		 * refused rather than quietly corrected: the two words say the same
+		 * thing, so one of them is a mistake, and a silent fix would leave the
+		 * mistake in the record of whoever typed it.
+		 */
+		const stage = stageForTimepoint(timepoint);
+		if (body.qccStage && body.qccStage !== stage) {
+			bad(
+				`追蹤時間點 ${timepoint} 是${
+					stage === STAGE_BEFORE ? "前測" : "後測"
+				}（${stage}），不能記成${body.qccStage}`,
+			);
+		}
 
 		const steps = body.steps ?? {};
 		const demonstrated = body.demonstrated ?? {};
@@ -315,13 +347,9 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				body.studyId ?? null,
 				body.caseDate,
 				timepoint,
-				// 改善後 by default, and that is the platform's own convention:
-				// the enrollment is the visit at which the patient has already
-				// been coached (10/19 會議【八】：「因為我現在是對策前」 — the
-				// pre-intervention data is the April-May sheet, which is what
-				// the importer files as 改善前). The LINE journey is keyed on
-				// 改善後 for the same reason: the pushes follow the coaching.
-				body.qccStage ?? "改善後",
+				// The stage is the timepoint's, not the caller's: M0 is 前測
+				//（改善前）, M1 and later are 後測（改善後）. See the rule above.
+				stage,
 				body.campus ?? "虎尾",
 				body.pharmacist,
 				drug.device,
@@ -529,10 +557,33 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				// claimed a target the study never set, and read as if the
 				// intervention had to reach every baseline patient.
 				target: Number(q.target) || 30,
-				after: shaped.filter((r) => r.qccStage === "改善後").length,
+				enrolled: await enrolledCount(),
 			},
 			engagement: await engagement(),
 		};
+	}
+
+	/**
+	 * How many patients have been enrolled in the platform.
+	 *
+	 * The enrollment is the case that scheduled the return visits: only an
+	 * enrollment does that, and a row imported from the pharmacist's sheet never
+	 * does — which is what separates this study's 收案 from the 對策前 cohort
+	 * she collected in April and May.
+	 *
+	 * It used to be counted as the 改善後 cases. That worked only while the
+	 * enrollment was filed as 改善後; the enrollment is 前測（改善前） now
+	 * (10/19 會議【八】), so the same count would have measured the return
+	 * visits instead of the enrollments — and the tile would have said 收案 0/30
+	 * on a platform where thirty patients had been enrolled.
+	 */
+	async function enrolledCount() {
+		const { rows } = await query(
+			`SELECT count(*)::int AS n FROM cases c
+			 WHERE c.timepoint = 'M0'
+			   AND EXISTS (SELECT 1 FROM followups f WHERE f.case_id = c.id)`,
+		);
+		return rows[0]?.n ?? 0;
 	}
 
 	/**
@@ -740,7 +791,10 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				patientId: ctx[0].patient_id,
 				caseDate: new Date().toISOString().slice(0, 10),
 				timepoint: "M1",
-				qccStage: "改善後",
+				// No stage is named: an M1 is the after-measurement (後測＝改善後)
+				// because the rule follows from the timepoint. The enrollment it
+				// is compared against is the 改善前 row, and that pairing is the
+				// whole point of the queue.
 				campus: ctx[0].campus ?? "虎尾",
 				pharmacist: by,
 				drug: ctx[0].drug,

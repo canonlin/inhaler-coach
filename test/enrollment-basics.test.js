@@ -100,14 +100,13 @@ describe("the enrollment's 基本表格", () => {
 	/*
 	 * Which cohort an enrollment belongs to.
 	 *
-	 * The platform files it as 改善後, and that is the convention the LINE
-	 * journey is built on: the enrollment is the visit at which the patient has
-	 * already been coached, so the pushes follow it. The pre-intervention data
-	 * is the April-May sheet, and that is what the importer files as 改善前 —
-	 * it arrives as a pair for the same patient, because the record number
-	 * hashes to the same person either way.
+	 * The enrollment is the before-measurement: 10/19 會議【八】，林藥師「因為
+	 * 我現在是對策前，後面沒有追蹤分析，未來我是想做一個月後（M1）追蹤成效有
+	 * 沒有改善」。 The M1 follow-up is where the improvement is read, and that
+	 * pairing is the whole point — a case filed as 改善後 with no 改善前 to pair
+	 * against never appears in the before/after comparison at all.
 	 */
-	it("files an enrollment as the after cohort", async () => {
+	it("files an enrollment as the before cohort", async () => {
 		const { rows } = await pool.query(
 			`SELECT c.timepoint, c.qcc_stage FROM cases c
 			 JOIN patients p ON p.id = c.patient_id ORDER BY p.mrn_tail`,
@@ -115,8 +114,8 @@ describe("the enrollment's 基本表格", () => {
 		assert.deepEqual(
 			rows.map((r) => [r.timepoint, r.qcc_stage]),
 			[
-				["M0", "改善後"],
-				["M0", "改善後"],
+				["M0", "改善前"],
+				["M0", "改善前"],
 			],
 		);
 	});

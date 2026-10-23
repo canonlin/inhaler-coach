@@ -12,18 +12,12 @@
  * navigation is how back offices surface work, and leaving it in the list page
  * means finding out there is a queue only by going to look.
  */
-import {
-	BarChart3,
-	BookOpen,
-	ClipboardCheck,
-	ListTodo,
-	Upload,
-} from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, ListTodo } from "lucide-react";
 import type { ElementType } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { SignedInAs } from "./Auth";
-import { TABS } from "./tabs";
+import { SUBPAGES, TABS } from "./tabs";
 import { useFollowupCount } from "./useFollowups";
 
 const TAB_ICONS: Record<string, ElementType> = {
@@ -31,12 +25,15 @@ const TAB_ICONS: Record<string, ElementType> = {
 	追蹤清單: ListTodo,
 	成效: BarChart3,
 	衛教內容: BookOpen,
-	資料匯入: Upload,
 };
 
 /** Label of the section the current route belongs to, for the top bar. */
 export function sectionFor(pathname: string): string {
 	const tail = pathname.replace(/\/+$/, "");
+	// A sub-page first: 資料匯入 is not a navigation item, but it still has a
+	// name for the top bar, and 「收案評估」 would be a lie.
+	const sub = SUBPAGES.find((t) => tail.endsWith(`/${t.path}`));
+	if (sub) return sub.label;
 	const hit = [...TABS]
 		.reverse()
 		.find((t) => t.path && tail.endsWith(`/${t.path}`));

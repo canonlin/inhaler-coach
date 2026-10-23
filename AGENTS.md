@@ -206,32 +206,60 @@ research data collector.
   all read it. **A platform that asks for less than the sheet does is a
   platform the case is filled in twice.** The old form's required set is
   required here too, and the optional ones stay optional.
-- **The enrollment is filed as 改善後, and that is not a mistake.** 10/19 會議
-  【八】: 林藥師「因為我現在是對策前」 — the pre-intervention data is the
-  April–May sheet, which the importer files as 改善前. The enrollment in the
-  platform is the visit at which the patient has *already* been coached, so it
-  is 改善後, and the LINE journey is keyed on 改善後 for the same reason: the
-  pushes follow the coaching. The pair (前測 from the sheet, 後測 from the
-  platform) is the same patient because the record number hashes to the same
-  person either way.
+- **前測 is 改善前, and the enrollment is the 前測.** 10/19 會議【八】, verbatim:
+  林藥師「因為我現在是對策前，後面沒有追蹤分析，未來我是想做一個月後（M1）
+  追蹤成效有沒有改善。」 The enrollment is the before-measurement and the M1
+  follow-up is the after-measurement; QCC 附件七 compares them the same way
+  (改善前後對比 is M0 vs M1). The stage therefore follows the timepoint — M0 is
+  改善前, M1/M3/M6 are 改善後 — and the rule lives in
+  `src/domain/enrollment-sheet.js` (`stageForTimepoint`), which the API, the
+  form and the tests all read. 前測／後測 and 改善前／改善後 are two names for
+  one thing; the screens show both. **A case filed as 改善後 with no 改善前 to
+  pair against never appears in the before/after comparison at all** — which is
+  what happened to every newly enrolled patient while the enrollment was filed
+  as 改善後. The sheet's own rows stay staged by hand at import time, because
+  the May sheet holds M1 and M3 rows too and all of them were collected while
+  the study was still 對策前.
+- **The LINE journey belongs to the enrollment, not to a stage.** It used to be
+  keyed on `qcc_stage = '改善後'`, which only worked while the enrollment was
+  filed as 改善後; with the enrollment correctly filed as 前測, a stage filter
+  would have taken every new patient off the journey. The anchor now is the
+  enrollment that scheduled the return visits (`followups.case_id`), which
+  excludes the imported 對策前 cohort — their before-measurement must not be
+  contaminated by the countermeasure — and stops an M1 assessment from starting
+  a second journey from its own date.
 - **The sheet's timepoints are M0/M1/M3/M6.** The old form offered M6 and the
   sheet has an M6 column, so the platform models M6 too; an M6 row filed as an
   M0 was a silent lie about the study's timeline.
 - **The before/after pairing takes the patient's later measurement on each
   side** (`api/metrics.mjs`). A patient can have more than one row on a side,
   and which one counts must not depend on the order the database returned.
-- **The QCC sheet is imported from `/admin/資料匯入`** (the pharmacist asked
-  where to upload the pre-intervention data on 2026-10-22; the endpoint
-  existed but there was no page). The file must be `.xlsx` with a worksheet
-  named 「藥師收案」 and these columns: 病歷號碼、藥師、院區、藥品名稱、收案日期
-  — the list lives in `src/domain/enrollment-sheet.js` and is the same one the
-  importer checks and the screen shows. **The importer refuses a workbook with
-  the wrong headers** and names the missing column, instead of skipping every
-  row. **Nothing is written before a rehearsal**: 「先試算」 parses and reports
-  what would be written (rows read, rows skipped with the sheet's line number,
-  and where the sheet disagrees with itself); 「確認匯入」 only unlocks after
-  that rehearsal, for that file and that stage. Re-running the same file
-  updates the same cases rather than duplicating them.
+- **「收案進度」 counts the enrollments, not the 改善後 rows.** An enrollment is
+  the case that scheduled the return visits (`followups.case_id`): only an
+  enrollment does that, and a row imported from the pharmacist's sheet never
+  does — which is what separates this study's 收案 from the 對策前 cohort she
+  collected in April and May. It used to count the 改善後 cases, which worked
+  only while the enrollment was filed as 改善後; with the enrollment correctly
+  filed as 前測 the same count would have measured the return visits, and the
+  tile would have read 收案 0/30 on a platform where thirty patients had been
+  enrolled. The API field is `enrolment.enrolled`, not `enrolment.after`.
+- **The QCC sheet is imported from the case list, not from the navigation** (the
+  pharmacist asked where to upload the pre-intervention data on 2026-10-22; the
+  endpoint existed but there was no page). 追蹤清單 → 全部個案 carries the two
+  file actions on the cases it lists — 「匯出 Excel」 and 「匯入試算表」 —
+  because importing and exporting are actions on those cases, not one of the
+  pharmacist's jobs. The import page is still a real URL (`/admin/data`) but it
+  has no navigation item: the navigation is 收案評估／追蹤清單／成效／衛教內容.
+  The file must be `.xlsx` with a worksheet named 「藥師收案」 and these
+  columns: 病歷號碼、藥師、院區、藥品名稱、收案日期 — the list lives in
+  `src/domain/enrollment-sheet.js` and is the same one the importer checks and
+  the screen shows. **The importer refuses a workbook with the wrong headers**
+  and names the missing column, instead of skipping every row. **Nothing is
+  written before a rehearsal**: 「先試算」 parses and reports what would be
+  written (rows read, rows skipped with the sheet's line number, and where the
+  sheet disagrees with itself); 「確認匯入」 only unlocks after that rehearsal,
+  for that file and that stage. Re-running the same file updates the same cases
+  rather than duplicating them.
 
 ## Deployment
 

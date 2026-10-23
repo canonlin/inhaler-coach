@@ -102,7 +102,11 @@ export interface Summary {
 		after: Record<string, TechniqueStats>;
 	};
 	pareto: StepRate[];
-	enrolment: { target: number; after: number };
+	/**
+	 * How far along the study is: how many patients have been enrolled in the
+	 * platform, against the plan's target.
+	 */
+	enrolment: { target: number; enrolled: number };
 }
 
 const base = import.meta.env.VITE_API_BASE ?? "";
@@ -389,10 +393,13 @@ export interface NewCase {
 	campus: string;
 	timepoint: string;
 	/**
-	 * Which cohort the case belongs to. Left out, the platform files it as
-	 * 改善後 — the enrollment is the coached visit (10/19 會議【八】), and the
-	 * pre-intervention data is the April-May sheet the importer files as
-	 * 改善前.
+	 * Which cohort the case belongs to.
+	 *
+	 * Left out, the platform files it by its timepoint: M0 is 前測（改善前） and
+	 * M1 and later are 後測（改善後）. The screen does not send it, because the
+	 * pharmacist should not have to say which half of the study a measurement
+	 * belongs to — the timepoint already says it, and the two are the same fact
+	 * written twice.
 	 */
 	qccStage?: string;
 	drug: string;

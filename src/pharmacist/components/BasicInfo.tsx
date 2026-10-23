@@ -13,6 +13,8 @@
  */
 import {
 	ENROLLMENT_BASIC_FIELDS,
+	STAGE_BEFORE,
+	stageForTimepoint,
 	TIMEPOINTS,
 } from "../../domain/enrollment-sheet.js";
 import { cn } from "../../lib/utils";
@@ -104,6 +106,44 @@ export function BasicInfo({
 							))}
 						</Select>
 					</Field>
+
+					{/*
+					 * Which half of the study this row will be filed under, shown
+					 * rather than asked.
+					 *
+					 * 前測 and 改善前 are the same measurement, so the pharmacist
+					 * should not have to pick a word for it — but she should be
+					 * able to see what she is recording, because a row filed on
+					 * the wrong side of 前測／後測 cannot be paired and drops
+					 * out of the before/after numbers without saying so.
+					 *
+					 * It is not a Field: a <label for> has to point at something
+					 * a pointer can reach, and this is a reading, not a control.
+					 * The label sits next to the value in the DOM, so a screen
+					 * reader reads them together.
+					 */}
+					<div className="flex flex-col gap-1.5">
+						<p className="text-base font-semibold text-text">這筆會記成</p>
+						<div
+							data-testid="stage-readonly"
+							className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface-muted px-3"
+						>
+							<Badge
+								tone={
+									stageForTimepoint(timepoint) === STAGE_BEFORE
+										? "neutral"
+										: "success"
+								}
+							>
+								{stageForTimepoint(timepoint)}
+							</Badge>
+							<span className="text-base text-text-secondary">
+								{timepoint === "M0"
+									? "收案＝對策前的基準（前測）"
+									: "追蹤＝對策後（後測）"}
+							</span>
+						</div>
+					</div>
 
 					<Field
 						label={field("caseType")?.label ?? "病患類別"}

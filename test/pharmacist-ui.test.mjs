@@ -275,13 +275,7 @@ describe("pharmacist tabs", () => {
 		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
 			n.map((x) => x.textContent.trim()),
 		);
-		assert.deepEqual(tabs, [
-			"收案評估",
-			"追蹤清單",
-			"成效",
-			"衛教內容",
-			"資料匯入",
-		]);
+		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效", "衛教內容"]);
 		assert.equal(
 			await page.$$eval(NAV, (n) => n.length),
 			1,
@@ -1227,24 +1221,52 @@ describe("the sign-in gate", () => {
 	});
 });
 
-describe("the data transfer page", () => {
+describe("the data transfer actions on the case list", () => {
 	/*
-	 * A pharmacist asking 「前測資料要在哪上傳」 was looking for a door that did
-	 * not exist: the import was a command-line script, which answers the
-	 * engineer who wrote it and not the person holding the spreadsheet.
+	 * 匯入 and 匯出 used to be a navigation item called 資料匯入, sitting next
+	 * to the pharmacist's jobs. They are not jobs: they are actions on the very
+	 * cases the list shows, so they belong to the list. A pharmacist asking
+	 * 「前測資料要在哪上傳」 was looking for a door that did not exist — the
+	 * import was a command-line script, which answers the engineer who wrote
+	 * it and not the person holding the spreadsheet.
 	 *
-	 * The page has to work the way the sheet does — a rehearsal first, then
-	 * the write — because a sheet of 987 rows of which 62 carry content cannot
-	 * be checked by eye. So the rehearsal is the gate, and the test walks the
-	 * whole path rather than only the parts that are easy to reach.
+	 * The import still has to work the way the sheet does — a rehearsal first,
+	 * then the write — because a sheet of 987 rows of which 62 carry content
+	 * cannot be checked by eye. So the rehearsal is the gate, and the test
+	 * walks the whole path rather than only the parts that are easy to reach.
 	 */
 	const sheetRows = [
 		["病歷號碼", "藥師", "院區", "藥品名稱", "收案日期", "步驟_MDI_搖"],
 		["IMP0001", "黃永成", "虎尾", "Symbicort Rapihaler", "2026-05-04", "錯誤"],
 	];
 
+	/** The case list: the third view of 追蹤清單. */
+	async function openCaseList() {
+		await page.click(`${NAV} a:has-text("追蹤清單")`);
+		await page.waitForSelector('button:has-text("全部個案")', {
+			timeout: 15_000,
+		});
+		await page.click('button:has-text("全部個案")');
+		await page.waitForSelector('[data-testid="case-list"]', {
+			timeout: 15_000,
+		});
+	}
+
+	it("puts both actions on the case list", async () => {
+		await openCaseList();
+		assert.ok(
+			await page.$('[data-testid="export-link"]'),
+			"匯出 must be reachable from the cases it exports",
+		);
+		assert.ok(
+			await page.$('[data-testid="import-link"]'),
+			"匯入 must be reachable from the cases it fills",
+		);
+	});
+
 	it("takes a workbook, rehearses it, and only then writes it", async () => {
-		await page.click(`${NAV} a:has-text("資料匯入")`);
+		await openCaseList();
+		await page.click('[data-testid="import-link"]');
 		await page.waitForSelector("#file", { timeout: 15_000 });
 
 		// The file's requirements are on the screen, not in a manual.
@@ -1314,6 +1336,7 @@ describe("the data transfer page", () => {
 	});
 
 	it("offers the export as a download", async () => {
+		await openCaseList();
 		const href = await page.getAttribute('[data-testid="export-link"]', "href");
 		assert.ok(href, "the export must be a link");
 		assert.match(href, /\/api\/export\/cases\.xlsx/);
@@ -1331,7 +1354,9 @@ describe("the enrollment form", () => {
 	 *
 	 * The cohort is checked too, because it is invisible when it is wrong: an
 	 * enrollment filed as 「改善後」 has no 「改善前」 to pair against, so the
-	 * patient does not appear in the before/after comparison at all.
+	 * patient does not appear in the before/after comparison at all. The
+	 * enrollment is the before-measurement (10/19 會議【八】：「因為我現在是
+	 * 對策前」) and the M1 follow-up is the after-measurement.
 	 */
 	it("asks for the 基本表格 and files the case as the before cohort", async () => {
 		await page.click(`${NAV} a:has-text("收案評估")`);
@@ -1366,6 +1391,18 @@ describe("the enrollment form", () => {
 		await page.click('button:has-text("氣喘")');
 		await page.fill("#educationMinutes", "12");
 
+		/*
+		 * Which cohort the row will land in is shown, not asked.
+		 *
+		 * 前測 and 改善前 are the same measurement, so there is no choice to
+		 * make — but the pharmacist has to be able to see it, because a row on
+		 * the wrong side of 前測／後測 cannot be paired and drops out of the
+		 * before/after numbers without saying so.
+		 */
+		const stage = await page.textContent('[data-testid="stage-readonly"]');
+		assert.match(stage, /改善前/, "an M0 enrollment is filed as 改善前");
+		assert.match(stage, /前測/, "and it is the 前測 of the same measurement");
+
 		// The steps the camera cannot judge, then the two questions.
 		const correct = page.getByRole("button", { name: "正確", exact: true });
 		const steps = await correct.count();
@@ -1392,8 +1429,8 @@ describe("the enrollment form", () => {
 		assert.equal(rows.length, 1, "the case must be written");
 		assert.equal(
 			rows[0].qcc_stage,
-			"改善後",
-			"the enrollment is the coached visit, which is the after cohort",
+			"改善前",
+			"the enrollment is the before-measurement, which is what an M1 is compared against",
 		);
 		assert.equal(rows[0].case_type, "初診衛教");
 		assert.equal(rows[0].sex, "女");

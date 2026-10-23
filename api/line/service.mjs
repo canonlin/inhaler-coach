@@ -340,10 +340,23 @@ export function makeLineService({ query, transport }) {
 	/**
 	 * The cases whose journey touch falls on one day.
 	 *
-	 * A case is due when enrolment + journey day = the target date. Only
-	 * post-intervention cases are on the journey: the 改善前 cohort is the
-	 * before-measurement, and messaging it would contaminate the comparison
-	 * the QCC dashboard is built on.
+	 * A case is due when enrolment + journey day = the target date.
+	 *
+	 * What puts a case on the journey is that it is the enrolment — the case
+	 * that scheduled the return visits. It used to be the stage instead
+	 * (`qcc_stage = '改善後'`), which worked only while the enrolment was filed
+	 * as 改善後 and stopped working the moment it was filed correctly: the
+	 * enrolment is 前測（改善前） now (10/19 會議【八】: 「因為我現在是對策前」),
+	 * so a stage filter would have left every newly enrolled patient without
+	 * their learning journey.
+	 *
+	 * The enrolment is the right anchor for two reasons. The row that comes
+	 * from the pharmacist's sheet — the 對策前 cohort, whose before-measurement
+	 * must not be contaminated by the countermeasure — has no return visits
+	 * scheduled and therefore never appears here. And the M1 assessment, which
+	 * is written when a follow-up is closed, schedules nothing either, so a
+	 * patient who has already come back does not start a second journey from
+	 * the assessment's own date.
 	 */
 	async function dueJourneyCases(target) {
 		const caseDates = JOURNEY_DAYS.map((day) => shiftDate(target, -day));
@@ -358,7 +371,7 @@ export function makeLineService({ query, transport }) {
 			 LEFT JOIN line_medications lm
 			   ON lm.patient_id = p.id AND lm.role = 'maintenance'
 			 WHERE p.consent_line = true
-			   AND c.qcc_stage = '改善後'
+			   AND EXISTS (SELECT 1 FROM followups f WHERE f.case_id = c.id)
 			   AND c.case_date = ANY($1::date[])`,
 			[caseDates],
 		);
@@ -540,7 +553,7 @@ export function makeLineService({ query, transport }) {
 			 LEFT JOIN line_medications lm
 			   ON lm.patient_id = p.id AND lm.role = 'maintenance'
 			 WHERE to_char(c.case_date, 'YYYY-MM') = $1
-			   AND c.qcc_stage = '改善後'
+			   AND EXISTS (SELECT 1 FROM followups f WHERE f.case_id = c.id)
 			 ORDER BY c.case_date`,
 			[month],
 		);

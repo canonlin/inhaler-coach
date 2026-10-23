@@ -155,3 +155,48 @@ export const TIMEPOINTS = [
 	{ value: "M3", label: "M3（3個月）" },
 	{ value: "M6", label: "M6（6個月）" },
 ];
+
+/*
+ * 前測 and 改善前 are the same measurement under two names, and so are 後測 and
+ * 改善後: the pharmacist says 前測／後測, the QCC sheet and the dashboard say
+ * 改善前／改善後. The platform stores one of them and shows the other beside
+ * it, so the two vocabularies cannot drift apart — a screen that says
+ * 「改善前（前測）」 and a database that means the same thing by it.
+ */
+export const STAGE_BEFORE = "改善前";
+export const STAGE_AFTER = "改善後";
+
+/** Both stages, in the order the dashboard counts them. */
+export const STAGES = [STAGE_BEFORE, STAGE_AFTER];
+
+/**
+ * How each stage is written when both names are shown.
+ *
+ * @type {Record<string, string>}
+ */
+export const STAGE_LABEL = {
+	[STAGE_BEFORE]: "改善前（前測）",
+	[STAGE_AFTER]: "改善後（後測）",
+};
+
+/**
+ * Which measurement a row at this timepoint is.
+ *
+ * 10/19 會議【八】，林藥師：「因為我現在是對策前，後面沒有追蹤分析，未來我是
+ * 想做一個月後（M1）追蹤成效有沒有改善。」 Her words: the enrollment is the
+ * before-measurement, and the M1 follow-up is where the improvement is read.
+ * QCC 附件七 compares them the same way — 改善前後對比 is M0 vs M1.
+ *
+ * So M0 is 改善前: the patient's baseline, the thing a later M1 is compared
+ * against. A case filed as 改善後 with no 改善前 to pair with is a patient who
+ * does not appear in the before/after comparison at all — which is what
+ * happens to every newly enrolled patient if the enrollment is filed as the
+ * after-measurement.
+ *
+ * The sheet's own rows are the exception and are staged by hand at import
+ * time (「這份資料屬於哪一階段」): the May sheet holds M1 and M3 rows too, and
+ * all of them were collected while the study was still 對策前.
+ */
+export function stageForTimepoint(timepoint) {
+	return timepoint === "M0" ? STAGE_BEFORE : STAGE_AFTER;
+}

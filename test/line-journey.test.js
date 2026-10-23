@@ -150,14 +150,13 @@ describe("dispatching the journey", () => {
 	/** A patient on the journey: a case, consent, a linked account, a device. */
 	async function enrolledPatient(
 		mrn,
-		{ consent = true, stage = "改善後", enrolledDaysAgo = 3 } = {},
+		{ consent = true, enrolledDaysAgo = 3 } = {},
 	) {
 		const c = await api.createCase({
 			mrn,
 			caseDate: localDate(-enrolledDaysAgo),
 			pharmacist: "黃永成",
 			drug: "Symbicort",
-			qccStage: stage,
 			steps: { MDI_搖: "正確" },
 		});
 		const { rows } = await pool.query(
@@ -233,10 +232,74 @@ describe("dispatching the journey", () => {
 		assert.deepEqual(await deliveriesFor(p.lineUserId), []);
 	});
 
-	it("leaves the pre-intervention cohort alone", async () => {
-		const p = await enrolledPatient("JRN000003", { stage: "改善前" });
+	/**
+	 * A case from the pharmacist's sheet: the before-measurement cohort.
+	 *
+	 * It is written straight into the database because that is how it arrives —
+	 * the importer fills a case in without scheduling a return visit — and the
+	 * one thing that has to keep it off the journey is that it was never
+	 * enrolled here. Its before-measurement must not be contaminated by the
+	 * countermeasure that follows an enrollment.
+	 */
+	async function sheetPatient(mrn, { daysAgo = 3 } = {}) {
+		const { rows } = await pool.query(
+			`INSERT INTO patients (mrn_hash, mrn_tail, age_band, sex, diagnosis, consent_line)
+			 VALUES ($1, $2, '18-64歲', '女', '氣喘', true) RETURNING id`,
+			[hashMrn(mrn, SALT), mrn.slice(-2)],
+		);
+		const patientId = rows[0].id;
+		await pool.query(
+			`INSERT INTO cases (patient_id, case_date, timepoint, qcc_stage, campus,
+			                    pharmacist, device, drug)
+			 VALUES ($1, $2, 'M0', '改善前', '虎尾', '黃永成', 'MDI', 'Symbicort')`,
+			[patientId, localDate(-daysAgo)],
+		);
+		await pool.query(
+			"INSERT INTO line_identities (patient_id, line_user_id) VALUES ($1, $2)",
+			[patientId, `U_${mrn}`],
+		);
+		await pool.query(
+			`INSERT INTO line_medications (patient_id, role, drug_id, drug_name, device_line, ics)
+			 VALUES ($1,'maintenance','Symbicort_Rapihaler','Symbicort Rapihaler',$2,true)`,
+			[patientId, DEVICE],
+		);
+		return { patientId, lineUserId: `U_${mrn}` };
+	}
+
+	it("leaves the imported before-measurement cohort alone", async () => {
+		const p = await sheetPatient("JRN000003");
 		await line.dispatchJourney({ date: TODAY });
 		assert.deepEqual(await deliveriesFor(p.lineUserId), []);
+	});
+
+	/*
+	 * The journey belongs to the enrollment.
+	 *
+	 * The enrollment is the before-measurement now (10/19 會議【八】：「因為我
+	 * 現在是對策前」), so a stage filter would have taken every new patient off
+	 * the journey. The enrollment is found instead by the return visits it
+	 * scheduled — and the M1 assessment, which schedules nothing, cannot start
+	 * a second journey from its own date.
+	 */
+	it("does not start a second journey from a follow-up assessment", async () => {
+		const p = await enrolledPatient("JRN000008", { enrolledDaysAgo: 20 });
+		const { followups } = await api.followups();
+		const open = followups.find((f) => f.patient_id === p.patientId);
+		assert.ok(open, "the enrollment must have scheduled a return visit");
+		await api.closeFollowup({
+			id: open.id,
+			by: "黃永成",
+			status: "done",
+			assessment: { steps: { MDI_搖: "正確" } },
+		});
+		// Three days after the assessment the assessment's own date would pull
+		// a fresh journey if the assessment were treated as an enrollment.
+		await line.dispatchJourney({ date: localDate(3) });
+		assert.deepEqual(
+			await deliveriesFor(p.lineUserId),
+			[],
+			"the assessment must not start a journey of its own",
+		);
 	});
 
 	it("sends the day-7 touch to a patient enrolled on the right day", async () => {
@@ -460,7 +523,6 @@ describe("a patient who cannot be reached", () => {
 			caseDate: localDate(-3),
 			pharmacist: "黃永成",
 			drug: "Symbicort",
-			qccStage: "改善後",
 			steps: { MDI_搖: "正確" },
 		});
 		const { rows } = await pool.query(

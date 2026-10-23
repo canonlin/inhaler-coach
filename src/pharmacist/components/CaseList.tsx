@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { type CaseRow, fetchCases } from "../../api-client";
 import { DEVICES } from "../../domain/steps.js";
+import { CaseToolbar } from "./CaseToolbar";
 import { Badge, Card, DataTable, Pending, Skeleton, Td, Th } from "./ui";
 
 export function CaseList({
@@ -110,7 +111,7 @@ export function CaseList({
 
 	return (
 		<Card className="overflow-hidden">
-			<div className="border-b border-border-subtle px-5 py-4">
+			<div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
 				<p className="text-base text-text-secondary">
 					共{" "}
 					<span className="font-bold tabular-nums text-text">
@@ -121,6 +122,12 @@ export function CaseList({
 						這一頁是唯讀的；要新增或結案請用收案評估與追蹤清單。
 					</span>
 				</p>
+				{/*
+				 * The list's own actions. 匯出 and 匯入 used to be a navigation
+				 * item of their own; they are actions on these cases, so they sit
+				 * on the list that shows them.
+				 */}
+				<CaseToolbar />
 			</div>
 			{rows.length === 0 ? (
 				<p className="px-5 py-6 text-base text-text-secondary">
