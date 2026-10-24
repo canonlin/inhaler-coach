@@ -54,16 +54,22 @@ export function StudyArmPanel({
 }) {
 	const suggested = balance?.next ?? ARM_EXPERIMENTAL;
 	const control = value === ARM_CONTROL;
-	const canChoose = cohort === true;
+	// The research plan takes a hundred people. When it has taken them, there is
+	// no group left to put this patient in, and offering the buttons would be
+	// offering a choice the server will refuse.
+	const full = balance?.full ?? false;
+	const canChoose = cohort === true && !full;
 
 	return (
 		<Card data-testid="arm-panel">
 			<CardHeader
 				title={`研究分組（${STUDY_COHORT_LABEL}）`}
 				description={
-					canChoose
-						? "實驗組做 AI 練習，對照組做一般衛教。預設照輪替排，藥師可以自己換。"
-						: "實驗組做 AI 練習，對照組做一般衛教。研究計畫目前只收吸必擴。"
+					full && cohort === true
+						? "研究計畫已收滿，這筆不會分派組別。"
+						: canChoose
+							? "實驗組做 AI 練習，對照組做一般衛教。預設照輪替排，藥師可以自己換。"
+							: "實驗組做 AI 練習，對照組做一般衛教。研究計畫目前只收吸必擴。"
 				}
 			/>
 			<div className="space-y-3 px-5 py-4">
@@ -101,7 +107,7 @@ export function StudyArmPanel({
 						<span data-testid="arm-balance">
 							{ARM_LABEL[ARM_EXPERIMENTAL]} {balance.experimental} 人 ·{" "}
 							{ARM_LABEL[ARM_CONTROL]} {balance.control} 人 · 比例{" "}
-							{balance.ratio}
+							{balance.ratio} · 已收 {balance.enrolled}/{balance.target} 人
 						</span>
 					)}
 				</div>
@@ -114,6 +120,26 @@ export function StudyArmPanel({
 				 * is not 對照組 — so the screen says so rather than leaving a
 				 * pharmacist to wonder whether the case was left out.
 				 */}
+				{/*
+				 * Why the plan has no room left.
+				 *
+				 * The patient is still enrolled and still gets the checklist, the
+				 * follow-up visits and the before/after comparison — the QCC does
+				 * not stop because the study finished. What stops is the group: a
+				 * hundred and first patient is not one the plan agreed to see, and
+				 * putting them in anyway would make the balance on screen a number
+				 * about a study that did not happen.
+				 */}
+				{cohort === true && full && (
+					<p
+						className="rounded-md bg-surface-muted px-3 py-2 text-meta leading-relaxed text-text-secondary"
+						data-testid="arm-study-full"
+					>
+						研究計畫已收滿 {balance?.target ?? 100}{" "}
+						人，這筆仍可收案（清單、追蹤與前後測照常），但不會分派組別。
+					</p>
+				)}
+
 				{cohort === false && (
 					<p
 						className="rounded-md bg-surface-muted px-3 py-2 text-meta leading-relaxed text-text-secondary"

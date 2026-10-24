@@ -155,6 +155,20 @@ research data collector.
   or a picture without a product. **They are illustrations**: shape, proportion
   and colour follow the real device, the render does not. Say so wherever a
   picture is presented as the patient's own inhaler.
+- **Two drug lists, and they must cover each other.** The pharmacist's
+  catalogue is `src/domain/drugs.js` (17 products); the list the patient picks
+  from on LINE is `src/line/data/drugs.json`. A drug in the catalogue and not
+  in the LINE list is a hole: the pharmacist can enroll it and the patient
+  cannot say which inhaler they use, so the journey stops before it starts.
+  **備勞喘 (Berotec N) was that hole** — it is in the catalogue, its 仿單 is
+  also missing, and Duasma HFA (whose 仿單 is missing too) was in both lists
+  all along, so the absence was an accident rather than a decision. The two
+  lists name the same drugs differently (the catalogue says 「Ventolin
+  Inhaler」, LINE says 「Ventolin Evohaler」), so the join is a table in
+  `test/line-drug-coverage.test.js`: a new drug in the catalogue has no line
+  there, the test fails, and somebody has to decide whether a patient may pick
+  it. A missing 仿單 is not a reason to leave a drug out — it is a reason to
+  say 未確認, which is what `src/domain/priming.js` already does.
 - Baseline study data: 61 cases, collected 2026-04-21 to 2026-05-27, with real
   error notes. It is the reference the QCC dashboard validates against.
 - The 2026 QCC sheet has 987 rows, of which **62 carry content** (April 12 +
@@ -335,6 +349,18 @@ research data collector.
   happened — `alternating` for the rotation, `manual` for the pharmacist's own
   choice — because an override is a fact about the study that has to be
   auditable.
+- **The research plan takes a hundred people, and the platform says so.**
+  `STUDY_TARGET` in `src/domain/study-arm.js` is the plan's 100 (50 AI, 50
+  usual education). When the hundred are in, a new 吸必擴 patient is **still
+  enrolled** — the checklist, the three return visits and the 改善前後對比 are
+  the QCC's and do not stop because a study finished — but no group is
+  allocated, the case carries no arm, and the screen says 「研究計畫已收滿」
+  with the balance reading 已收 X/100 人. An arm asked for while the study is
+  full is **refused (409), not dropped**: the buttons are hidden when the study
+  is full, so a request means the screen is out of date, and silently dropping
+  the arm would leave the pharmacist believing the patient is in the study. A
+  patient who already has an arm keeps it — the cap is about new people, not
+  about the ones already counted.
 - **The allocation is the research plan's, and the research plan is 吸必擴**
   (`STUDY_COHORT` in `src/domain/study-arm.js`). 100 Symbicort patients, 50 AI
   and 50 usual education. A case for any other inhaler is a QCC case: it gets

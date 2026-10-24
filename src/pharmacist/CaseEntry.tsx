@@ -188,8 +188,13 @@ export function CaseEntry({
 	 * Only a control group in the research cohort is a control group. A QCC
 	 * case — any other inhaler — has no group at all, and its checklist is
 	 * filled the way it always was.
+	 *
+	 * A case that does not enter the study because the plan is full is a QCC
+	 * case too, not a control case: it is not the group that gets usual
+	 * education, it is simply not in the study.
 	 */
-	const controlArm = cohortDrug === true && arm === ARM_CONTROL;
+	const studyFull = balance?.full ?? false;
+	const controlArm = cohortDrug === true && !studyFull && arm === ARM_CONTROL;
 
 	useEffect(() => {
 		setSteps((prev) => {
@@ -302,7 +307,7 @@ export function CaseEntry({
 				tone: "good",
 				text: `已收案${res.study_arm ? `（${ARM_LABEL[res.study_arm]}）` : ""}${
 					res.followup ? "，已排入追蹤" : ""
-				}`,
+				}${res.studyFull ? "，研究計畫已收滿，這筆沒有分派組別" : ""}`,
 			});
 			// Recording a case schedules a follow-up, so the navigation count is
 			// stale the moment this resolves. The badge is on screen right now —

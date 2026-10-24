@@ -31,6 +31,7 @@ import {
 	isArm,
 	nextArm,
 	STUDY_COHORT_LABEL,
+	STUDY_TARGET,
 } from "../src/domain/study-arm.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { HttpError } from "./http-error.mjs";
@@ -176,6 +177,69 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	}
 
 	/**
+	 * How many people the study has enrolled.
+	 *
+	 * People, not rows: the plan enrolled a hundred patients, and a patient
+	 * with an M1 assessment and a re-enrollment is still one patient.
+	 */
+	async function studyEnrolled() {
+		const { rows } = await query(
+			`SELECT count(DISTINCT patient_id)::int AS people
+			   FROM cases
+			  WHERE study_arm IS NOT NULL`,
+		);
+		return rows[0]?.people ?? 0;
+	}
+
+	/**
+	 * Has the plan taken everyone it was going to take?
+	 */
+	async function studyIsFull() {
+		return (await studyEnrolled()) >= STUDY_TARGET;
+	}
+
+	/**
+	 * What happens when the plan is full and a new patient arrives.
+	 *
+	 * The case is still enrolled — the checklist, the follow-up visits and the
+	 * before/after comparison are the QCC's, and they do not stop because a
+	 * study finished. What stops is the group.
+	 *
+	 * An explicit request is refused rather than dropped: the screen hides the
+	 * choice when the study is full, so a request means the screen is out of
+	 * date, and quietly dropping the arm would leave the pharmacist believing
+	 * the patient is in the study.
+	 */
+	function whenStudyIsFull(requestedArm) {
+		if (requestedArm !== null) {
+			throw new HttpError(
+				409,
+				`研究計畫已收滿 ${STUDY_TARGET} 人，這位病人不再分派組別。請重新整理頁面後再收案。`,
+			);
+		}
+		return {
+			arm: null,
+			armSource: null,
+			previous: null,
+			allocate: false,
+			full: true,
+		};
+	}
+
+	/**
+	 * How the arm was decided.
+	 *
+	 * The rotation's own choice is the rotation's choice; a group the
+	 * pharmacist moved is her choice, and the study has to be able to tell the
+	 * two apart. A patient who already had an arm keeps how they got it.
+	 */
+	function decideArmSource(requestedArm, suggested, inherited, allocate) {
+		if (!requestedArm) return inherited?.arm_source ?? ARM_SOURCE_ALTERNATING;
+		if (!allocate) return ARM_SOURCE_MANUAL;
+		return armSourceFor(requestedArm, suggested);
+	}
+
+	/**
 	 * Which arm this case gets, and how it was decided.
 	 *
 	 * A new patient gets the rotation's next arm unless the pharmacist names
@@ -187,12 +251,19 @@ export function makeRoutes({ query, salt, lineTransport }) {
 	 * A case outside the research cohort carries no arm at all. NULL is not
 	 * the same as 對照組: it means the case was never in the study, and a QCC
 	 * analysis that treated NULL as a group would be inventing one.
+	 *
+	 * The plan takes a hundred people. A hundred and first is not a patient
+	 * the plan agreed to see, so a new patient does not enter a study that is
+	 * already full. A patient who is already in the study keeps their arm
+	 * whatever the count says: the cap is about new people, not about the ones
+	 * already counted.
 	 */
 	async function decideArm(mrn, patientId, requestedArm, inCohort) {
 		if (!inCohort)
 			return { arm: null, armSource: null, previous: null, allocate: false };
 		const inherited = await patientArm(mrn, patientId);
 		const allocate = !inherited;
+		if (allocate && (await studyIsFull())) return whenStudyIsFull(requestedArm);
 		const previous = allocate ? await armPointer() : null;
 		// What this patient would get if nobody decided otherwise: the
 		// rotation's next arm for a new patient, and the opposite of what they
@@ -201,11 +272,12 @@ export function makeRoutes({ query, salt, lineTransport }) {
 			? nextArm(previous)
 			: nextArm(inherited.study_arm);
 		const arm = requestedArm ?? inherited?.study_arm ?? suggested;
-		const armSource = requestedArm
-			? allocate
-				? armSourceFor(arm, suggested)
-				: ARM_SOURCE_MANUAL
-			: (inherited?.arm_source ?? ARM_SOURCE_ALTERNATING);
+		const armSource = decideArmSource(
+			requestedArm,
+			suggested,
+			inherited,
+			allocate,
+		);
 		return { arm, armSource, previous, allocate };
 	}
 
@@ -492,13 +564,17 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		 * allocation having gone through.
 		 */
 		let rows = [];
+		// Whether this case went in without a group because the plan was full.
+		// The pharmacist is told; she is not left to wonder.
+		let studyFull = false;
 		for (let attempt = 0; attempt < 5; attempt++) {
-			const { arm, armSource, previous, allocate } = await decideArm(
+			const { arm, armSource, previous, allocate, full } = await decideArm(
 				mrn,
 				patientId,
 				requestedArm,
 				inCohort,
 			);
+			studyFull = Boolean(full);
 
 			const result = await query(
 				`WITH alloc AS (
@@ -610,7 +686,7 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		}
 
 		if (!rows[0]) throw new HttpError(409, "剛好有別人同時在收案，請再按一次");
-		return { ok: true, ...rows[0] };
+		return { ok: true, ...rows[0], studyFull };
 	}
 
 	/**

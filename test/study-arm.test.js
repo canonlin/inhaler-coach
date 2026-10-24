@@ -23,6 +23,7 @@ import {
 	nextArm,
 	STUDY_COHORT,
 	STUDY_COHORT_DRUGS,
+	STUDY_TARGET,
 } from "../src/domain/study-arm.js";
 
 describe("the arms", () => {
@@ -163,5 +164,22 @@ describe("the balance on screen", () => {
 		assert.equal(b.control, 0);
 		assert.equal(b.total, 0);
 		assert.equal(b.ratio, "0:0");
+	});
+
+	it("knows the plan's number and the room left in it", () => {
+		const b = armBalance({ experimental: 40, control: 40 });
+		assert.equal(b.target, STUDY_TARGET);
+		assert.equal(b.enrolled, 80);
+		assert.equal(b.remaining, STUDY_TARGET - 80);
+		assert.equal(b.full, false);
+	});
+
+	it("knows when the plan has taken everyone it was going to take", () => {
+		// The hundredth patient fills it; the hundred and first is not in the
+		// study. The balance on screen has to be able to say so, because the
+		// alternative is a study that quietly ran to a hundred and one.
+		const b = armBalance({ experimental: 50, control: 50 });
+		assert.equal(b.full, true);
+		assert.equal(b.remaining, 0);
 	});
 });

@@ -62,6 +62,14 @@ export interface ArmBalance {
 	next: string;
 	/** The same counts by row, for reconciling against the list. */
 	cases: { experimental: number; control: number };
+	/** How many people the research plan takes. */
+	target: number;
+	/** How many of them are in the study now. */
+	enrolled: number;
+	/** Has the study taken everyone the plan says it takes? */
+	full: boolean;
+	/** How many people the plan still has room for. */
+	remaining: number;
 }
 
 /**
@@ -476,6 +484,11 @@ export async function createCase(body: NewCase) {
 		knowledge: number;
 		measures: number;
 		followup: number;
+		/**
+		 * True when the case was enrolled without a group because the research
+		 * plan had already taken everyone it was going to take.
+		 */
+		studyFull?: boolean;
 	}>(`${base}/api/cases`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

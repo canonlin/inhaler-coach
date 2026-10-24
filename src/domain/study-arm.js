@@ -51,6 +51,19 @@ export const STUDY_COHORT = [
 /** The product keys in the research cohort. */
 export const STUDY_COHORT_DRUGS = STUDY_COHORT.map((c) => c.name);
 
+/**
+ * How many people the research plan takes.
+ *
+ * 100 Symbicort patients, 50 AI and 50 usual education. The number is the
+ * plan's, and it is the reason the balance on screen is worth watching: a
+ * hundred and one people is a different study from a hundred, and the 50/50
+ * the analysis compares is a 50/50 the plan actually ran.
+ *
+ * The count is people, not cases: a patient with an M1 assessment and a
+ * re-enrollment is one person, and the plan enrolled one hundred people.
+ */
+export const STUDY_TARGET = 100;
+
 /** How the cohort is named on screen. */
 export const STUDY_COHORT_LABEL = STUDY_COHORT.map((c) => c.label).join("、");
 
@@ -118,19 +131,32 @@ export function armSourceFor(chosen, suggested) {
  * What stays on screen while she works: the counts, the ratio, and the arm the
  * rotation suggests next.
  *
+ * The target and the room left are part of it because the plan has a number: a
+ * pharmacist who cannot see that the study has taken everyone it was going to
+ * take will keep allocating, and the balance will drift away from the 50/50
+ * the analysis compares.
+ *
  * @param {{experimental?: number, control?: number, previous?: string | null}} counts
  */
 export function armBalance(counts = {}) {
 	const experimental = counts.experimental ?? 0;
 	const control = counts.control ?? 0;
 	const previous = counts.previous ?? null;
+	const target = STUDY_TARGET;
+	const enrolled = experimental + control;
 	return {
 		experimental,
 		control,
-		total: experimental + control,
+		total: enrolled,
 		/** As a person would say it: 「12:10」. */
 		ratio: `${experimental}:${control}`,
 		previous,
 		next: nextArm(previous),
+		target,
+		enrolled,
+		/** Has the study taken everyone the plan says it takes? */
+		full: enrolled >= target,
+		/** How many people the plan still has room for. */
+		remaining: Math.max(0, target - enrolled),
 	};
 }
