@@ -38,31 +38,56 @@ export { ENROLLMENT_SHEET };
 const STAGES = ["改善前", "改善後"];
 
 /**
+ * A drug name as people write it, made comparable.
+ *
+ * The sheet is filled in by hand, so the same drug arrives in several shapes:
+ * "Ultibro Breezhaler", "Ultibro (Breezhaler)", "ultibro  breezhaler". Case,
+ * brackets and repeated spaces are not differences in the drug, so they are
+ * taken out before anything is compared.
+ */
+export function normaliseDrugSpelling(name) {
+	return name
+		.toLowerCase()
+		.replace(/[()（）]/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/**
  * Drug names as the sheet writes them, where they differ from the spine.
  *
  * The spine's names are frozen (they are the spreadsheet key the dashboard
  * groups by), so the sheet's variant is mapped onto it rather than the other
  * way round.
+ *
+ * The keys are normalised the same way the lookup normalises what it is given,
+ * so an alias written with brackets still finds its key.
+ *
+ * Exported so the test can hold every alias to the catalogue: an alias that
+ * points at a name the spine does not have is a spelling the importer reads
+ * as no drug at all, and the row's patient is lost with it.
  */
-const DRUG_ALIASES = new Map([
-	["seretide 250 evohaler", "Seretide Evohaler"],
-	["seretide evohaler", "Seretide Evohaler"],
-	["symbicort rapihaler", "Symbicort"],
-	["trelegy 92/55/22 (ellipta)", "Trelegy 92/55/22 (Ellipta)"],
-	["trelegy 184/55/22 (ellipta)", "Trelegy 184/55/22 (Ellipta)"],
-	["relvar (ellipta)", "Relvar (Ellipta)"],
-	["anoro (ellipta)", "Anoro (Ellipta)"],
-	["ultibro breezhaler", "Ultibro (Breezhaler)"],
-	["spiolto respimat", "Spiolto Respimat"],
-	["striverdi respimat", "Striverdi Respimat"],
-	["spiriva respimat", "Spiriva Respimat"],
-	["breztri aerosolphere", "Breztri"],
-	["bevespi aerosolphere", "Bevespi"],
-	["duasma hfa 200", "Duasma HFA"],
-	["trimbow inhalation solution", "Trimbow"],
-	["flixotide evohaler", "Flixotide Evohaler"],
-	["berotec n", "Berotec N"],
-]);
+export const DRUG_ALIASES = new Map(
+	[
+		["seretide 250 evohaler", "Seretide Evohaler"],
+		["seretide evohaler", "Seretide Evohaler"],
+		["symbicort rapihaler", "Symbicort"],
+		["trelegy 92/55/22 (ellipta)", "Trelegy 92/55/22 (Ellipta)"],
+		["trelegy 184/55/22 (ellipta)", "Trelegy 184/55/22 (Ellipta)"],
+		["relvar (ellipta)", "Relvar (Ellipta)"],
+		["anoro (ellipta)", "Anoro (Ellipta)"],
+		["ultibro breezhaler", "Ultibro Breezhaler"],
+		["spiolto respimat", "Spiolto Respimat"],
+		["striverdi respimat", "Striverdi Respimat"],
+		["spiriva respimat", "Spiriva Respimat"],
+		["breztri aerosolphere", "Breztri"],
+		["bevespi aerosolphere", "Bevespi"],
+		["duasma hfa 200", "Duasma HFA"],
+		["trimbow inhalation solution", "Trimbow"],
+		["flixotide evohaler", "Flixotide Evohaler"],
+		["berotec n", "Berotec N"],
+	].map(([spelling, target]) => [normaliseDrugSpelling(spelling), target]),
+);
 
 /**
  * The sheet's device classes are coarser than the spine's.
@@ -486,13 +511,21 @@ export async function exportEnrollment(query, { month, stage } = {}) {
 
 // ── field parsing ───────────────────────────────────────────────────────────
 
-/** The spine's drug name for a name the sheet wrote. */
-function resolveDrug(name) {
+/**
+ * The spine's drug name for a name the sheet wrote.
+ *
+ * The sheet's spellings differ in more than case: brackets, spaces, and the
+ * order of the words all move around as people type. The lookup therefore
+ * normalises the spelling first — lower case, single spaces, no brackets —
+ * and only then asks the alias list, so "Ultibro (Breezhaler)" and
+ * "Ultibro Breezhaler" reach the same product.
+ */
+export function resolveDrug(name) {
 	if (!name) return null;
 	// drugOf() throws on an unknown name, so the lookup here is the list.
 	const exact = ALL_DRUGS.find((d) => d.name === name);
 	if (exact) return exact.name;
-	const key = name.toLowerCase().replace(/\s+/g, " ").trim();
+	const key = normaliseDrugSpelling(name);
 	const alias = DRUG_ALIASES.get(key);
 	if (alias && ALL_DRUGS.some((d) => d.name === alias)) return alias;
 	const byLabel = ALL_DRUGS.find(
