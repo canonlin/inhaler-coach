@@ -97,7 +97,7 @@ describe("quick lookup", () => {
 		assert.equal(JSON.stringify(r).includes(MRN), false, "病歷號碼沒有回來");
 		assert.equal(r.cases.length, 1);
 		assert.equal(r.cases[0].drug, "Symbicort");
-		assert.equal(r.cases[0].steps["MDI_搖"], "錯誤");
+		assert.equal(r.cases[0].steps.MDI_搖, "錯誤");
 		assert.equal(r.followups.length, 1);
 		assert.equal(r.followups[0].slot, "D14");
 		assert.equal(r.sessions.length, 1);
