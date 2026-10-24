@@ -14,24 +14,26 @@ test("E2E Smoke: App loads homepage and Stage 0 without runtime errors", async (
 	const indexHtml = path.join(distDir, "index.html");
 
 	/*
-	 * Deploying serves the app under /inhaler-coach/, and the router derives its
-	 * basename from the base the build was given. A dist left over from any
-	 * other base would be reused and the test would report on an app that is not
-	 * the one that ships, so the guard checks the base in index.html rather than
-	 * only whether the directory exists.
+	 * The app ships at the root (VITE_BASE=/) and this test serves that build
+	 * under /inhaler-coach/ through its own server. A dist left over from
+	 * another base would be reused and the test would report on an app that is
+	 * not the one that ships, so the guard checks the base in index.html rather
+	 * than only whether the directory exists.
+	 *
+	 * It used to look for "/inhaler-coach/assets/", which the shipping build
+	 * never produces — so the guard never matched, every single run rebuilt the
+	 * whole app, and on a machine that was low on memory the build sometimes
+	 * died and took the whole test file with it. The check is now the base the
+	 * app is actually built with.
 	 */
-	const builtWith = fs.existsSync(indexHtml)
-		? (fs
-				.readFileSync(indexHtml, "utf8")
-				.match(/\/(inhaler-coach)\/assets\//) || [])[1]
-		: null;
-	if (builtWith !== BASE) {
-		execSync(
-			`VITE_BASE=/${BASE === "inhaler-coach" ? "" : BASE} bun run build`,
-			{
-				stdio: "inherit",
-			},
-		);
+	const html = fs.existsSync(indexHtml)
+		? fs.readFileSync(indexHtml, "utf8")
+		: "";
+	const builtWithRoot = html.includes('"/assets/');
+	if (!builtWithRoot) {
+		execSync("VITE_BASE=/ bun run build", {
+			stdio: "inherit",
+		});
 	}
 	assert.ok(fs.existsSync(indexHtml), "index.html must exist for smoke test");
 
