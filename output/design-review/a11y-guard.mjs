@@ -62,8 +62,16 @@ const findings = [];
  * Without it the browser sees the sign-in form, and every check below would
  * be measuring the wrong screen. The pages that need the back office say so,
  * and the guard refuses to report a pass it did not earn.
+ *
+ * The sign-in goes through the application's own form. An earlier version
+ * injected the cookie into the browser instead, and on a machine where the
+ * cookie did not survive the trip the guard reported 「看到的是登入畫面」 —
+ * a guess about what was on the screen, not a measurement of it. Signing in
+ * the way a pharmacist signs in removes that guesswork: if the sign-in fails,
+ * the failure says what the server said.
  */
-const SESSION_TOKEN = process.env.DESIGN_SESSION_TOKEN;
+const SESSION_EMAIL = process.env.DESIGN_SESSION_EMAIL;
+const SESSION_PASSWORD = process.env.DESIGN_SESSION_PASSWORD;
 const NEEDS_SESSION = new Set([
 	"/admin",
 	"/admin/followups",
@@ -71,16 +79,95 @@ const NEEDS_SESSION = new Set([
 	"/admin/data",
 ]);
 
-for (const [name, path] of TARGETS) {
-	const context = await browser.newContext({
-		viewport: { width: 1440, height: 1000 },
-	});
-	if (SESSION_TOKEN) {
-		await context.addCookies([
-			{ name: "inhaler_admin", value: SESSION_TOKEN, url: BASE },
-		]);
+// One context for the whole run. The session lives in its cookie jar, exactly
+// as it does for a pharmacist on the counter tablet.
+const context = await browser.newContext({
+	viewport: { width: 1440, height: 1000 },
+});
+
+/** What the browser itself sees when it asks who it is. */
+async function browserMe(page) {
+	try {
+		const res = await page.evaluate(async () => {
+			const r = await fetch("/api/auth/me", { credentials: "same-origin" });
+			return { status: r.status, body: (await r.text()).slice(0, 160) };
+		});
+		return `/api/auth/me → ${res.status} ${res.body}`;
+	} catch (err) {
+		return `/api/auth/me → 連不到（${err.message}）`;
+	}
+}
+
+/**
+ * What is actually on the screen.
+ *
+ * A guard that says 「看到的是登入畫面」 when it did not look is a guard that
+ * can be wrong in the direction that matters: it hides the real failure
+ * behind a plausible one. This reads the page instead of assuming it.
+ */
+async function describePage(page) {
+	const title = await page.title().catch(() => "");
+	const body = await page
+		.locator("body")
+		.innerText()
+		.catch(() => "");
+	const flat = body.replace(/\s+/g, " ").trim().slice(0, 160);
+	return `頁面標題「${title}」 內容「${flat || "(空白)"}」 ${await browserMe(page)}`;
+}
+
+/** Sign in the way the pharmacist does: through the form on /admin. */
+async function signIn() {
+	if (!SESSION_EMAIL || !SESSION_PASSWORD) {
+		throw new Error("沒有 DESIGN_SESSION_EMAIL / DESIGN_SESSION_PASSWORD");
 	}
 	const page = await context.newPage();
+	try {
+		await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+		await page.fill("#signin-email", SESSION_EMAIL);
+		await page.fill("#signin-password", SESSION_PASSWORD);
+		await page.click('button[type="submit"]');
+		await page.waitForSelector('nav[aria-label="藥師工作區"]', {
+			timeout: 20000,
+		});
+	} catch (err) {
+		const alert = await page
+			.locator('[role="alert"]')
+			.first()
+			.innerText()
+			.catch(() => "");
+		throw new Error(
+			`登入失敗：${alert || err.message}；${await describePage(page)}`,
+		);
+	} finally {
+		await page.close();
+	}
+}
+
+if (SESSION_EMAIL && SESSION_PASSWORD) {
+	try {
+		await signIn();
+	} catch (err) {
+		// On stdout: the gate prints the check's stdout, and a reason that only
+		// goes to stderr is a reason nobody reads.
+		console.log(`✗ 登入：${err.message}`);
+		await context.close();
+		await browser.close();
+		process.exit(1);
+	}
+}
+
+for (const [name, path] of TARGETS) {
+	const page = await context.newPage();
+	const consoleErrors = [];
+	const failedRequests = [];
+	page.on("console", (m) => {
+		if (m.type() === "error") consoleErrors.push(m.text().slice(0, 120));
+	});
+	page.on("requestfailed", (r) => {
+		failedRequests.push(
+			`${r.url().slice(0, 80)} ${r.failure()?.errorText ?? ""}`,
+		);
+	});
 	await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
 	await page.waitForTimeout(1200);
 
@@ -90,14 +177,19 @@ for (const [name, path] of TARGETS) {
 		// page that has nothing to do with the design.
 		const signedIn = await page.locator('nav[aria-label="藥師工作區"]').count();
 		if (!signedIn) {
+			const detail = await describePage(page);
+			const extra = [
+				consoleErrors.length ? `主控台錯誤 ${consoleErrors.length}` : "",
+				failedRequests.length ? `失敗的請求 ${failedRequests.length}` : "",
+			]
+				.filter(Boolean)
+				.join("；");
 			findings.push({
 				page: name,
 				rule: "0 檢查前提",
-				detail:
-					"看到的是登入畫面，不是後台。設計檢查沒有在檢查它該檢查的東西。",
+				detail: `後台沒有出現在畫面上。${detail}${extra ? `（${extra}）` : ""}`,
 			});
 			await page.close();
-			await context.close();
 			continue;
 		}
 	}
@@ -234,9 +326,9 @@ for (const [name, path] of TARGETS) {
 		});
 	}
 	await page.close();
-	await context.close();
 }
 
+await context.close();
 await browser.close();
 
 console.log(`\na11y guard — ${BASE}`);

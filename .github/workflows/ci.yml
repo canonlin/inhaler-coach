@@ -78,22 +78,13 @@ jobs:
       # The design rules used to be checked on one laptop only. The gate opens
       # the back office, so it needs the API and the dev server up; a check that
       # opens /admin without a session measures the sign-in form and reports
-      # green on the wrong screen, so the session is created here.
-      - name: Start the dev API and Vite for the design gate
-        run: |
-          PORT=4183 node scripts/dev-api.mjs > /tmp/dev-api.log 2>&1 &
-          VITE_API_PROXY=http://localhost:4183 bunx vite --port 4185 > /tmp/vite.log 2>&1 &
-          for i in $(seq 1 40); do
-            if curl -sf http://localhost:4183/api/health > /dev/null && \
-               curl -sf http://localhost:4185/admin > /dev/null; then
-              echo "servers up"; exit 0
-            fi
-            sleep 3
-          done
-          echo "the servers did not start:"; cat /tmp/dev-api.log /tmp/vite.log; exit 1
-
+      # green on the wrong screen, so the session is created there.
+      #
+      # The script starts the servers and stops them again, in one process
+      # group: a runner that tears down a step's background processes between
+      # steps would leave the gate measuring an API that is no longer there.
       - name: Run the Design Gate
-        run: node output/design-review/design-gate.mjs
+        run: node scripts/design-gate.mjs
 
       - name: Run Unit Tests
         run: bun run test

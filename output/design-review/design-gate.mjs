@@ -90,13 +90,49 @@ for (const [label, cmd] of steps) {
 	try {
 		const out = execSync(cmd, {
 			encoding: "utf8",
-			env: { ...process.env, DESIGN_SESSION_TOKEN: session.token },
+			env: {
+				...process.env,
+				// The checks sign in through the application's own form, so they
+				// need the account rather than a token.
+				DESIGN_SESSION_EMAIL: session.email,
+				DESIGN_SESSION_PASSWORD: session.password,
+			},
 		});
 		console.log(`✓ ${label}\n${out.trim()}\n`);
 	} catch (e) {
 		failed += 1;
-		console.log(`✗ ${label}\n${(e.stdout ?? "").trim()}\n`);
+		// Both streams: a check that fails with an exception puts the reason on
+		// stderr, and a gate that swallows it reports a red light with no cause.
+		const out = [(e.stdout ?? "").trim(), (e.stderr ?? "").trim()]
+			.filter(Boolean)
+			.join("\n");
+		console.log(`✗ ${label}\n${out}\n`);
 	}
+}
+
+/**
+ * Were the servers still up when the checks finished?
+ *
+ * A server that dies while the checks run is a different failure from a rule
+ * that broke, and the difference is the whole point: a rule that was never
+ * measured is not a rule that passed. The browser checks take twenty seconds,
+ * which is long enough for a background server to go away — on a CI runner
+ * the previous step's processes are exactly the kind that do.
+ */
+const dead = [];
+for (const [name, url] of TARGETS) {
+	try {
+		const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+		if (!res.ok) dead.push(`${name} ${url} → HTTP ${res.status}`);
+	} catch (e) {
+		dead.push(`${name} ${url} → ${e.name}`);
+	}
+}
+if (dead.length) {
+	failed += 1;
+	console.log("✗ 服務存活\n");
+	for (const line of dead) console.log(`    ${line}`);
+	console.log("    檢查跑完時服務已經不在了；這些規則等於沒有被量過。\n");
 }
 
 await session.cleanup();

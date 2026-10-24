@@ -57,6 +57,13 @@ export async function openReviewerSession() {
 
 		return {
 			token,
+			// The credentials are handed over as well: the checks sign in through
+			// the application's own form rather than having a cookie injected
+			// into the browser. A cookie the browser never accepted is a cookie
+			// the check cannot trust, and the app's own sign-in is the path a
+			// pharmacist actually takes.
+			email,
+			password,
 			cleanup: async () => {
 				await query(`DELETE FROM admin_users WHERE email = $1`, [email]);
 				await pool.end();

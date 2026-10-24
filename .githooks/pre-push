@@ -34,4 +34,12 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 bun run test
 
+echo "🔒 [pre-push] Design gate (the back office, with a signed-in session)"
+# The gate opens /admin, so it needs the API and the dev server; the script
+# starts them, runs the checks and stops them again. It runs after the test
+# suite on purpose: the suite refuses to empty a database that holds clinical
+# rows, so by the time this runs the DATABASE_URL is known to be a scratch
+# database the gate may write its temporary account into.
+bun run design:gate
+
 echo "✅ [pre-push] Gates passed."

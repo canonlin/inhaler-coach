@@ -60,6 +60,23 @@ export default defineConfig(({ command }) => ({
 		port: 5173,
 		strictPort: true,
 		open: false,
+		// Dev only: the v2 API runs separately (bun run dev:api). In production
+		// these routes are served by the api/ directory on Vercel.
+		//
+		// The proxy is merged INTO the server settings rather than spread over
+		// them. Spreading a second `server` key over the first one replaced the
+		// whole object, so the moment VITE_API_PROXY was set the host, the port
+		// and strictPort silently disappeared: the dev server stopped listening
+		// on the interface it was told to, and a busy port moved it to another
+		// one instead of failing. A gate that then measured the wrong port
+		// would report green on the wrong server.
+		...(process.env.VITE_API_PROXY
+			? {
+					proxy: {
+						"/api": { target: process.env.VITE_API_PROXY, changeOrigin: true },
+					},
+				}
+			: {}),
 	},
 	// GitHub Pages serves a project site from /<repo>/, so built assets need that
 	// prefix — but the dev server is at the root, and applying it there just makes
@@ -79,15 +96,4 @@ export default defineConfig(({ command }) => ({
 	worker: {
 		format: "es",
 	},
-	// Dev only: the v2 API runs separately (bun run dev:api). In production
-	// these routes are served by the api/ directory on Vercel.
-	...(process.env.VITE_API_PROXY
-		? {
-				server: {
-					proxy: {
-						"/api": { target: process.env.VITE_API_PROXY, changeOrigin: true },
-					},
-				},
-			}
-		: {}),
 }));

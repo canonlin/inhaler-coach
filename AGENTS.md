@@ -13,10 +13,29 @@ create new branches. The remote branch `origin/feature/multimodal-v2` and
 Enforcement, not prose: `.github/workflows/ci.yml` runs only on `main` and
 `feature/multimodal-v2`, and the pre-push gate lives in the repository at
 `.githooks/pre-push` (not in `.git/hooks`, which dies with the clone). It runs
-lint, the lint budget, typecheck and the test suite — the same checks CI runs.
-`bun install` points git at it (`core.hooksPath`), and `bun run setup:hooks`
-re-installs it. All of it must be extended rather than trusted if the branch
-set changes.
+lint, the lint budget, typecheck, the test suite and the design gate — the same
+checks CI runs. `bun install` points git at it (`core.hooksPath`), and
+`bun run setup:hooks` re-installs it. All of it must be extended rather than
+trusted if the branch set changes.
+
+**The design gate runs the same way in all three places.** `scripts/design-gate.mjs`
+starts the dev API and the dev server, runs the checks, and stops the servers
+again; the pre-push hook, `bun run check:all` and CI all call that one script.
+It used to be three copies of "start two servers in the background", and the CI
+copy started them in one step and ran the gate in the next — a runner tears a
+step's background processes down when the step ends, so the gate measured an
+API that was no longer there and reported it as a design problem. One script,
+one behaviour: a gate that measures different things in different places is not
+a gate.
+
+**The gate signs in the way a pharmacist signs in.** It opens the back office's
+own sign-in form with a temporary account (random password, deleted after the
+run), rather than pushing a cookie into the browser. An injected cookie that
+the browser does not accept leaves the checks looking at the sign-in screen,
+and the old guard reported that as 「看到的是登入畫面」 — a guess about the
+screen rather than a measurement of it. Now a failure prints the page title,
+what was on the screen, and what `/api/auth/me` answered: the reason is in the
+output instead of in the next person's head.
 
 **A push is not done until CI is green.** `bun run push` pushes and then waits
 for that commit's CI run (`scripts/ci-watch.mjs`), and fails if the run is
