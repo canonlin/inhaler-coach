@@ -11,8 +11,17 @@ create new branches. The remote branch `origin/feature/multimodal-v2` and
 `gitlab/feature/multimodal-v2` both track this work.
 
 Enforcement, not prose: `.github/workflows/ci.yml` runs only on `main` and
-`feature/multimodal-v2`, and `.git/hooks/pre-push` runs `bun run typecheck` and
-`bun run test`. Both must be extended rather than trusted if the branch set changes.
+`feature/multimodal-v2`, and the pre-push gate lives in the repository at
+`.githooks/pre-push` (not in `.git/hooks`, which dies with the clone). It runs
+lint, the lint budget, typecheck and the test suite — the same checks CI runs.
+`bun install` points git at it (`core.hooksPath`), and `bun run setup:hooks`
+re-installs it. All of it must be extended rather than trusted if the branch
+set changes.
+
+**A push is not done until CI is green.** `bun run push` pushes and then waits
+for that commit's CI run (`scripts/ci-watch.mjs`), and fails if the run is
+red. Four pushes went out with a red CI in a row because nobody looked at the
+result; the looking is now a command that can fail.
 
 This is a **bun** project: `bun.lock` is the only lockfile and CI installs with
 `bun install --frozen-lockfile`. Use `bun run` / `bunx`, not `npm` / `npx` — a
@@ -51,11 +60,20 @@ is still the user's call.
 ## Formatting
 
 **Biome is the format, and the gate enforces it.** `bun run format` writes it
-(`src/ api/ test/ scripts/ output/`); `bun run lint` checks the same set. Do
-not hand-format a file and do not hand-edit whitespace: an edited-by-hand file
-is a file that drifts, and the formatter is the only thing that keeps the
+and `bun run lint` checks it, and the two have to agree: format is
+`biome check --write`, so it also sorts imports and applies the safe fixes the
+linter would ask for. It used to be `biome format --write`, which left import
+order alone — so "format then lint" never converged, CI stayed red for four
+days, and the red was invisible locally because nothing local ran lint. Do not
+hand-format a file and do not hand-edit whitespace: an edited-by-hand file is a
+file that drifts, and the formatter is the only thing that keeps the
 repository consistent. The bundled third-party assets under `collector/assets/`
 are not ours to format.
+
+**Warnings may not grow.** The complexity rules report 74 warnings today
+(`config/lint-budget.json`). `bun run lint:budget` fails when that number goes
+up, so the debt is a decision rather than an accident: fix it and lower the
+budget, or say out loud why the new warning is worth it.
 
 ## What this repository is
 

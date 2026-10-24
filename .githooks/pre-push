@@ -1,0 +1,37 @@
+#!/bin/bash
+# Pre-push gate. Runs the same checks CI runs, before the commit leaves the machine.
+#
+# It lives in the repository, not in .git/hooks, because a hook nobody else
+# has is not a gate: a fresh clone has no .git/hooks/pre-push, and the copy
+# that was there ran typecheck and the tests but NOT lint — so a red lint
+# (which is what CI failed on, for four days) still went through locally.
+#
+# Install it once per clone with `bun run setup:hooks` (postinstall does it
+# automatically).
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "🔒 [pre-push] Lint (biome)"
+bun run lint
+
+echo "🔒 [pre-push] Lint budget (no new warnings)"
+bun run lint:budget
+
+echo "🔒 [pre-push] Typecheck (tsc --noEmit)"
+bun run typecheck
+
+echo "🔒 [pre-push] Full test suite (unit + database integration)"
+# The suite truncates the clinical tables, so DATABASE_URL must point at a
+# database that may be emptied. scripts/test.mjs refuses to empty a database
+# that holds real cases and says so; that refusal is the gate working.
+# On this project's Neon instance that is the scratch database:
+#   DATABASE_URL=…/inhaler_test bun run test
+if [ -z "${DATABASE_URL:-}" ]; then
+	echo "❌ [pre-push] DATABASE_URL is not set. The suite queries a real Postgres."
+	echo "     Point it at a database that may be emptied (…/inhaler_test)."
+	exit 1
+fi
+bun run test
+
+echo "✅ [pre-push] Gates passed."
