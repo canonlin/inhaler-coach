@@ -443,6 +443,9 @@ describe("pharmacist tabs", () => {
 		// One patient measured before (2/2 steps wrong) and after (0/2 wrong).
 		// The figures themselves are asserted in the metrics tests; here the
 		// point is that they come from the database and reach the page.
+		await page.waitForSelector("[data-testid=error-rate-headline]", {
+			timeout: 15_000,
+		});
 		const headline = (
 			await page.textContent("[data-testid=error-rate-headline]")
 		)
@@ -473,6 +476,11 @@ describe("pharmacist tabs", () => {
 			await page.$("[data-testid=outcome-summary]"),
 			"the summary band stays; only the unsupported rate is withheld",
 		);
+		// Waited for: the tile that refuses the headline only exists once the
+		// figures for this cohort have arrived.
+		await page.waitForSelector("[data-testid=error-rate-blocked]", {
+			timeout: 15_000,
+		});
 		assert.equal(
 			await page.$("[data-testid=error-rate-headline]"),
 			null,
@@ -499,6 +507,18 @@ describe("pharmacist tabs", () => {
 	 * If a number drifts back into both places, this catches it.
 	 */
 	it("shows each headline number once", async () => {
+		/*
+		 * Waited for, not read at once.
+		 *
+		 * The band is not on screen until the figures arrive, and reading the
+		 * page in between measures a half-drawn screen: the band would be
+		 * empty, the rest would contain everything the band is about to say,
+		 * and the assertion below would be about the loading state rather
+		 * than about a number appearing twice.
+		 */
+		await page.waitForSelector("[data-testid=outcome-summary]", {
+			timeout: 15_000,
+		});
 		const band =
 			(await page.textContent("[data-testid=outcome-summary]")) ?? "";
 		const rest =
