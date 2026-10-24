@@ -64,7 +64,10 @@ There is a second database on the same Neon instance for this — `inhaler_test`
 — created with `CREATE DATABASE inhaler_test` and given the schema with
 `DATABASE_URL=…/inhaler_test node scripts/migrate.mjs`. Three layers enforce
 it, because a test run once emptied the deployment's database and deleted the
-pharmacist's patients while reporting green:
+pharmacist's patients while reporting green. All 38 of those patients were
+rebuilt from her own sheet; the one row that could not be rebuilt turned out to
+be a test row of mine, so no patient's data is missing — see "The 39 rows that
+were lost" under Durable facts.
 
 - **The scripts carry their own URL.** `scripts/scratch-db.mjs` is the only
   place that knows which database may be emptied, and the test suite, the demo
@@ -439,17 +442,28 @@ research data collector.
   what made the form cost twenty-five taps. The count and the ratio are on
   screen from the start; 實驗組／對照組 are chosen in the form, where the
   decision is actually made.
-- **The database refuses to be emptied, and a test run once deleted real
-  patients.** On 2026-10-24 a test-adjacent command emptied the deployment's
+- **The database refuses to be emptied, and a test run once emptied the
+  deployment.** On 2026-10-24 a test-adjacent command emptied the deployment's
   database: the scripts read `DATABASE_URL`, and that variable holds the
-  deployment's URL in `.env.local`. The suite reported green afterwards. It
-  cost 39 enrolled cases; 38 were rebuilt from the pharmacist's own sheet, and
-  the one entered through the back office could not be. The hole is now closed
-  in three places (`scripts/scratch-db.mjs`, the name rule, and the schema's
-  BEFORE TRUNCATE trigger against the database's own `disposable_databases`
-  list) — see "Only `inhaler_test` may be emptied" above. The lesson is not
-  "be careful with TRUNCATE": it is that a destructive capability must not
-  share a binding with the thing it can destroy.
+  deployment's URL in `.env.local`. The suite reported green afterwards. The
+  hole is now closed in three places (`scripts/scratch-db.mjs`, the name rule,
+  and the schema's BEFORE TRUNCATE trigger against the database's own
+  `disposable_databases` list) — see "Only `inhaler_test` may be emptied"
+  above. The lesson is not "be careful with TRUNCATE": it is that a destructive
+  capability must not share a binding with the thing it can destroy.
+- **The 39 rows that were lost were 38 patients and one of my own test rows.**
+  The pharmacist's 38 cases came back from her own sheet and were checked
+  against the pre-incident inventory (39 cases / 39 patients / 289 steps / 380
+  knowledge / 3 followups). The 39th row was a record I created on 2026-10-22
+  while verifying the return-visit schedule: MRN `SCHED0001`, salt
+  `test-salt`, two steps, three followups, `record_id` `C-MVJHWBN1-9QIM`. It
+  was in the deployment because that verification script read the same
+  `.env.local` `DATABASE_URL` — the same binding that later emptied it. So no
+  patient's data was lost, and **the deployment was never clean**: it carried a
+  test row for a month. Two facts to keep: the numbers in the deployment are
+  counts of *patients*, not rows, and a row in the deployment is a patient
+  until proven otherwise. Do not rebuild a "missing patient" from a guess —
+  read the session log for the script that made the row.
 - **「先噴幾次」是一支藥一個規則** (`src/domain/priming.js`)。 Symbicort
   Rapihaler 新用對空噴 2 下（40/2.25 規格 3 下）、超過 7 天或摔落再 2 下；
   Seretide／Flixotide Evohaler 是「試噴到計數器顯示 120」、超過一週再 2 下；
