@@ -49,6 +49,13 @@
 		"roles": ["maintenance"]
 	},
 	{
+		"id": "Berotec_N",
+		"displayName": "Berotec N 200 dose/btl",
+		"type": "MDI",
+		"ICS": false,
+		"roles": ["maintenance"]
+	},
+	{
 		"id": "Ventolin_Evohaler",
 		"displayName": "Ventolin Evohaler",
 		"type": "MDI",

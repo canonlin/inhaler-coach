@@ -33,6 +33,7 @@ const TO_REPO: Record<string, DeviceKind> = {
 	Breztri_Aerosphere: "MDI",
 	Trimbow_Inhalation: "MDI",
 	Bevespi_Aerosphere: "MDI",
+	Berotec_N: "MDI",
 	Ventolin_Evohaler: "MDI",
 	Relvar_Ellipta: "ELP",
 	Trelegy_92: "ELP",
