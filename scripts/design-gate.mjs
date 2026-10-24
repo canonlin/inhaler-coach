@@ -16,6 +16,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
+import { scratchDatabaseUrl } from "./scratch-db.mjs";
 
 const API_PORT = Number(process.env.DESIGN_API_PORT ?? 4183);
 const WEB_PORT = Number(process.env.DESIGN_WEB_PORT ?? 4185);
@@ -58,12 +59,19 @@ async function waitFor(url, label) {
 	return false;
 }
 
-if (!process.env.DATABASE_URL) {
-	console.error(
-		"❌ DATABASE_URL 沒有設定。設計閘門要登入後台，而登入要連資料庫。",
-	);
-	process.exit(1);
-}
+/**
+ * The disposable database, and only that one.
+ *
+ * The gate signs in as a temporary administrator, which means it writes to the
+ * database: it creates an account and deletes it afterwards. So it runs
+ * against the scratch database — the URL comes from scratchDatabaseUrl(),
+ * which resolves to `inhaler_test` and refuses anything else. The deployment's
+ * database is not reachable from here by configuration.
+ *
+ * It is also put back into DATABASE_URL, because the dev API and the dev
+ * server it starts have to talk to the same database as the checks do.
+ */
+process.env.DATABASE_URL = scratchDatabaseUrl();
 
 const busy = [];
 if (await inUse(API_PORT)) busy.push(API_PORT);

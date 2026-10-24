@@ -364,3 +364,64 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
 
 CREATE INDEX IF NOT EXISTS admin_sessions_user_idx ON admin_sessions (admin_user_id);
 CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions (expires_at);
+
+-- The database refuses to be emptied.
+--
+-- The test suite and the demo seed truncate these tables, and they used to be
+-- pointed at the deployment's database — so a test run, a demo seed, or one
+-- line of ad-hoc SQL could delete the pharmacist's patients and still report
+-- green. The scripts now carry their own URL and refuse anything but a
+-- disposable database (scripts/scratch-db.mjs); this is the layer that
+-- survives a typo, a pasted command line, and an agent holding the
+-- credentials in its environment.
+--
+-- The decision lives here, in the database, and it is made by name: a
+-- database empties itself only if its own name is on the disposable list.
+-- There is no session flag to set, no permission to grant and no override to
+-- pass — the deployment's database (neondb) simply is not on the list, so
+-- TRUNCATE fails there even for someone who has the URL and the password.
+-- What the pharmacist's records are worth is not a decision a flag in a shell
+-- can take back.
+CREATE TABLE IF NOT EXISTS disposable_databases (
+  name text PRIMARY KEY,
+  -- Why this database may be emptied. Written by scripts/migrate.mjs.
+  note text NOT NULL DEFAULT 'scratch database'
+);
+
+CREATE OR REPLACE FUNCTION guard_clinical_truncate() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM disposable_databases WHERE name = current_database()
+  ) THEN
+    RAISE EXCEPTION
+      'refusing to empty %: the database % is not on the disposable list. Only a scratch database may be emptied.',
+      TG_TABLE_NAME, current_database()
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+-- The clinical tables, and only those: the administrator's accounts, sessions
+-- and configuration are not ours to clear, and they are not emptied by the
+-- suite either.
+DO $$
+DECLARE
+  t text;
+  clinical text[] := ARRAY[
+    'patients', 'cases', 'case_steps', 'case_knowledge',
+    'clinical_measurements', 'med_reconciliation', 'physician_queries',
+    'sessions', 'session_stages', 'followups',
+    'line_identities', 'line_deliveries', 'line_events', 'line_medications'
+  ];
+BEGIN
+  FOREACH t IN ARRAY clinical LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS guard_clinical_truncate ON %I', t);
+    EXECUTE format(
+      'CREATE TRIGGER guard_clinical_truncate BEFORE TRUNCATE ON %I FOR EACH STATEMENT EXECUTE FUNCTION guard_clinical_truncate()',
+      t
+    );
+  END LOOP;
+END;
+$$;

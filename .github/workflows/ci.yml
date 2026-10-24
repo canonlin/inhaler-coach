@@ -22,7 +22,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_PASSWORD: ci
-          POSTGRES_DB: inhaler
+          POSTGRES_DB: inhaler_test
         ports:
           - 5432:5432
         options: >-
@@ -32,7 +32,9 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgres://postgres:ci@localhost:5432/inhaler
+      # The database's name decides what may be emptied: only inhaler_test
+      # may be, and the schema's guard refuses anywhere else.
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/inhaler_test
       MRN_SALT: ci-salt-not-for-production
 
     steps:

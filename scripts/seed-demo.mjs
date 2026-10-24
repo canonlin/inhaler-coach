@@ -5,6 +5,12 @@
  * Uses the published baseline aggregates, so this is demo data for rendering —
  * not a reconstruction of the real patient records.
  *
+ * It empties the clinical tables first, so it only ever runs against the
+ * disposable database: the URL comes from scratchDatabaseUrl(), which resolves
+ * to `inhaler_test` and refuses anything else. The deployment's database is
+ * not reachable from here by configuration, and its own schema refuses to be
+ * emptied (db/schema.sql).
+ *
  * Run: DATABASE_URL=... node scripts/seed-demo.mjs
  */
 import { createPool } from "../api/db.mjs";
@@ -12,12 +18,9 @@ import { makeRoutes } from "../api/routes.mjs";
 import { drugOf } from "../src/domain/drugs.js";
 import { PHARMACISTS } from "../src/domain/roster.js";
 import { BASELINE_WRONG, baselineRows } from "../test/fixtures/baseline-61.mjs";
+import { scratchDatabaseUrl } from "./scratch-db.mjs";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-	console.error("DATABASE_URL is not set");
-	process.exit(2);
-}
+const url = scratchDatabaseUrl();
 
 const pool = createPool(url);
 await pool.query(

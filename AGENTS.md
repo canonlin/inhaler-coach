@@ -59,14 +59,34 @@ runs with `--test-concurrency=1` because those files truncate shared tables.
 `bun run seed:demo` truncates too, and what it writes is demo data, not study
 data — read "Durable facts" below before quoting any number it produces.
 
-**Once the pharmacist starts enrolling, run the suite on a scratch database.**
-The guard in `scripts/test.mjs` refuses to empty a database that holds clinical
-rows, and `ALLOW_TRUNCATE=1` is the wrong answer to that: it deletes real
-patients. There is a second database on the same Neon instance for this —
-`inhaler_test` — created with `CREATE DATABASE inhaler_test`, given the schema
-with `DATABASE_URL=…/inhaler_test node scripts/migrate.mjs`, and used as
-`DATABASE_URL=…/inhaler_test bun run test`. The deployment's database is then
-never touched by a test run.
+**Only `inhaler_test` may be emptied, and the database itself says so.**
+There is a second database on the same Neon instance for this — `inhaler_test`
+— created with `CREATE DATABASE inhaler_test` and given the schema with
+`DATABASE_URL=…/inhaler_test node scripts/migrate.mjs`. Three layers enforce
+it, because a test run once emptied the deployment's database and deleted the
+pharmacist's patients while reporting green:
+
+- **The scripts carry their own URL.** `scripts/scratch-db.mjs` is the only
+  place that knows which database may be emptied, and the test suite, the demo
+  seed and the design gate all take their URL from it — never from
+  `DATABASE_URL`. With only the deployment's URL in `.env.local`, `bun run
+  test` resolves to `inhaler_test`; the mistake is not expressible.
+- **The name decides.** Only a database named `inhaler_test` (or another name
+  on the list in `scripts/scratch-db.mjs`) may be emptied, and
+  `DATABASE_URL_SCRATCH` pointing anywhere else is refused with an
+  explanation. There is no `ALLOW_TRUNCATE`: a flag that empties real patients
+  is not a flag.
+- **The database refuses.** `db/schema.sql` installs a BEFORE TRUNCATE trigger
+  on the clinical tables, and the trigger asks the database's own
+  `disposable_databases` list whether this database may be emptied. The
+  deployment's database (`neondb`) is not on that list, so `TRUNCATE` fails
+  there even for someone holding the URL and the password. The migration adds
+  the scratch database to the list; it never adds the deployment's.
+
+So: `DATABASE_URL=…/inhaler_test bun run test`, or just `bun run test` — it
+will use the scratch database. The deployment's database is not reachable from
+the test suite by configuration, and it refuses to be emptied at the database
+itself.
 
 ## Commit rule
 
@@ -220,9 +240,6 @@ research data collector.
   exactly six routes and lives in `PUBLIC_ENDPOINTS` (`api/auth.mjs`); anything
   not on it needs a session. `POST /api/sessions` is on it and must stay there —
   a login on the patient end would break the zero-install promise.
-- The patient's browser is never a session. `POST /api/sessions` writes a
-  coaching session anonymously and the record number is hashed server-side; the
-  pharmacist's read of it (`GET /api/sessions/pending`) is a protected route.
 - **A check that opens the back office has to sign in.** The design gate
   creates a temporary account with a random password, signs in, and hands the
   session to the checks that need it (`output/design-review/session.mjs`). A
@@ -398,13 +415,17 @@ research data collector.
   what made the form cost twenty-five taps. The count and the ratio are on
   screen from the start; 實驗組／對照組 are chosen in the form, where the
   decision is actually made.
-- **The suite refuses to empty a database that has patients in it**
-  (`scripts/test.mjs`). The project's Neon database is both the test database
-  and the deployment's database, so a test run on a laptop would delete real
-  records and still report green. The gate asks the database whether there is
-  anything to lose and stops with an explanation; `ALLOW_TRUNCATE=1` overrides
-  it. The suite also cleans up after itself, so the next run starts from an
-  empty database and the question stays honest.
+- **The database refuses to be emptied, and a test run once deleted real
+  patients.** On 2026-10-24 a test-adjacent command emptied the deployment's
+  database: the scripts read `DATABASE_URL`, and that variable holds the
+  deployment's URL in `.env.local`. The suite reported green afterwards. It
+  cost 39 enrolled cases; 38 were rebuilt from the pharmacist's own sheet, and
+  the one entered through the back office could not be. The hole is now closed
+  in three places (`scripts/scratch-db.mjs`, the name rule, and the schema's
+  BEFORE TRUNCATE trigger against the database's own `disposable_databases`
+  list) — see "Only `inhaler_test` may be emptied" above. The lesson is not
+  "be careful with TRUNCATE": it is that a destructive capability must not
+  share a binding with the thing it can destroy.
 - **「先噴幾次」是一支藥一個規則** (`src/domain/priming.js`)。 Symbicort
   Rapihaler 新用對空噴 2 下（40/2.25 規格 3 下）、超過 7 天或摔落再 2 下；
   Seretide／Flixotide Evohaler 是「試噴到計數器顯示 120」、超過一週再 2 下；
