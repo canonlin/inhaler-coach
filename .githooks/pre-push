@@ -29,7 +29,9 @@ echo "🔒 [pre-push] Full test suite (unit + database integration)"
 #   DATABASE_URL=…/inhaler_test bun run test
 if [ -z "${DATABASE_URL:-}" ]; then
 	echo "❌ [pre-push] DATABASE_URL is not set. The suite queries a real Postgres."
-	echo "     Point it at a database that may be emptied (…/inhaler_test)."
+	echo "     The suite empties the SCRATCH database (the library name in the URL is"
+	echo "     swapped for inhaler_test), so the deployment's database is never touched:"
+	echo "       DATABASE_URL=…/inhaler bun run test"
 	exit 1
 fi
 bun run test
