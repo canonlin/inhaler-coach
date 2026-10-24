@@ -40,7 +40,14 @@ export function OutcomeSummary({
 	engagement: Summary["engagement"];
 }) {
 	const hasBoth = baseline.cases > 0 && after.cases > 0;
-	const testable = Boolean(paired && paired.paired > 0);
+	/*
+	 * The gate is the denominator: the same people measured twice.
+	 *
+	 * `measured` is that number. The McNemar n (`paired`) counts only the
+	 * people whose result changed, so gating on it would withhold the headline
+	 * whenever nobody changed — which is a finding, not an absence of data.
+	 */
+	const testable = Boolean(paired && paired.measured > 0);
 	const delta = hasBoth ? baseline.errorRate - after.errorRate : null;
 
 	return (
@@ -90,7 +97,10 @@ export function OutcomeSummary({
 							data-testid="error-rate-support"
 							className="mt-1.5 text-caption leading-snug text-text-secondary"
 						>
-							配對 {paired?.paired} 人 · 改善 {paired?.b} · 退步 {paired?.c}
+							配對 {paired?.measured} 人 · 改善 {paired?.b} · 退步 {paired?.c}
+							{paired && paired.b + paired.c === 0 && (
+								<span> · 沒有人改變</span>
+							)}
 							{paired?.p != null && (
 								<>
 									{" · "}
@@ -116,7 +126,7 @@ export function OutcomeSummary({
 						</p>
 						<p className="mt-1.5 text-caption leading-snug text-text-secondary">
 							改善前 {baseline.cases} 例、改善後 {after.cases} 例，
-							{paired?.paired === 0 ? "但重疊 0 人" : "無法定義前後測"}
+							{paired?.measured === 0 ? "但重疊 0 人" : "無法定義前後測"}
 							—— 沒有同一批病人就看不出變化。
 						</p>
 					</>

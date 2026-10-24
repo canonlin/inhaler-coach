@@ -130,6 +130,22 @@ describe("McNemar, exact binomial", () => {
 		assert.equal(r.paired, 1);
 	});
 
+	it("also says how many people were measured on both sides", () => {
+		// Two numbers, two meanings: `measured` is the denominator, `paired`
+		// is the McNemar n (the people whose result changed). A screen that
+		// prints 「配對 N 人」 has to mean one of them and say which.
+		const r = mcnemar([
+			row("a", "改善前", bad),
+			row("a", "改善後", good),
+			row("b", "改善前", bad),
+			row("b", "改善後", bad), // unchanged
+			row("c", "改善前", good),
+			row("c", "改善後", good), // unchanged
+		]);
+		assert.equal(r.measured, 3, "three people were measured twice");
+		assert.equal(r.paired, 1, "only one of them changed");
+	});
+
 	it("gives the exact two-sided p for 9 improvements and 0 regressions", () => {
 		const rows = [];
 		for (let i = 0; i < 9; i += 1) {

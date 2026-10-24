@@ -391,7 +391,15 @@ describe("pharmacist tabs", () => {
 		const tabs = await page.$$eval(`${NAV_A} > span:first-child`, (n) =>
 			n.map((x) => x.textContent.trim()),
 		);
-		assert.deepEqual(tabs, ["收案評估", "追蹤清單", "成效", "衛教內容"]);
+		// 快速查詢 is one of the four blocks the back office was promised on
+		// 2026-10-19 (10/19 會議【五】); it is the third of them to exist.
+		assert.deepEqual(tabs, [
+			"收案評估",
+			"追蹤清單",
+			"快速查詢",
+			"成效",
+			"衛教內容",
+		]);
 		assert.equal(
 			await page.$$eval(NAV, (n) => n.length),
 			1,

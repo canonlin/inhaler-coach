@@ -26,6 +26,7 @@ import { ContentSettings } from "./pharmacist/ContentSettings";
 import { FollowupList } from "./pharmacist/components/FollowupList";
 import { DataTransfer } from "./pharmacist/DataTransfer";
 import { Outcomes } from "./pharmacist/Outcomes";
+import { QuickLookup } from "./pharmacist/QuickLookup";
 import { sectionFor } from "./pharmacist/SideNav";
 
 /**
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
 		children: [
 			{ index: true, element: <CaseEntry /> },
 			{ path: "followups", element: <FollowupList /> },
+			{ path: "lookup", element: <QuickLookup /> },
 			{ path: "outcomes", element: <Outcomes /> },
 			{ path: "settings", element: <ContentSettings /> },
 			{ path: "data", element: <DataTransfer /> },

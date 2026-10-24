@@ -16,6 +16,11 @@ import {
 	slotPriority,
 	slotTask,
 } from "../src/domain/followup-schedule.js";
+import {
+	PROGRAMME_QCC,
+	PROGRAMME_RESEARCH,
+	PROGRAMMES,
+} from "../src/domain/programmes.js";
 import { KNOWLEDGE, PHARMACISTS } from "../src/domain/roster.js";
 import { stageVerdicts } from "../src/domain/stages.js";
 import { ALL_STEP_CODES, isCritical } from "../src/domain/steps.js";
@@ -50,6 +55,7 @@ import {
 	stepErrorRates,
 	summarise,
 } from "./metrics.mjs";
+import { researchOutcome } from "./outcomes.mjs";
 import { writeXlsx } from "./xlsx.mjs";
 
 // Re-exported so the callers that already import HttpError from here keep
@@ -723,6 +729,56 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		return { ok: true, found: true, cases: rows.map(present) };
 	}
 
+	/**
+	 * POST /api/patients/lookup — one patient's whole record.
+	 *
+	 * The quick lookup the back office was promised (10/19 會議【五】): type the
+	 * record number, see everything the platform holds about that patient — the
+	 * visits, the planned return visits and the camera practice.
+	 *
+	 * The record number is hashed server-side and never comes back; the tail is
+	 * shown so the pharmacist can recognise the row they found without the page
+	 * carrying an identifier it does not need.
+	 */
+	async function lookupPatient(body) {
+		const mrn = String(body?.mrn ?? "").trim();
+		if (!mrn) bad("mrn is required");
+		const hash = hashMrn(mrn, salt);
+		const { rows: people } = await query(
+			`SELECT id, mrn_tail FROM patients WHERE mrn_hash = $1`,
+			[hash],
+		);
+		if (!people.length) return { ok: true, found: false };
+		const patient = people[0];
+		const { rows: caseRows } = await query(
+			`${ROW_SQL} WHERE p.mrn_hash = $1 ORDER BY c.case_date DESC, c.id DESC`,
+			[hash],
+		);
+		const { rows: followupRows } = await query(
+			`SELECT id, case_id, task, due_start, due_end, priority, status, slot,
+			        completed_at, completed_by, completed_note
+			   FROM followups
+			  WHERE patient_id = $1
+			  ORDER BY due_start DESC, id DESC`,
+			[patient.id],
+		);
+		const { rows: sessionRows } = await query(
+			`SELECT id, case_id, device, drug, started_at, completed_at
+			   FROM sessions
+			  WHERE patient_id = $1
+			  ORDER BY started_at DESC, id DESC`,
+			[patient.id],
+		);
+		return {
+			ok: true,
+			found: true,
+			mrnTail: patient.mrn_tail,
+			cases: caseRows.map(present),
+			followups: followupRows,
+			sessions: sessionRows,
+		};
+	}
+
 	/** GET /api/cases — filters: qccStage, timepoint, campus, pharmacist, drug, device, patientId */
 	async function listCases(q = {}) {
 		const where = [];
@@ -868,6 +924,39 @@ export function makeRoutes({ query, salt, lineTransport }) {
 				enrolled: await enrolledCount(),
 			},
 			engagement: await engagement(),
+		};
+	}
+
+	/**
+	 * GET /api/outcomes — every programme's measurement, one entry each.
+	 *
+	 * The outcomes screen has one tab per programme, and this is where the tabs
+	 * come from: the registry in src/domain/programmes.js says which programmes
+	 * exist, and each entry carries its own measurement.
+	 *
+	 * The QCC's numbers are unchanged by this — they are the same summary the
+	 * dashboard has always shown. The research plan's numbers are counted over
+	 * the people who were given a group, never over the QCC's enrolments: the
+	 * two programmes share the cases and they do not share a denominator.
+	 */
+	async function outcomes(q = {}) {
+		const qcc = await summary(q);
+		const { rows } = await query(`${ROW_SQL} WHERE c.study_arm IS NOT NULL`);
+		const measurements = {
+			[PROGRAMME_QCC]: qcc,
+			[PROGRAMME_RESEARCH]: researchOutcome(rows.map(shape)),
+		};
+		return {
+			ok: true,
+			programmes: PROGRAMMES.map((p) => ({
+				id: p.id,
+				label: p.label,
+				scope: p.scope,
+				measurement: p.measurement,
+				denominator: p.denominator,
+				note: p.note,
+				data: measurements[p.id],
+			})),
 		};
 	}
 
@@ -1389,7 +1478,9 @@ export function makeRoutes({ query, salt, lineTransport }) {
 		createCase,
 		listCases,
 		lookupCases,
+		lookupPatient,
 		summary,
+		outcomes,
 		recordSession,
 		reference,
 		followups,
@@ -1442,6 +1533,11 @@ export function shape(r) {
 		qccStage: r.qcc_stage,
 		device: r.device,
 		drug: r.drug,
+		// The research plan's group, when this case was given one. It travels
+		// with the row so the research measurement can count it; the QCC's
+		// statistics do not read it, and a case with none was never in the
+		// study.
+		studyArm: r.study_arm ?? null,
 		steps: r.steps ?? {},
 		knowledgeScore: r.knowledge_score,
 	};

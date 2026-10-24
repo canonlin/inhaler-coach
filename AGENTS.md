@@ -240,6 +240,19 @@ research data collector.
   exactly six routes and lives in `PUBLIC_ENDPOINTS` (`api/auth.mjs`); anything
   not on it needs a session. `POST /api/sessions` is on it and must stay there —
   a login on the patient end would break the zero-install promise.
+- **快速查詢 is one of the four blocks the back office was promised, and it is
+  built.** 10/19 會議【五】 named them: 收案評估／完整追蹤清單／快速查詢／成效
+  分析. Three of the four existed; 快速查詢 did not, and nothing in the code or
+  the old app used the words — it came from the meeting notes, not from a
+  screen. It is now `/admin/lookup`: type a record number, see that patient's
+  whole record (visits with their checklist results, the planned return visits,
+  the camera practice). It is a separate screen from 收案評估 on purpose:
+  entering a record number there starts an enrollment, here it only reads. The
+  record number is hashed server-side and never travels in a query string, and
+  the screen shows only the tail.
+- The patient's browser is never a session. `POST /api/sessions` writes a
+  coaching session anonymously and the record number is hashed server-side; the
+  pharmacist's read of it (`GET /api/sessions/pending`) is a protected route.
 - **A check that opens the back office has to sign in.** The design gate
   creates a temporary account with a random password, signs in, and hands the
   session to the checks that need it (`output/design-review/session.mjs`). A
@@ -397,6 +410,17 @@ research data collector.
   QCC's 收案 and 成效 numbers are the QCC's and the research analysis may not
   take them as its denominator. When a question asks 「這筆算不算」, the first
   answer is which programme is asking.
+- **The programmes are declared in one file, and the outcomes screen has a tab
+  per programme.** `src/domain/programmes.js` says, for each programme, who it
+  counts (scope), how it is measured (measurement) and what its denominator is
+  — and the API reads the same file, so the screen shows what the server
+  measured rather than a list the screen keeps on its own. `GET /api/outcomes`
+  returns one entry per programme; the navigation stays 收案評估／追蹤清單／
+  快速查詢／成效／衛教內容 whatever number of programmes arrive, because the
+  navigation is the pharmacist's jobs and a measurement is not a job. The
+  research tab withholds the comparison between the two groups until both
+  sides carry enough people for the difference to be about the intervention —
+  the numbers are shown either way, because they are real.
 - **The arm belongs to the patient, not to the row.** A patient who already has
   an arm keeps it: the M1 assessment and a re-enrollment are the same person,
   and a second arm would put one patient in two groups and turn the balance on

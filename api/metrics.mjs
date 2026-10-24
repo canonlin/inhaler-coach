@@ -110,7 +110,7 @@ function isLater(a, b) {
  * changed, the test cannot distinguish that from no evidence.
  *
  * @param {Array<object>} pairedRows rows carrying a patientId
- * @returns {{paired: number, b: number, c: number, p: number|null}}
+ * @returns {{measured: number, paired: number, b: number, c: number, p: number|null}}
  */
 export function mcnemar(pairedRows) {
 	/** patientId -> stage -> { wrong, row } */
@@ -145,19 +145,26 @@ export function mcnemar(pairedRows) {
 
 	let b = 0;
 	let c = 0;
+	// How many people were measured on both sides. This is not the same as the
+	// McNemar n below: `paired` counts only the people whose result changed,
+	// because only they carry information for the test. The people measured
+	// twice are the denominator, and a screen that says 「配對 N 人」 has to say
+	// which N it means.
+	let measured = 0;
 	for (const entry of byPatient.values()) {
 		if (entry.before === undefined || entry.after === undefined) continue;
+		measured += 1;
 		const before = entry.before.wrong;
 		const after = entry.after.wrong;
 		if (before && !after) b += 1;
 		else if (!before && after) c += 1;
 	}
 	const paired = b + c;
-	if (paired === 0) return { paired: 0, b, c, p: null };
+	if (paired === 0) return { measured, paired: 0, b, c, p: null };
 	// Two-sided exact binomial under H0: discordant pairs split 50/50.
 	const k = Math.min(b, c);
 	const p = Math.min(1, 2 * binomialCdf(k, paired, 0.5));
-	return { paired, b, c, p: Math.round(p * 10000) / 10000 };
+	return { measured, paired, b, c, p: Math.round(p * 10000) / 10000 };
 }
 
 /** P(X <= k) for X ~ Binomial(n, p). */

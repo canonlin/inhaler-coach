@@ -21,6 +21,7 @@ const BASE = process.env.BASE ?? "http://localhost:4185";
 const PAGES = [
 	["admin", "/admin"],
 	["queue", "/admin/followups"],
+	["lookup", "/admin/lookup"],
 	["outcomes", "/admin/outcomes"],
 	["data", "/admin/data"],
 	["line", "/line"],
@@ -75,6 +76,7 @@ const SESSION_PASSWORD = process.env.DESIGN_SESSION_PASSWORD;
 const NEEDS_SESSION = new Set([
 	"/admin",
 	"/admin/followups",
+	"/admin/lookup",
 	"/admin/outcomes",
 	"/admin/data",
 ]);

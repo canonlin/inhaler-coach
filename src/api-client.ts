@@ -37,6 +37,16 @@ export interface Reference {
 }
 
 export interface PairedResult {
+	/**
+	 * People measured on both sides — the before/after comparison's
+	 * denominator.
+	 */
+	measured: number;
+	/**
+	 * People whose result changed. This is the McNemar n: only a changed
+	 * result carries information for the test, so it is not the same number as
+	 * `measured`.
+	 */
 	paired: number;
 	b: number;
 	c: number;
@@ -149,6 +159,71 @@ export interface Summary {
 	enrolment: { target: number; enrolled: number };
 }
 
+/**
+ * One programme's declaration: who it counts, how it is measured, and what its
+ * denominator is.
+ *
+ * The declaration comes from src/domain/programmes.js, which the API also
+ * reads — so the screen shows what the server measured, not a list the screen
+ * keeps on its own.
+ */
+export interface ProgrammeMeta {
+	id: string;
+	label: string;
+	scope: string;
+	measurement: string;
+	/** What the numbers are counted over, in the pharmacist's words. */
+	denominator: string;
+	note?: string;
+}
+
+/** One arm of the research plan, measured on its own. */
+export interface GroupOutcome {
+	arm: string;
+	label: string;
+	/** People in this group, across every visit. */
+	people: number;
+	before: TechniqueStats;
+	after: TechniqueStats;
+	/** McNemar on the people measured twice. */
+	paired: PairedResult;
+}
+
+/** The research plan's measurement: two groups, 吸必擴 only. */
+export interface ResearchOutcome {
+	groups: GroupOutcome[];
+	/** Both groups have enough people for the comparison to mean something. */
+	enough: boolean;
+	/** People in the study, across both groups. */
+	people: number;
+	/** The plan's own number of people, printed beside the count. */
+	target: number;
+	comparison: {
+		experimentalAfter: number;
+		controlAfter: number;
+		/** control − experimental: positive means the AI group is doing better. */
+		gap: number;
+		experimentalPeople: number;
+		controlPeople: number;
+	} | null;
+}
+
+/**
+ * A programme and its measurement.
+ *
+ * The id is the join: the screen switches on it to know which measurement it
+ * is looking at, and the two shapes below say what that measurement carries.
+ */
+export type ProgrammeEntry =
+	| (ProgrammeMeta & { id: "qcc"; data: Summary })
+	| (ProgrammeMeta & { id: "research"; data: ResearchOutcome });
+
+export interface OutcomesResponse {
+	ok: true;
+	/** One entry per programme, in the order the screen shows them. */
+	programmes: ProgrammeEntry[];
+}
+
 const base = import.meta.env.VITE_API_BASE ?? "";
 
 /** The API's origin, or "" when it is served from the same one. */
@@ -219,6 +294,12 @@ async function get<T>(
 
 export const fetchSummary = (params?: { qccStage?: string; target?: number }) =>
 	get<Summary>("/api/metrics/summary", params);
+
+/** Every programme's measurement, in one response. */
+export const fetchOutcomes = (params?: {
+	qccStage?: string;
+	target?: number;
+}) => get<OutcomesResponse>("/api/outcomes", params);
 
 export const fetchReference = () => get<Reference>("/api/reference");
 
@@ -312,6 +393,57 @@ export interface CaseRow {
  * travels in a query string, where it would land in browser history, proxy
  * logs and any link a pharmacist pastes to a colleague.
  */
+/** A planned return visit, as the back office records it. */
+export interface FollowupRow {
+	id: string;
+	case_id: string | null;
+	task: string;
+	due_start: string;
+	due_end: string;
+	priority: string;
+	status: "open" | "done" | "missed" | "superseded";
+	slot: string | null;
+	completed_at: string | null;
+	completed_by: string | null;
+	completed_note: string | null;
+}
+
+/** One camera practice session. */
+export interface PracticeSession {
+	id: string;
+	case_id: string | null;
+	device: string;
+	drug: string | null;
+	started_at: string;
+	completed_at: string | null;
+}
+
+/**
+ * One patient's whole record.
+ *
+ * POST rather than GET: the record number is hashed server-side and never
+ * travels in a query string, where it would land in browser history, proxy
+ * logs and any link a pharmacist pastes to a colleague.
+ */
+export interface PatientLookup {
+	ok: true;
+	found: boolean;
+	/** The tail of the record number, so the row can be recognised. */
+	mrnTail?: string;
+	cases?: CaseRow[];
+	followups?: FollowupRow[];
+	sessions?: PracticeSession[];
+}
+
+export async function lookupPatient(mrn: string): Promise<PatientLookup> {
+	const json = await request<PatientLookup>(`${base}/api/patients/lookup`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ mrn: mrn.trim() }),
+	});
+	return json;
+}
+
 export async function lookupCases(mrn: string): Promise<CaseRow[]> {
 	if (!mrn.trim()) return [];
 	const json = await request<{ cases?: CaseRow[] }>(
