@@ -107,6 +107,12 @@ research data collector.
   `public/drugs/shot/` holds one 1376×768 studio picture per product — the same
   white-to-light-grey gradient, soft light and right-third framing as the
   Symbicort hero the patient intro page leads with (`public/inhaler_bg.jpg`).
+  Every device carries its brand name printed on the body, the way the hero
+  does, because a patient has to recognise their own inhaler. The shots were
+  drawn against the real device photographs: Ventolin is teal on a navy base,
+  Berotec N is white with a teal cap, Ultibro Breezhaler is white with teal
+  markings, Duasma is a white bottle with a beige cap, and the Respimat caps
+  are green for Spiolto, teal for Spiriva and yellow for Striverdi.
   `src/domain/drugs.js` carries the mapping (`shot` on each drug, one catalogue,
   one list) and `test/product-shots.test.js` refuses a product without a picture
   or a picture without a product. **They are illustrations**: shape, proportion
