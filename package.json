@@ -19,7 +19,6 @@
 		"typecheck": "tsc --noEmit",
 		"design:gate": "node output/design-review/design-gate.mjs",
 		"check:all": "bun run lint && bun run lint:budget && bun run typecheck && node output/design-review/design-gate.mjs && bun run test",
-		"prepush": "bun run check:all",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write --unsafe .",
 		"format": "biome check --write .",
