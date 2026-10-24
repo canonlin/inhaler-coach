@@ -31,6 +31,15 @@ runs with `--test-concurrency=1` because those files truncate shared tables.
 `bun run seed:demo` truncates too, and what it writes is demo data, not study
 data — read "Durable facts" below before quoting any number it produces.
 
+**Once the pharmacist starts enrolling, run the suite on a scratch database.**
+The guard in `scripts/test.mjs` refuses to empty a database that holds clinical
+rows, and `ALLOW_TRUNCATE=1` is the wrong answer to that: it deletes real
+patients. There is a second database on the same Neon instance for this —
+`inhaler_test` — created with `CREATE DATABASE inhaler_test`, given the schema
+with `DATABASE_URL=…/inhaler_test node scripts/migrate.mjs`, and used as
+`DATABASE_URL=…/inhaler_test bun run test`. The deployment's database is then
+never touched by a test run.
+
 ## Commit rule
 
 **Commit the work when it is finished.** A change that has passed
@@ -94,6 +103,15 @@ research data collector.
 
 ## Durable facts
 
+- **Every inhaler has a clean product shot, and it is drawn, not photographed.**
+  `public/drugs/shot/` holds one 1376×768 studio picture per product — the same
+  white-to-light-grey gradient, soft light and right-third framing as the
+  Symbicort hero the patient intro page leads with (`public/inhaler_bg.jpg`).
+  `src/domain/drugs.js` carries the mapping (`shot` on each drug, one catalogue,
+  one list) and `test/product-shots.test.js` refuses a product without a picture
+  or a picture without a product. **They are illustrations**: shape, proportion
+  and colour follow the real device, the render does not. Say so wherever a
+  picture is presented as the patient's own inhaler.
 - Baseline study data: 61 cases, collected 2026-04-21 to 2026-05-27, with real
   error notes. It is the reference the QCC dashboard validates against.
 - The 2026 QCC sheet has 987 rows, of which **62 carry content** (April 12 +

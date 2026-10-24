@@ -12,6 +12,9 @@ output/design-review/*.png
 # `node scripts/line-setup.mjs preview`.
 output/line/
 
+# Product-shot review gallery: a preview page, not a source file.
+output/product-shots/
+
 # Local dev, test results and caches
 .vercel/
 .playwright-cli/

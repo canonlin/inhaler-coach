@@ -20,7 +20,43 @@
  * @property {boolean} needsShake suspension type, must be shaken before use
  * @property {number} [doses]   actuations per inhaler; device default otherwise
  * @property {string} [note]    an open question the pharmacist should see
+ * @property {string} shot      product photograph, `public/drugs/shot/`
  */
+
+/**
+ * Product photographs, one per product.
+ *
+ * The patient intro page leads with a clean studio shot of the Symbicort
+ * Rapihaler (`public/inhaler_bg.jpg`). Every other inhaler now has a shot in
+ * that same style, so a patient who sees their own device on a card is
+ * looking at the same kind of picture they were coached on.
+ *
+ * The file name lives here rather than in a second list: the catalogue is
+ * already the one place that knows which inhaler is which, and a product
+ * without a picture is a product the screen cannot show.
+ */
+const SHOT_BY_NAME = {
+	Symbicort: "symbicort-rapihaler.jpg",
+	"Seretide Evohaler": "seretide-evohaler.jpg",
+	"Flixotide Evohaler": "flixotide-evohaler.jpg",
+	"Duasma HFA": "duasma-hfa-200.jpg",
+	Breztri: "breztri-aerosphere.jpg",
+	Trimbow: "trimbow.jpg",
+	Bevespi: "bevespi-aerosphere.jpg",
+	"Berotec N": "berotec-n.jpg",
+	Ventolin: "ventolin-evohaler.jpg",
+	"Relvar (Ellipta)": "relvar-ellipta.jpg",
+	"Trelegy 92/55/22 (Ellipta)": "trelegy-92-55-22-ellipta.jpg",
+	"Trelegy 184/55/22 (Ellipta)": "trelegy-184-55-22-ellipta.jpg",
+	"Anoro (Ellipta)": "anoro-ellipta.jpg",
+	"Ultibro Breezhaler": "ultibro-breezhaler.jpg",
+	"Spiolto Respimat": "spiolto-respimat.jpg",
+	"Striverdi Respimat": "striverdi-respimat.jpg",
+	"Spiriva Respimat": "spiriva-respimat.jpg",
+};
+
+/** Where the product photographs live, relative to the site root. */
+export const SHOT_DIR = "/drugs/shot";
 
 /** @type {Drug[]} */
 export const ALL_DRUGS = [
@@ -66,6 +102,7 @@ function d(name, label, device, hasIcs, needsShake, doses, note) {
 		device,
 		hasIcs,
 		needsShake,
+		shot: `${SHOT_DIR}/${SHOT_BY_NAME[name]}`,
 		...(doses ? { doses } : {}),
 		...(note ? { note } : {}),
 	};
