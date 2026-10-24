@@ -41,15 +41,31 @@ export interface FlexHarnessProps {
 	className?: string;
 }
 
-function findActionInNode(node: any, label: string): FlexActionPayload | null {
+/**
+ * A node inside a Flex container, as far as the action lookup cares.
+ *
+ * The JSON comes from outside, so it arrives as `unknown`. The lookup only
+ * needs an `action` and a `text`, and walks whatever else is there.
+ */
+type FlexNode = {
+	action?: FlexActionPayload;
+	text?: string;
+};
+
+function findActionInNode(
+	node: unknown,
+	label: string,
+): FlexActionPayload | null {
 	if (!node || typeof node !== "object") return null;
 
-	if (node.action && (node.action.label === label || node.text === label)) {
-		return node.action;
+	const record = node as FlexNode & Record<string, unknown>;
+	const action = record.action;
+	if (action && (action.label === label || record.text === label)) {
+		return action;
 	}
 
-	for (const key of Object.keys(node)) {
-		const val = node[key];
+	for (const key of Object.keys(record)) {
+		const val = record[key];
 		if (Array.isArray(val)) {
 			for (const item of val) {
 				const found = findActionInNode(item, label);
@@ -62,6 +78,15 @@ function findActionInNode(node: any, label: string): FlexActionPayload | null {
 	}
 
 	return null;
+}
+
+/** A carousel container, as far as this harness cares. */
+function asCarouselContainer(value: unknown): {
+	type?: string;
+	contents?: unknown[];
+} | null {
+	if (!value || typeof value !== "object") return null;
+	return value as { type?: string; contents?: unknown[] };
 }
 
 export const FlexHarness: React.FC<FlexHarnessProps> = ({
@@ -80,7 +105,7 @@ export const FlexHarness: React.FC<FlexHarnessProps> = ({
 		return validateFlexContainer(json);
 	}, [json]);
 
-	const isCarousel = (json as any)?.type === "carousel";
+	const isCarousel = asCarouselContainer(json)?.type === "carousel";
 
 	// Enable natural mouse click-and-drag swipe & horizontal wheel scroll on Carousel
 	useEffect(() => {
@@ -167,7 +192,9 @@ export const FlexHarness: React.FC<FlexHarnessProps> = ({
 		el.scrollBy({ left: delta, behavior: "smooth" });
 	};
 
-	const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+	const handleContainerClick = (
+		e: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>,
+	) => {
 		if (isDraggingRef.current) {
 			e.stopPropagation();
 			return;
@@ -180,8 +207,8 @@ export const FlexHarness: React.FC<FlexHarnessProps> = ({
 		const label = button.innerText.trim();
 		if (!label || !onAction) return;
 
-		const container = json as any;
-		if (container.type === "carousel" && Array.isArray(container.contents)) {
+		const container = asCarouselContainer(json);
+		if (container?.type === "carousel" && Array.isArray(container.contents)) {
 			// Find which bubble was clicked
 			const carouselWrapper = button.closest("div[style*='scrollSnapType']");
 			const bubbleDiv = button.closest("div[style*='scrollSnapAlign']");
@@ -316,7 +343,7 @@ export const FlexHarness: React.FC<FlexHarnessProps> = ({
 				onClick={handleContainerClick}
 				onKeyDown={(e) => {
 					if (e.key === "Enter" || e.key === " ") {
-						handleContainerClick(e as any);
+						handleContainerClick(e);
 					}
 				}}
 				aria-label="LINE Flex Message Content"

@@ -25,12 +25,12 @@ import {
 	ARM_LABEL,
 	ARM_SOURCE_ALTERNATING,
 	ARM_SOURCE_MANUAL,
-	STUDY_COHORT_LABEL,
 	armBalance,
 	armSourceFor,
 	inStudyCohort,
 	isArm,
 	nextArm,
+	STUDY_COHORT_LABEL,
 } from "../src/domain/study-arm.js";
 import { hashMrn, mrnTail } from "./db.mjs";
 import { HttpError } from "./http-error.mjs";

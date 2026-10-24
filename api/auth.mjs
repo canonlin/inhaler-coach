@@ -307,7 +307,7 @@ export async function login(
 	const locked = user?.locked_until
 		? new Date(user.locked_until).getTime() > Date.now()
 		: false;
-	if (!user || !user.active || locked) {
+	if (!user?.active || locked) {
 		if (user && !locked && !user.active) {
 			// The account exists but is disabled. Count it as a failure so a
 			// probe cannot keep trying without cost.

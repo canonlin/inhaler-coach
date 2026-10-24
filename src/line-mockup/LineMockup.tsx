@@ -24,17 +24,13 @@
  */
 
 import {
-	Award,
 	CheckCircle2,
-	ChevronRight,
 	Info,
 	Menu,
 	Play,
-	QrCode,
 	RotateCcw,
 	Search,
 	ShieldCheck,
-	Sparkles,
 	Volume2,
 	X,
 } from "lucide-react";
@@ -496,18 +492,6 @@ export function LineMockup() {
 		DRUG_CARDS.find((d) => d.id === selectedDrugId) ?? DRUG_CARDS[0];
 	const currentStepMeta =
 		STEP_METAS.find((s) => s.id === activeStep) ?? STEP_METAS[0];
-
-	// Reset state when switching persona
-	function handlePersonaChange(newPersona: PatientPersona) {
-		setActivePersonaKey(newPersona);
-		setQuizUserAnswer(null);
-		setHasConfirmedDrug(true);
-		setHasConfirmedRescue(true);
-		const defaultDrug = DRUG_CARDS.find((d) => d.personaKey === newPersona);
-		if (defaultDrug) {
-			setSelectedDrugId(defaultDrug.id);
-		}
-	}
 
 	// Rich Menu click handler simulates conversation in bot
 	function handleRichMenuAction(action: RichMenuAction) {

@@ -1,5 +1,6 @@
-self.onmessage = function (e) {
-	const { type, frameData, roi } = e.data;
+self.onmessage = (e) => {
+	// 會收到 { type, frameData, roi }；Phase 2 才會用到後面兩個
+	const { type } = e.data;
 
 	if (type === "compute-flow") {
 		// Phase 2: Farnebäck dense optical flow computation

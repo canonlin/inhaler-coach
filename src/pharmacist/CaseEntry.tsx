@@ -28,6 +28,7 @@ import {
 	fetchPendingSession,
 } from "../api-client.js";
 import { ALL_DRUGS, DRUG_BY_NAME, type Drug } from "../domain/drugs.js";
+import { primingFor } from "../domain/priming.js";
 import {
 	CAMPUSES,
 	FACTORS,
@@ -43,7 +44,6 @@ import {
 	stepReviewSource,
 } from "../domain/steps.js";
 import { ARM_CONTROL, ARM_LABEL, inStudyCohort } from "../domain/study-arm.js";
-import { primingFor } from "../domain/priming.js";
 import { cn } from "../lib/utils";
 import {
 	BasicInfo,

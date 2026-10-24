@@ -1,5 +1,6 @@
-self.onmessage = function (e) {
-	const { type, greenChannelSamples, sampleRate } = e.data;
+self.onmessage = (e) => {
+	// 會收到 { type, greenChannelSamples, sampleRate }；Phase 2 才會用到後面兩個
+	const { type } = e.data;
 
 	if (type === "process-rppg") {
 		// Phase 2: rPPG signal processing

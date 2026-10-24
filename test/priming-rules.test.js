@@ -10,8 +10,8 @@ import { describe, it } from "node:test";
 
 import { ALL_DRUGS } from "../src/domain/drugs.js";
 import {
-	PRIMING_RULES,
 	needsPriming,
+	PRIMING_RULES,
 	primingFor,
 	unconfirmedProducts,
 } from "../src/domain/priming.js";

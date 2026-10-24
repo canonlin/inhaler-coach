@@ -15,24 +15,13 @@
  */
 
 import {
-	Activity,
-	AlertCircle,
-	ArrowRight,
 	BarChart3,
-	CalendarClock,
-	CheckCircle2,
 	ClipboardCheck,
-	Database,
-	FileQuestion,
 	Hospital,
-	Info,
 	Layers,
-	ShieldCheck,
 	Smartphone,
 	Sparkles,
 	Stethoscope,
-	Users,
-	Video,
 	Workflow,
 } from "lucide-react";
 import { useState } from "react";

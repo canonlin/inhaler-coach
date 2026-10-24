@@ -601,7 +601,6 @@ function compareDerived(get, steps, knowledge) {
 	const total = steps.filter((s) => s.value !== "na").length;
 	const correct = steps.filter((s) => s.value === "正確").length;
 	const wrong = steps.filter((s) => s.value === "錯誤").length;
-	const knowledgeTotal = knowledge.length;
 	const knowledgeCorrect = knowledge.filter((k) => k.answer === "對").length;
 
 	const sheetNumber = (name) => {

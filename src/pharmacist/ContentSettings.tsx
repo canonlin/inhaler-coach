@@ -313,7 +313,7 @@ export function ContentSettings() {
 	) {
 		const next = { ...config.quizzes };
 		const q = next[deviceKey]?.[qIndex];
-		if (!q || !q.options || q.options.length <= 2) {
+		if (!q?.options || q.options.length <= 2) {
 			alert("測驗題至少須保留 2 個選項！");
 			return;
 		}

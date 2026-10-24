@@ -16,13 +16,13 @@ import {
 	ARM_SOURCE_ALTERNATING,
 	ARM_SOURCE_MANUAL,
 	ARMS,
-	STUDY_COHORT,
-	STUDY_COHORT_DRUGS,
 	armBalance,
 	armSourceFor,
 	inStudyCohort,
 	isArm,
 	nextArm,
+	STUDY_COHORT,
+	STUDY_COHORT_DRUGS,
 } from "../src/domain/study-arm.js";
 
 describe("the arms", () => {
